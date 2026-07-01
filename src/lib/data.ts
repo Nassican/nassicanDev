@@ -12,35 +12,11 @@ export const profile = {
   cvPath: "/cv.pdf",
 };
 
-export const skills = {
-  frontend: [
-    "React",
-    "Next.js",
-    "TypeScript",
-    "Tailwind CSS",
-    "Redux",
-    "Vite",
-    "HTML",
-    "CSS",
-    "JavaScript",
-    "Svelte",
-  ],
-  backend: [
-    "Node.js",
-    "Express",
-    "Prisma",
-    "Docker",
-    "Git",
-    "NestJS",
-    "Python",
-  ],
-  tools: ["Git", "ESLint", "Prettier", "Docker"],
-  databases: ["PostgreSQL", "MySQL", "SQLite", "MongoDB", "Redis"],
-};
+export { skills } from "./skillsData";
 
 export const experience = [
   {
-    period: "ago. 2024 – actualidad",
+    period: "ago. 2024 – dic. 2026",
     title: "Pasante",
     org: "Universidad de Nariño",
     desc: "Desarrollo de software como proyecto de grado: frontend con Next.js y backend con NestJS, integrando PostgreSQL.",
@@ -52,8 +28,8 @@ export const experience = [
     desc: "Desarrollo de módulos para una plataforma unificada de componentes y visualización de gráficos estadísticos con Svelte; soporte técnico y atención de requerimientos.",
   },
   {
-    period: "2020 - Presente",
-    title: "Ingeniería de Sistemas (en curso)",
+    period: "2020 - 2026",
+    title: "Ingeniería de Sistemas",
     org: "Universidad de Nariño",
     desc: "Formación en fundamentos de computación, desarrollo de software y arquitectura.",
   },
@@ -64,8 +40,8 @@ export const projects = [
     title: "Strategix",
     description: "Aplicación web con enfoque en rendimiento y accesibilidad.",
     stack: ["Next.js", "TypeScript", "Tailwind CSS", "NestJS", "Prisma", "Git", "HTML", "CSS"],
-    demo: "https://strategix.nassican.com/login",
-    repo: "#",
+    demo: "https://strategix.nassican.com",
+    repo: "https://github.com/Nassican/strategix",
     image: "/projects/StrategixLogin.png"
   },
   {

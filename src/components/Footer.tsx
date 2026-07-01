@@ -9,7 +9,10 @@ export default function Footer() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Image src="/brand/LogoNassican.png" width={32} height={32} alt="Nassican" className="h-8 w-auto" />
-            <span className="text-sm font-semibold tracking-wide">Jesús David Benavides Chicaiza</span>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold tracking-wide">Jesús David Benavides Chicaiza</span>
+              <span className="text-sm text-zinc-400">Nassican Group</span>
+            </div>
           </div>
           <p className="text-sm text-zinc-400">
             Construyendo experiencias web con un enfoque en diseño monocromático, rendimiento y accesibilidad.
