@@ -10,7 +10,7 @@ export default function Hero() {
         Jesús David Benavides Chicaiza
       </h1>
       <p className="max-w-2xl text-base text-zinc-700 dark:text-zinc-300">
-        Estudiante de Ingeniería de Sistemas.
+        Ingeniero de Sistemas y Desarrollador Web.
       </p>
       <div className="flex gap-3">
         <a href="#projects">
