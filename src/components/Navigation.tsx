@@ -2,6 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Navigation() {
   const [open, setOpen] = useState(false);
@@ -133,19 +134,23 @@ export default function Navigation() {
             >
               Contacto
             </a>
+            <ThemeToggle className="ml-2" />
           </div>
 
-          {/* Mobile Menu Toggle Button */}
-          <button
-            type="button"
-            aria-label="Abrir menú"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-black/10 text-zinc-700 transition-colors hover:bg-black/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5 sm:hidden"
-            onClick={() => setOpen(true)}
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          </button>
+          {/* Mobile Actions: theme toggle + menu */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <ThemeToggle />
+            <button
+              type="button"
+              aria-label="Abrir menú"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-black/10 text-zinc-700 transition-colors hover:bg-black/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
+              onClick={() => setOpen(true)}
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -248,6 +253,7 @@ export default function Navigation() {
                 <path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h15A2.5 2.5 0 0 1 22 6.5v11A2.5 2.5 0 0 1 19.5 20h-15A2.5 2.5 0 0 1 2 17.5v-11Zm2.2-.5 7.1 5.3c.2.2.6.2.8 0L19.2 6H4.2Zm15.3 2.1-6.6 5a2.5 2.5 0 0 1-3.1 0L3.2 8.1v9.4c0 .6.5 1 1 1h15.6c.5 0 1-.4 1-1V8.1Z" />
               </svg>
             </a>
+            <ThemeToggle className="!h-10 !w-10" />
           </div>
           <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
             © {new Date().getFullYear()} Nassican. Todos los derechos reservados.
