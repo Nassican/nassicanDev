@@ -70,16 +70,16 @@ export default function Contact() {
       </p>
 
       <div className="grid gap-4 md:grid-cols-5">
-        <div className="overflow-hidden rounded-2xl border border-black/10 bg-white/50 backdrop-blur-sm dark:border-white/10 dark:bg-black/40 md:col-span-3">
-          <ul className="divide-y divide-black/5 dark:divide-white/10">
+        <div className="flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white/50 backdrop-blur-sm dark:border-white/10 dark:bg-black/40 md:col-span-3">
+          <ul className="flex flex-1 flex-col divide-y divide-black/5 dark:divide-white/10">
             {channels.map(({ icon: Icon, label, value, href, external }) => (
-              <li key={label}>
+              <li key={label} className="flex-1">
                 <a
                   href={href}
                   {...(external
                     ? { target: "_blank", rel: "noreferrer" }
                     : null)}
-                  className="group flex items-center gap-4 px-5 py-4 transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
+                  className="group flex h-full items-center gap-4 px-5 py-4 transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
                 >
                   <Icon
                     className="h-5 w-5 shrink-0 text-zinc-500 transition group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-zinc-100"
