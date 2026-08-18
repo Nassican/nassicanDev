@@ -48,6 +48,8 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-zinc-300">
               <li><Link href="#about" className="hover:underline">Sobre mí</Link></li>
               <li><Link href="#contact" className="hover:underline">Contacto</Link></li>
+              <li><a href="/cv/cv-jesus-benavides-desarrollador-es.pdf" hrefLang="es" download className="hover:underline">CV (español)</a></li>
+              <li><a href="/cv/cv-jesus-benavides-developer-en.pdf" hrefLang="en" download className="hover:underline">CV (English)</a></li>
             </ul>
           </div>
         </div>

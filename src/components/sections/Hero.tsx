@@ -10,7 +10,8 @@ export default function Hero() {
         Jesús David Benavides Chicaiza
       </h1>
       <p className="max-w-2xl text-base text-zinc-700 dark:text-zinc-300">
-        Ingeniero de Sistemas y Desarrollador Web.
+        Desarrollador web full stack e ingeniero de sistemas en Pasto, Colombia.
+        Construyo aplicaciones con Next.js, React, TypeScript, NestJS y PostgreSQL.
       </p>
       <div className="flex gap-3">
         <a href="#projects">

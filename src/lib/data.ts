@@ -9,7 +9,19 @@ export const profile = {
       href: "https://www.linkedin.com/in/jesusbenavidesmark/",
     },
   ],
-  cvPath: "/cv.pdf",
+  /** Downloadable CV, one file per language. */
+  cv: [
+    {
+      lang: "es",
+      label: "CV en español",
+      href: "/cv/cv-jesus-benavides-desarrollador-es.pdf",
+    },
+    {
+      lang: "en",
+      label: "CV in English",
+      href: "/cv/cv-jesus-benavides-developer-en.pdf",
+    },
+  ],
 };
 
 export { skills } from "./skillsData";

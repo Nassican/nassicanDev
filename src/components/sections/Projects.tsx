@@ -12,11 +12,11 @@ export default function Projects() {
         {projects.map((p) => (
           <Card key={p.title}>
             {p.image ? (
-              <a href={p.demo} target="_blank" rel="noreferrer" className="mb-3 block overflow-hidden rounded-xl">
+              <a href={p.demo} target="_blank" rel="noreferrer" title={`Ver ${p.title} en vivo`} className="mb-3 block overflow-hidden rounded-xl">
                 <div className="relative aspect-video w-full">
                   <Image
                     src={p.image}
-                    alt={p.title}
+                    alt={`Captura de pantalla del proyecto ${p.title}`}
                     fill
                     sizes="(min-width: 640px) 50vw, 100vw"
                     className="object-cover"
