@@ -3,7 +3,7 @@ import { useState } from "react";
 import SectionTitle from "@/components/ui/SectionTitle";
 import SkillIcon from "@/components/ui/SkillIcon";
 import Card from "@/components/ui/Card";
-import { skills, skillsRegistry } from "@/lib/skillsData";
+import { skills, skillsRegistry } from "@/lib/data";
 
 function hexToRgb(hex: string): string {
   const cleanHex = hex.replace("#", "");

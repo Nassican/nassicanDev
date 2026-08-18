@@ -1,5 +1,11 @@
-import { profile, projects, certificates, education } from "./data";
-import { skills } from "./skillsData";
+import {
+  profile,
+  projects,
+  certificates,
+  education,
+  experience,
+  skills,
+} from "./data";
 
 /**
  * Canonical origin of the site. Override with NEXT_PUBLIC_SITE_URL when the
@@ -63,17 +69,43 @@ const person = {
     addressRegion: "Nariño",
     addressCountry: "CO",
   },
+  hasOccupation: experience.map((e) => ({
+    "@type": "Occupation",
+    name: e.title,
+    description: e.desc,
+    skills: e.stack,
+    occupationLocation: {
+      "@type": "City",
+      name: "Pasto",
+    },
+  })),
+  worksFor: experience.map((e) => ({
+    "@type": "Organization",
+    name: e.org,
+  })),
   alumniOf: education.map((e) => ({
     "@type": "EducationalOrganization",
     name: e.org,
   })),
-  hasCredential: certificates.map((c) => ({
-    "@type": "EducationalOccupationalCredential",
-    name: c.title,
-    url: c.url,
-    credentialCategory: "certificate",
-    recognizedBy: { "@type": "Organization", name: c.provider },
-  })),
+  hasCredential: [
+    // Completed degrees first, then the shorter course certificates
+    ...education
+      .filter((e) => e.status === "completed")
+      .map((e) => ({
+        "@type": "EducationalOccupationalCredential",
+        name: e.title,
+        credentialCategory: "degree",
+        dateCreated: e.end,
+        recognizedBy: { "@type": "EducationalOrganization", name: e.org },
+      })),
+    ...certificates.map((c) => ({
+      "@type": "EducationalOccupationalCredential",
+      name: c.title,
+      url: c.url,
+      credentialCategory: "certificate",
+      recognizedBy: { "@type": "Organization", name: c.provider },
+    })),
+  ],
   sameAs: profile.socials.map((s) => s.href),
   // The CV PDFs are documents *about* this Person, one per language
   subjectOf: profile.cv.map((c) => ({
@@ -112,10 +144,11 @@ const projectList = {
       name: p.title,
       description: p.description,
       url: p.demo,
-      codeRepository: p.repo,
       programmingLanguage: p.stack,
-      image: absoluteUrl(p.image),
       author: { "@id": personId },
+      // Both are optional on ProjectItem, so only emit them when present
+      ...(p.repo && p.repo !== "#" ? { codeRepository: p.repo } : {}),
+      ...(p.image ? { image: absoluteUrl(p.image) } : {}),
     },
   })),
 };

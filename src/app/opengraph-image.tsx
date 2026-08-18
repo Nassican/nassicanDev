@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { profile } from "@/lib/data";
 
 export const alt =
-  "Jesús David Benavides Chicaiza — Desarrollador Web Full Stack";
+  "Jesús David Benavides Chicaiza - Desarrollador Web Full Stack";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

@@ -4,7 +4,7 @@ import { profile } from "@/lib/data";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${profile.name} — Portafolio`,
+    name: `${profile.name} - Portafolio`,
     short_name: siteName,
     description: defaultDescription,
     start_url: "/",
