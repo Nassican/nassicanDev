@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -8,6 +9,13 @@ export default function Navigation() {
   const [open, setOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
+
+  // The sections only exist on the homepage. From any other route a bare
+  // "#about" would resolve against the current path and go nowhere, so the
+  // links have to carry the homepage in front of the hash.
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+  const sectionHref = (id: string) => (isHome ? `#${id}` : `/#${id}`);
 
   const navItems = [
     { id: "about", label: "Sobre mí" },
@@ -86,14 +94,18 @@ export default function Navigation() {
       >
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4">
           {/* Brand Logo & Name */}
-          <Link href="#" className="group flex items-center gap-3">
-            <div className="relative overflow-hidden rounded-lg">
+          <Link href="/" className="group flex items-center gap-3">
+            {/* The logo art is a black mark on an opaque white square. The
+                transform lives on the wrapper, not the image, so the mask
+                scales and rotates with it — otherwise the square corners of
+                the artwork slide out from under the clip on hover. */}
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full transition-transform duration-500 ease-out group-hover:scale-110 group-hover:rotate-6">
               <Image
                 src="/brand/LogoNassican.png"
                 alt="Nassican"
                 width={36}
                 height={36}
-                className="h-9 w-auto transition-all duration-500 ease-out group-hover:scale-110 group-hover:rotate-6"
+                className="h-full w-full object-cover"
               />
             </div>
             <div className="flex flex-col">
@@ -111,9 +123,9 @@ export default function Navigation() {
             {navItems.map((item) => {
               const isActive = activeSection === item.id;
               return (
-                <a
+                <Link
                   key={item.id}
-                  href={`#${item.id}`}
+                  href={sectionHref(item.id)}
                   className={`relative rounded-full px-4 py-2 text-xs font-semibold tracking-wide transition-all duration-300 ${
                     isActive
                       ? "bg-black/5 text-black dark:bg-white/10 dark:text-white"
@@ -121,11 +133,11 @@ export default function Navigation() {
                   }`}
                 >
                   {item.label}
-                </a>
+                </Link>
               );
             })}
-            <a
-              href="#contact"
+            <Link
+              href={sectionHref("contact")}
               className={`btn-glass-solid ml-2 text-xs font-semibold tracking-wide transition-all duration-300 hover:scale-[1.03] active:scale-95 ${
                 activeSection === "contact"
                   ? "ring-2 ring-black/20 dark:ring-white/20"
@@ -133,7 +145,7 @@ export default function Navigation() {
               }`}
             >
               Contacto
-            </a>
+            </Link>
             <ThemeToggle className="ml-2" />
           </div>
 
@@ -190,10 +202,10 @@ export default function Navigation() {
           {navItems.map((item) => {
             const isActive = activeSection === item.id;
             return (
-              <a
+              <Link
                 key={item.id}
                 onClick={() => setOpen(false)}
-                href={`#${item.id}`}
+                href={sectionHref(item.id)}
                 className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold tracking-wide transition-all duration-200 ${
                   isActive
                     ? "bg-black/5 text-black dark:bg-white/10 dark:text-white"
@@ -212,14 +224,14 @@ export default function Navigation() {
                 >
                   <path d="M9 5l7 7-7 7" />
                 </svg>
-              </a>
+              </Link>
             );
           })}
 
           {/* Contact Button in Drawer */}
-          <a
+          <Link
             onClick={() => setOpen(false)}
-            href="#contact"
+            href={sectionHref("contact")}
             className={`flex items-center justify-between rounded-xl px-4 py-3 mt-4 text-sm font-bold tracking-wide transition-all duration-200 ${
               activeSection === "contact"
                 ? "bg-black text-white dark:bg-white dark:text-black"
@@ -230,7 +242,7 @@ export default function Navigation() {
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
-          </a>
+          </Link>
         </div>
 
         {/* Drawer Footer with Socials */}

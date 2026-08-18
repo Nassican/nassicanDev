@@ -93,7 +93,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    // `scroll-behavior: smooth` on <html> breaks the router's own scroll
+    // handling: hash links from another route land at the top instead of on
+    // the section. The attribute tells Next to scroll instantly during a
+    // route transition and leave smooth scrolling for in-page anchors.
+    <html lang="es" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         {/* Applies the stored/system theme before paint to avoid a flash of the wrong theme */}
         <script

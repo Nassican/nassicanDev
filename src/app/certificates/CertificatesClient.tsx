@@ -45,8 +45,10 @@ export default function CertificatesClient() {
         <Link href="/#education" className="rounded-full flex items-center gap-1 border border-black/10 px-3 py-1.5 text-xs text-zinc-700 transition hover:bg-zinc-900/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"><BsArrowLeft className="h-4 w-4" /> Volver a Educación</Link>
       </div>
 
-      <div className="sticky top-16 z-10 -mx-4 mb-6 border-black/5 bg-white/70 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-black/50">
-        <div className="mx-auto grid max-w-5xl gap-3 sm:grid-cols-5">
+      {/* Translucent card rather than a filled bar: `dark:bg-black/50` over the
+          near-black page read as a separate black slab floating over the list. */}
+      <div className="sticky top-20 z-10 mb-6 rounded-2xl border border-black/10 bg-white/80 p-3 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]">
+        <div className="grid gap-3 sm:grid-cols-5">
           <input
             placeholder="Buscar por título, proveedor..."
             className="h-11 rounded-full border border-black/10 bg-transparent px-4 text-sm outline-none transition focus:border-black/30 dark:border-white/10 dark:focus:border-white/30 sm:col-span-2"
@@ -90,7 +92,7 @@ export default function CertificatesClient() {
             Limpiar
           </button>
         </div>
-        <div className="mx-auto mt-2 max-w-5xl text-xs text-zinc-600 dark:text-zinc-400">
+        <div className="mt-2 px-1 text-xs text-zinc-600 dark:text-zinc-400">
           {list.length} resultado{list.length === 1 ? "" : "s"}
         </div>
       </div>
