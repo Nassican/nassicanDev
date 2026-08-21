@@ -24,7 +24,7 @@ export {
 export type { ProjectItem, ProjectTranslation } from "./projects";
 
 export { posts, publishedPosts, getPost } from "./posts";
-export type { Post, PostTranslation } from "./posts";
+export type { Post, PostMeta, PostTranslation } from "./posts";
 
 export { certificates } from "./certificates";
 export type { Certificate } from "./certificates";

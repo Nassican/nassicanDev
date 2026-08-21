@@ -84,7 +84,7 @@ edita una sola vez.
 | `education.ts` | Formación académica |
 | `certificates.ts` | Certificados y cursos |
 | `projects.ts` | Proyectos y sus casos de estudio |
-| `posts.ts` | Artículos del blog |
+| `posts/` | Artículos del blog, una carpeta por artículo |
 | `content.ts` | Tipo `ContentBlock` y utilidades (tiempo de lectura, anclas) |
 
 ### Cuerpo de artículos y casos de estudio
@@ -97,11 +97,29 @@ Si algún día se migra a MDX, el cambio debería quedar contenido en `Prose`.
 
 ### Agregar un artículo
 
-`posts.ts` está **vacío**: `/blog` muestra su estado "Próximamente" mientras no
-haya entradas. Para publicar, añade un objeto con `slug`, `date` (ISO), `tags` y
-`content` con **`es` y `en` completos**. La lista, el teaser de la portada, el
-sitemap, `llms.txt` y el JSON-LD lo recogen automáticamente. Usa `draft: true`
-para dejarlo fuera de todas esas superficies.
+Los artículos viven en carpetas, uno por carpeta, con un archivo por idioma:
+
+```
+src/lib/data/posts/
+  index.ts            registro: una línea de import y una entrada por artículo
+  types.ts            Post, PostMeta, PostTranslation
+  _example/           plantilla en borrador, no es un artículo
+    index.ts          metadatos (slug, date, tags, draft) + unión de idiomas
+    es.ts             título, descripción y cuerpo en español
+    en.ts             título, descripción y cuerpo en inglés
+```
+
+Ningún archivo acumula todos los artículos: `index.ts` crece dos líneas por
+artículo y el contenido queda aislado por idioma, así que corregir el español no
+toca el inglés y el diff de un artículo nuevo es una carpeta.
+
+Para publicar: copia `_example`, renombra la carpeta al slug, traduce `es.ts` y
+`en.ts`, regístralo en `posts/index.ts` y quita `draft`. La lista, el teaser de
+la portada, el sitemap, `llms.txt` y el JSON-LD lo recogen automáticamente.
+
+No hay artículos publicados todavía: `/blog` muestra su estado "Próximamente"
+mientras `publishedPosts` esté vacío. `draft: true` deja un artículo fuera de
+todas esas superficies, incluida la generación estática.
 
 ### Agregar un proyecto
 
