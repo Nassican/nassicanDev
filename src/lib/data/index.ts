@@ -21,7 +21,7 @@ export {
   featuredProjects,
   getProject,
 } from "./projects";
-export type { ProjectItem, ProjectTranslation } from "./projects";
+export type { ProjectItem, ProjectMeta, ProjectTranslation } from "./projects";
 
 export { posts, publishedPosts, getPost } from "./posts";
 export type { Post, PostMeta, PostTranslation } from "./posts";

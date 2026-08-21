@@ -83,7 +83,7 @@ edita una sola vez.
 | `experience.ts` | Historial laboral |
 | `education.ts` | Formación académica |
 | `certificates.ts` | Certificados y cursos |
-| `projects.ts` | Proyectos y sus casos de estudio |
+| `projects/` | Proyectos y casos de estudio, una carpeta por proyecto |
 | `posts/` | Artículos del blog, una carpeta por artículo |
 | `content.ts` | Tipo `ContentBlock` y utilidades (tiempo de lectura, anclas) |
 
@@ -123,9 +123,20 @@ todas esas superficies, incluida la generación estática.
 
 ### Agregar un proyecto
 
-En `src/lib/data/projects.ts`, con `slug`, `year`, `date`, `stack` (los nombres
-deben existir como claves en `skills.ts` para que resuelva el icono), `demo`,
-`repo` opcional, `image` opcional bajo `/public`, y `content` en ambos idiomas.
+Misma estructura que el blog, una carpeta por proyecto:
+
+```
+src/lib/data/projects/
+  index.ts            registro: una línea de import y una entrada por proyecto
+  types.ts            ProjectItem, ProjectMeta, ProjectTranslation
+  <slug>/
+    index.ts          metadatos: slug, title, year, date, stack, demo, repo, image
+    es.ts             tagline, resumen, rol, highlights y caso de estudio
+    en.ts             lo mismo en inglés
+```
+
+Los nombres de `stack` deben existir como claves en `skills.ts` para que
+resuelva el icono. `image` va bajo `/public`.
 
 De `ProjectTranslation` solo `tagline` es obligatorio. Un proyecto puede
 listarse con `comingSoon: true` mientras su caso de estudio no exista: la
