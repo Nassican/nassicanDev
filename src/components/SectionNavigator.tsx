@@ -15,7 +15,13 @@ function getActiveIndex(ids: string[]) {
   });
 }
 
-export default function SectionNavigator() {
+export default function SectionNavigator({
+  previousLabel,
+  nextLabel,
+}: {
+  previousLabel: string;
+  nextLabel: string;
+}) {
   const go = (dir: 1 | -1) => {
     const ids = getSectionIds();
     if (!ids.length) return;
@@ -28,7 +34,7 @@ export default function SectionNavigator() {
   return (
     <div className="pointer-events-none fixed bottom-6 right-6 z-60 flex flex-col gap-2">
       <button
-        aria-label="Sección anterior"
+        aria-label={previousLabel}
         onClick={() => go(-1)}
         className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/80 text-zinc-900 backdrop-blur transition hover:bg-white dark:border-white/20 dark:bg-black/60 dark:text-zinc-100"
       >
@@ -37,7 +43,7 @@ export default function SectionNavigator() {
         </svg>
       </button>
       <button
-        aria-label="Siguiente sección"
+        aria-label={nextLabel}
         onClick={() => go(1)}
         className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/80 text-zinc-900 backdrop-blur transition hover:bg-white dark:border-white/20 dark:bg-black/60 dark:text-zinc-100"
       >

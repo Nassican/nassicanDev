@@ -1,58 +1,72 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+import {
+  DEFAULT_THEME,
+  applyTheme,
+  emitThemeChange,
+  readTheme,
+  subscribeToTheme,
+  writeTheme,
+  type Theme,
+} from "@/lib/theme";
+import type { Dictionary } from "@/lib/i18n";
 
-type Theme = "light" | "dark";
-
-const STORAGE_KEY = "theme";
-
-function applyTheme(theme: Theme) {
-  document.documentElement.classList.toggle("dark", theme === "dark");
+/**
+ * The applied theme lives on `<html>`, outside React, because the inline
+ * script in the layout has to set it before the first paint.
+ * `useSyncExternalStore` is what reads that kind of state without a
+ * setState-in-effect and without a hydration mismatch: it renders the server
+ * snapshot while hydrating, then swaps to the real one.
+ */
+function useTheme(): Theme {
+  return useSyncExternalStore(subscribeToTheme, readTheme, () => DEFAULT_THEME);
 }
 
-export default function ThemeToggle({ className = "" }: { className?: string }) {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
+/** False during SSR and hydration, true afterwards. Gates the icon animation. */
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeToTheme,
+    () => true,
+    () => false,
+  );
+}
 
-  // Read the theme already applied by the no-flash script in layout.tsx
-  useEffect(() => {
-    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
-    setMounted(true);
-  }, []);
-
-  // Follow the system preference while the user has no explicit choice stored
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (e: MediaQueryListEvent) => {
-      if (localStorage.getItem(STORAGE_KEY)) return;
-      const next: Theme = e.matches ? "dark" : "light";
-      applyTheme(next);
-      setTheme(next);
-    };
-    media.addEventListener("change", handleChange);
-    return () => media.removeEventListener("change", handleChange);
-  }, []);
+export default function ThemeToggle({
+  t,
+  className = "",
+}: {
+  t: Dictionary;
+  className?: string;
+}) {
+  const theme = useTheme();
+  const hydrated = useHydrated();
+  const isDark = theme === "dark";
 
   const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
+    const next: Theme = isDark ? "light" : "dark";
     applyTheme(next);
-    localStorage.setItem(STORAGE_KEY, next);
-    setTheme(next);
+    writeTheme(next);
+    // Keeps the navbar and the mobile drawer toggles in sync.
+    emitThemeChange();
   };
-
-  const isDark = theme === "dark";
 
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={isDark ? "Activar modo claro" : "Activar modo oscuro"}
-      title={isDark ? "Modo claro" : "Modo oscuro"}
+      aria-label={isDark ? t.theme.toLight : t.theme.toDark}
+      title={isDark ? t.theme.light : t.theme.dark}
       aria-pressed={isDark}
       suppressHydrationWarning
       className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-zinc-600 transition-colors duration-200 hover:bg-black/5 hover:text-black dark:border-white/10 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white ${className}`}
     >
-      {/* Icons swap with a rotate/scale transition; hidden until mounted to avoid a mismatch flash */}
-      <span className={`relative block h-5 w-5 transition-opacity duration-200 ${mounted ? "opacity-100" : "opacity-0"}`}>
+      {/* Icons swap with a rotate/scale transition; hidden until hydrated so the
+          swap never plays on load for visitors whose stored theme is not the default */}
+      <span
+        className={`relative block h-5 w-5 transition-opacity duration-200 ${
+          hydrated ? "opacity-100" : "opacity-0"
+        }`}
+      >
         {/* Sun */}
         <svg
           viewBox="0 0 24 24"

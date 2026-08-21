@@ -11,6 +11,8 @@ import {
 } from "react-icons/bs";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { profile } from "@/lib/data";
+import type { Dictionary } from "@/lib/i18n";
+import { localeNames, type Locale } from "@/lib/i18n/config";
 
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 
@@ -19,23 +21,6 @@ const socialIcons: Record<string, IconType> = {
   GitHub: BsGithub,
   LinkedIn: BsLinkedin,
 };
-
-const channels = [
-  {
-    icon: BsEnvelope,
-    label: "Correo",
-    value: profile.email,
-    href: `mailto:${profile.email}`,
-    external: false,
-  },
-  ...profile.socials.map((s) => ({
-    icon: socialIcons[s.label] ?? BsArrowUpRight,
-    label: s.label,
-    value: s.href.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""),
-    href: s.href,
-    external: true,
-  })),
-];
 
 /**
  * Reads the real size of a file in /public at build time, so the listed weight
@@ -52,21 +37,38 @@ function fileSize(href: string) {
 
 const cvFiles = profile.cv.map((c) => ({ ...c, size: fileSize(c.href) }));
 
-const languageNames: Record<string, string> = {
-  es: "Español",
-  en: "English",
-};
+export default function Contact({
+  locale,
+  t,
+}: {
+  locale: Locale;
+  t: Dictionary;
+}) {
+  const channels = [
+    {
+      icon: BsEnvelope,
+      label: t.contact.email,
+      value: profile.email,
+      href: `mailto:${profile.email}`,
+      external: false,
+    },
+    ...profile.socials.map((s) => ({
+      icon: socialIcons[s.label] ?? BsArrowUpRight,
+      label: s.label,
+      value: s.href.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""),
+      href: s.href,
+      external: true,
+    })),
+  ];
 
-export default function Contact() {
   return (
     <section
       id="contact"
       className="mx-auto max-w-5xl scroll-mt-24 px-4 py-16 md:scroll-mt-28"
     >
-      <SectionTitle className="mb-4">Contacto</SectionTitle>
+      <SectionTitle className="mb-4">{t.contact.title}</SectionTitle>
       <p className="mb-8 max-w-[55ch] text-zinc-700 dark:text-zinc-300">
-        ¿Tienes un proyecto web, una vacante o una idea que quieras construir?
-        Escríbeme y te respondo lo antes posible.
+        {t.contact.intro}
       </p>
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -102,9 +104,9 @@ export default function Contact() {
         </div>
 
         <div className="flex flex-col rounded-2xl border border-black/10 bg-white/50 p-5 backdrop-blur-sm dark:border-white/10 dark:bg-black/40 md:col-span-2">
-          <h3 className="text-sm font-medium">Currículum</h3>
+          <h3 className="text-sm font-medium">{t.contact.resumeTitle}</h3>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Disponible en dos idiomas.
+            {t.contact.resumeSubtitle}
           </p>
           <ul className="mt-4 flex flex-1 flex-col gap-2">
             {cvFiles.map((c) => (
@@ -114,7 +116,7 @@ export default function Contact() {
                   hrefLang={c.lang}
                   type="application/pdf"
                   download
-                  aria-label={`Descargar ${c.label}`}
+                  aria-label={`${t.contact.download} ${c.label[locale]}`}
                   className="group flex items-center gap-3 rounded-xl border border-black/10 px-3 py-3 transition hover:border-zinc-700 hover:bg-zinc-900/5 dark:border-white/10 dark:hover:border-zinc-200 dark:hover:bg-white/5"
                 >
                   <BsFiletypePdf
@@ -123,7 +125,7 @@ export default function Contact() {
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium">
-                      {languageNames[c.lang] ?? c.lang}
+                      {localeNames[c.lang as Locale] ?? c.lang}
                     </span>
                     <span className="block text-xs text-zinc-500 dark:text-zinc-400">
                       PDF{c.size ? ` · ${c.size}` : ""}

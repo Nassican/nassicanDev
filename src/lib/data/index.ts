@@ -15,8 +15,19 @@ export type { ExperienceItem } from "./experience";
 export { education } from "./education";
 export type { EducationItem } from "./education";
 
-export { projects } from "./projects";
-export type { ProjectItem } from "./projects";
+export {
+  projects,
+  projectsByDate,
+  featuredProjects,
+  getProject,
+} from "./projects";
+export type { ProjectItem, ProjectTranslation } from "./projects";
+
+export { posts, publishedPosts, getPost } from "./posts";
+export type { Post, PostTranslation } from "./posts";
 
 export { certificates } from "./certificates";
 export type { Certificate } from "./certificates";
+
+export { readingMinutes, wordCount, headingId } from "./content";
+export type { ContentBlock } from "./content";

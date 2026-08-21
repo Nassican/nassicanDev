@@ -4,8 +4,22 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { profile } from "@/lib/data";
+import type { Dictionary } from "@/lib/i18n";
+import { localePath, stripLocale, type Locale } from "@/lib/i18n/config";
 
-export default function Navigation() {
+type NavItem =
+  | { kind: "section"; id: string; label: string }
+  | { kind: "route"; path: string; label: string };
+
+export default function Navigation({
+  locale,
+  t,
+}: {
+  locale: Locale;
+  t: Dictionary;
+}) {
   const [open, setOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
@@ -14,15 +28,27 @@ export default function Navigation() {
   // "#about" would resolve against the current path and go nowhere, so the
   // links have to carry the homepage in front of the hash.
   const pathname = usePathname();
-  const isHome = pathname === "/";
-  const sectionHref = (id: string) => (isHome ? `#${id}` : `/#${id}`);
+  const canonicalPath = stripLocale(pathname ?? "/");
+  const isHome = canonicalPath === "/";
+  const home = localePath(locale, "/");
+  const sectionHref = (id: string) => (isHome ? `#${id}` : `${home}#${id}`);
 
-  const navItems = [
-    { id: "about", label: "Sobre mí" },
-    { id: "skills", label: "Tecnologías" },
-    { id: "experience", label: "Experiencia" },
-    { id: "projects", label: "Proyectos" },
+  const navItems: NavItem[] = [
+    { kind: "section", id: "about", label: t.nav.about },
+    { kind: "section", id: "skills", label: t.nav.skills },
+    { kind: "route", path: "/projects", label: t.nav.projects },
+    { kind: "route", path: "/blog", label: t.nav.blog },
   ];
+
+  const hrefFor = (item: NavItem) =>
+    item.kind === "section"
+      ? sectionHref(item.id)
+      : localePath(locale, item.path);
+
+  const isActive = (item: NavItem) =>
+    item.kind === "section"
+      ? isHome && activeSection === item.id
+      : canonicalPath === item.path || canonicalPath.startsWith(`${item.path}/`);
 
   // Scroll handler for navbar size & transparency
   useEffect(() => {
@@ -69,7 +95,7 @@ export default function Navigation() {
         if (obs) obs.observer.unobserve(obs.el);
       });
     };
-  }, []);
+  }, [pathname]);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -94,7 +120,7 @@ export default function Navigation() {
       >
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4">
           {/* Brand Logo & Name */}
-          <Link href="/" className="group flex items-center gap-3">
+          <Link href={home} className="group flex items-center gap-3">
             {/* The logo art is a black mark on an opaque white square. The
                 transform lives on the wrapper, not the image, so the mask
                 scales and rotates with it — otherwise the square corners of
@@ -110,24 +136,24 @@ export default function Navigation() {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold tracking-wide text-zinc-900 transition-colors duration-200 dark:text-zinc-100 group-hover:text-black dark:group-hover:text-white">
-                Jesús David Benavides Chicaiza
+                {profile.name}
               </span>
               <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-colors duration-200 group-hover:text-zinc-500 dark:group-hover:text-zinc-400">
-                Portafolio
+                {t.nav.portfolio}
               </span>
             </div>
           </Link>
 
           {/* Desktop Nav Links */}
-          <div className="hidden items-center gap-1 sm:flex">
+          <div className="hidden items-center gap-1 lg:flex">
             {navItems.map((item) => {
-              const isActive = activeSection === item.id;
+              const active = isActive(item);
               return (
                 <Link
-                  key={item.id}
-                  href={sectionHref(item.id)}
+                  key={item.kind === "section" ? item.id : item.path}
+                  href={hrefFor(item)}
                   className={`relative rounded-full px-4 py-2 text-xs font-semibold tracking-wide transition-all duration-300 ${
-                    isActive
+                    active
                       ? "bg-black/5 text-black dark:bg-white/10 dark:text-white"
                       : "text-zinc-500 hover:bg-black/[0.02] hover:text-black dark:text-zinc-400 dark:hover:bg-white/[0.02] dark:hover:text-white"
                   }`}
@@ -139,22 +165,27 @@ export default function Navigation() {
             <Link
               href={sectionHref("contact")}
               className={`btn-glass-solid ml-2 text-xs font-semibold tracking-wide transition-all duration-300 hover:scale-[1.03] active:scale-95 ${
-                activeSection === "contact"
+                isHome && activeSection === "contact"
                   ? "ring-2 ring-black/20 dark:ring-white/20"
                   : ""
               }`}
             >
-              Contacto
+              {t.nav.contact}
             </Link>
-            <ThemeToggle className="ml-2" />
+            <LanguageSwitcher
+              locale={locale}
+              label={t.language.switchTo}
+              className="ml-2"
+            />
+            <ThemeToggle t={t} className="ml-2" />
           </div>
 
           {/* Mobile Actions: theme toggle + menu */}
-          <div className="flex items-center gap-2 sm:hidden">
-            <ThemeToggle />
+          <div className="flex items-center gap-2 lg:hidden">
+            <ThemeToggle t={t} />
             <button
               type="button"
-              aria-label="Abrir menú"
+              aria-label={t.nav.openMenu}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-black/10 text-zinc-700 transition-colors hover:bg-black/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
               onClick={() => setOpen(true)}
             >
@@ -168,7 +199,7 @@ export default function Navigation() {
 
       {/* Mobile Drawer Backdrop */}
       <div
-        className={`fixed inset-0 z-50 bg-black/30 dark:bg-black/60 backdrop-blur-sm transition-opacity duration-300 sm:hidden ${
+        className={`fixed inset-0 z-50 bg-black/30 dark:bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpen(false)}
@@ -176,18 +207,18 @@ export default function Navigation() {
 
       {/* Mobile Drawer Panel */}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-[80%] max-w-[300px] bg-white/95 dark:bg-black/95 backdrop-blur-xl border-l border-black/10 dark:border-white/10 shadow-2xl transition-transform duration-300 ease-out transform sm:hidden ${
+        className={`fixed top-0 right-0 z-50 h-full w-[80%] max-w-[300px] bg-white/95 dark:bg-black/95 backdrop-blur-xl border-l border-black/10 dark:border-white/10 shadow-2xl transition-transform duration-300 ease-out transform lg:hidden ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-black/5 dark:border-white/5">
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-            Navegación
+            {t.nav.navigation}
           </span>
           <button
             type="button"
-            aria-label="Cerrar menú"
+            aria-label={t.nav.closeMenu}
             onClick={() => setOpen(false)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 text-zinc-700 hover:bg-black/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5 transition-colors duration-200"
           >
@@ -200,14 +231,14 @@ export default function Navigation() {
         {/* Drawer Body Links */}
         <div className="flex flex-col gap-2.5 p-6">
           {navItems.map((item) => {
-            const isActive = activeSection === item.id;
+            const active = isActive(item);
             return (
               <Link
-                key={item.id}
+                key={item.kind === "section" ? item.id : item.path}
                 onClick={() => setOpen(false)}
-                href={sectionHref(item.id)}
+                href={hrefFor(item)}
                 className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold tracking-wide transition-all duration-200 ${
-                  isActive
+                  active
                     ? "bg-black/5 text-black dark:bg-white/10 dark:text-white"
                     : "text-zinc-600 hover:bg-black/[0.02] hover:text-black dark:text-zinc-400 dark:hover:bg-white/[0.02] dark:hover:text-white"
                 }`}
@@ -216,7 +247,7 @@ export default function Navigation() {
                 <svg
                   viewBox="0 0 24 24"
                   className={`h-4 w-4 transition-transform duration-200 ${
-                    isActive ? "translate-x-1 opacity-100" : "opacity-0"
+                    active ? "translate-x-1 opacity-100" : "opacity-0"
                   }`}
                   fill="none"
                   stroke="currentColor"
@@ -233,12 +264,12 @@ export default function Navigation() {
             onClick={() => setOpen(false)}
             href={sectionHref("contact")}
             className={`flex items-center justify-between rounded-xl px-4 py-3 mt-4 text-sm font-bold tracking-wide transition-all duration-200 ${
-              activeSection === "contact"
+              isHome && activeSection === "contact"
                 ? "bg-black text-white dark:bg-white dark:text-black"
                 : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black hover:opacity-90"
             }`}
           >
-            <span>Contacto</span>
+            <span>{t.nav.contact}</span>
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
@@ -247,32 +278,35 @@ export default function Navigation() {
 
         {/* Drawer Footer with Socials */}
         <div className="absolute bottom-0 inset-x-0 p-6 border-t border-black/5 dark:border-white/5 flex flex-col gap-4 bg-black/[0.01] dark:bg-white/[0.01]">
+          <LanguageSwitcher locale={locale} label={t.language.switchTo} />
           <div className="flex items-center gap-3">
-            <Link
+            <a
+              aria-label="GitHub"
               href="https://github.com/Nassican"
               target="_blank"
+              rel="noreferrer"
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition-all duration-200"
             >
               <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
                 <path d="M12 .5A11.5 11.5 0 0 0 .5 12.3c0 5.2 3.3 9.6 7.8 11.1.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.2-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.6 1.2 1.6 1.2 1 .1.7 1.9 2.6 2.5.5-.4.9-.7 1.1-1-2.5-.3-5.2-1.3-5.2-5.8 0-1.3.5-2.4 1.2-3.3-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.4 1.2a11.6 11.6 0 0 1 6.2 0c2.4-1.5 3.4-1.2 3.4-1.2.6 1.6.2 2.8.1 3.1.8.9 1.2 2 1.2 3.3 0 4.5-2.7 5.5-5.2 5.8.4.3.8.9.8 1.9v2.8c0 .3.2.7.8.6 4.5-1.5 7.8-5.9 7.8-11.1A11.5 11.5 0 0 0 12 .5Z" />
               </svg>
-            </Link>
+            </a>
             <a
-              href="mailto:contacto@nassican.com"
+              aria-label={t.contact.email}
+              href={`mailto:${profile.email}`}
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition-all duration-200"
             >
               <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
                 <path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h15A2.5 2.5 0 0 1 22 6.5v11A2.5 2.5 0 0 1 19.5 20h-15A2.5 2.5 0 0 1 2 17.5v-11Zm2.2-.5 7.1 5.3c.2.2.6.2.8 0L19.2 6H4.2Zm15.3 2.1-6.6 5a2.5 2.5 0 0 1-3.1 0L3.2 8.1v9.4c0 .6.5 1 1 1h15.6c.5 0 1-.4 1-1V8.1Z" />
               </svg>
             </a>
-            <ThemeToggle className="!h-10 !w-10" />
+            <ThemeToggle t={t} className="!h-10 !w-10" />
           </div>
           <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-            © {new Date().getFullYear()} Nassican. Todos los derechos reservados.
+            © {new Date().getFullYear()} Nassican. {t.footer.rights}
           </p>
         </div>
       </div>
     </>
   );
 }
-

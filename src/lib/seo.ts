@@ -1,11 +1,22 @@
+import type { Metadata } from "next";
 import {
   profile,
   projects,
+  publishedPosts,
   certificates,
   education,
   experience,
   skills,
 } from "./data";
+import type { Post, ProjectItem } from "./data";
+import { getDictionary } from "./i18n";
+import {
+  defaultLocale,
+  locales,
+  localePath,
+  openGraphLocale,
+  type Locale,
+} from "./i18n/config";
 
 /**
  * Canonical origin of the site. Override with NEXT_PUBLIC_SITE_URL when the
@@ -17,212 +28,415 @@ export const siteUrl = (
 
 export const siteName = "Nassican";
 
-export const locale = "es_CO";
-
 /** Absolute URL helper: every SEO surface needs fully-qualified URLs. */
 export const absoluteUrl = (path = "/") =>
   `${siteUrl}${path.startsWith("/") ? path : `/${path}`}`;
 
-export const defaultTitle =
-  "Jesús David Benavides Chicaiza | Desarrollador Web Full Stack";
+/** Absolute URL of `path` in a given language. */
+export const localeUrl = (locale: Locale, path = "/") =>
+  absoluteUrl(localePath(locale, path));
 
-export const defaultDescription =
-  "Portafolio de Jesús David Benavides Chicaiza (Nassican), desarrollador web full stack en Pasto, Colombia. Proyectos con Next.js, React, TypeScript, NestJS y PostgreSQL.";
+/**
+ * `alternates` for a canonical (unprefixed) path: the canonical URL of the
+ * current language plus one hreflang entry per language and an x-default.
+ * Without these, the two versions compete as duplicate content.
+ */
+export function alternatesFor(
+  locale: Locale,
+  path = "/",
+): NonNullable<Metadata["alternates"]> {
+  const languages: Record<string, string> = {};
+  for (const l of locales) languages[l] = localeUrl(l, path);
+  languages["x-default"] = localeUrl(defaultLocale, path);
 
-export const keywords = [
-  "Jesús David Benavides Chicaiza",
-  "Nassican",
-  "desarrollador web",
-  "desarrollador full stack",
-  "programador Colombia",
-  "desarrollador Pasto",
-  "Next.js",
-  "React",
-  "TypeScript",
-  "NestJS",
-  "PostgreSQL",
-  "ingeniería de sistemas",
-  "portafolio desarrollador",
-];
+  return {
+    canonical: localeUrl(locale, path),
+    languages,
+  };
+}
+
+type PageMetaInput = {
+  locale: Locale;
+  /** Canonical, unprefixed path, e.g. "/blog/my-post". */
+  path: string;
+  title: string;
+  description: string;
+  /** OpenGraph type; defaults to "website". */
+  type?: "website" | "article" | "profile";
+  publishedTime?: string;
+  modifiedTime?: string;
+  tags?: string[];
+};
+
+/**
+ * Builds the metadata every page repeats: canonical, hreflang, OpenGraph and
+ * Twitter card. Page files only pass what actually differs.
+ */
+export function pageMetadata({
+  locale,
+  path,
+  title,
+  description,
+  type = "website",
+  publishedTime,
+  modifiedTime,
+  tags,
+}: PageMetaInput): Metadata {
+  const url = localeUrl(locale, path);
+
+  return {
+    title,
+    description,
+    alternates: alternatesFor(locale, path),
+    openGraph: {
+      type: type === "profile" ? "profile" : type,
+      url,
+      siteName,
+      locale: openGraphLocale[locale],
+      title,
+      description,
+      ...(type === "article"
+        ? { publishedTime, modifiedTime, authors: [siteUrl], tags }
+        : null),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      creator: "@Nassican",
+    },
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Structured data                                                            */
+/* -------------------------------------------------------------------------- */
 
 /** Flat list of skill names, used for Person.knowsAbout. */
 const skillNames = Object.values(skills).flat();
 
+/**
+ * Entity ids are language-independent on purpose: the same person and the
+ * same website publish both language versions, so the graphs reference one
+ * `@id` instead of creating a duplicate entity per locale.
+ */
 const personId = absoluteUrl("/#person");
 const websiteId = absoluteUrl("/#website");
+const blogId = absoluteUrl("/#blog");
 
-const person = {
-  "@type": "Person",
-  "@id": personId,
-  name: profile.name,
-  alternateName: ["Nassican", "Jesús Benavides"],
-  url: siteUrl,
-  email: `mailto:${profile.email}`,
-  jobTitle: "Desarrollador Web Full Stack",
-  description: defaultDescription,
-  image: absoluteUrl("/brand/LogoNassican.png"),
-  knowsAbout: skillNames,
-  knowsLanguage: ["es", "en"],
-  address: {
-    "@type": "PostalAddress",
-    addressLocality: "Pasto",
-    addressRegion: "Nariño",
-    addressCountry: "CO",
-  },
-  hasOccupation: experience.map((e) => ({
-    "@type": "Occupation",
-    name: e.title,
-    description: e.desc,
-    skills: e.stack,
-    occupationLocation: {
-      "@type": "City",
-      name: "Pasto",
+function person(locale: Locale) {
+  const t = getDictionary(locale);
+
+  return {
+    "@type": "Person",
+    "@id": personId,
+    name: profile.name,
+    alternateName: ["Nassican", "Jesús Benavides"],
+    url: siteUrl,
+    email: `mailto:${profile.email}`,
+    jobTitle: t.meta.jobTitle,
+    description: t.meta.description,
+    image: absoluteUrl("/brand/LogoNassican.png"),
+    knowsAbout: skillNames,
+    knowsLanguage: [...locales],
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: profile.location.city,
+      addressRegion: profile.location.region,
+      addressCountry: profile.location.country,
     },
-  })),
-  worksFor: experience.map((e) => ({
-    "@type": "Organization",
-    name: e.org,
-  })),
-  alumniOf: education.map((e) => ({
-    "@type": "EducationalOrganization",
-    name: e.org,
-  })),
-  hasCredential: [
-    // Completed degrees first, then the shorter course certificates
-    ...education
-      .filter((e) => e.status === "completed")
-      .map((e) => ({
-        "@type": "EducationalOccupationalCredential",
-        name: e.title,
-        credentialCategory: "degree",
-        dateCreated: e.end,
-        recognizedBy: { "@type": "EducationalOrganization", name: e.org },
-      })),
-    ...certificates.map((c) => ({
-      "@type": "EducationalOccupationalCredential",
-      name: c.title,
-      url: c.url,
-      credentialCategory: "certificate",
-      recognizedBy: { "@type": "Organization", name: c.provider },
+    hasOccupation: experience.map((e) => ({
+      "@type": "Occupation",
+      name: e.title[locale],
+      description: e.desc[locale],
+      skills: e.stack,
+      occupationLocation: {
+        "@type": "City",
+        name: profile.location.city,
+      },
     })),
-  ],
-  sameAs: profile.socials.map((s) => s.href),
-  // The CV PDFs are documents *about* this Person, one per language
-  subjectOf: profile.cv.map((c) => ({
-    "@type": "CreativeWork",
-    name: `Currículum de ${profile.name}`,
-    alternateName: c.label,
-    url: absoluteUrl(c.href),
-    encodingFormat: "application/pdf",
-    inLanguage: c.lang,
-    about: { "@id": personId },
-  })),
-};
+    worksFor: experience.map((e) => ({
+      "@type": "Organization",
+      name: e.org,
+    })),
+    alumniOf: education.map((e) => ({
+      "@type": "EducationalOrganization",
+      name: e.org,
+    })),
+    hasCredential: [
+      // Completed degrees first, then the shorter course certificates
+      ...education
+        .filter((e) => e.status === "completed")
+        .map((e) => ({
+          "@type": "EducationalOccupationalCredential",
+          name: e.title[locale],
+          credentialCategory: "degree",
+          dateCreated: e.end,
+          recognizedBy: { "@type": "EducationalOrganization", name: e.org },
+        })),
+      ...certificates.map((c) => ({
+        "@type": "EducationalOccupationalCredential",
+        name: c.title[locale],
+        url: c.url,
+        credentialCategory: "certificate",
+        recognizedBy: { "@type": "Organization", name: c.provider },
+      })),
+    ],
+    sameAs: profile.socials.map((s) => s.href),
+    // The CV PDFs are documents *about* this Person, one per language
+    subjectOf: profile.cv.map((c) => ({
+      "@type": "CreativeWork",
+      name: `${locale === "es" ? "Currículum de" : "Resume of"} ${profile.name}`,
+      alternateName: c.label[locale],
+      url: absoluteUrl(c.href),
+      encodingFormat: "application/pdf",
+      inLanguage: c.lang,
+      about: { "@id": personId },
+    })),
+  };
+}
 
-const website = {
-  "@type": "WebSite",
-  "@id": websiteId,
-  url: siteUrl,
-  name: siteName,
-  description: defaultDescription,
-  inLanguage: "es",
-  publisher: { "@id": personId },
-};
+function website(locale: Locale) {
+  const t = getDictionary(locale);
 
-/** Projects rendered as an ordered list of CreativeWork/SoftwareApplication. */
-const projectList = {
-  "@type": "ItemList",
-  "@id": absoluteUrl("/#projects"),
-  name: "Proyectos",
-  itemListOrder: "https://schema.org/ItemListOrderDescending",
-  numberOfItems: projects.length,
-  itemListElement: projects.map((p, i) => ({
-    "@type": "ListItem",
-    position: i + 1,
-    item: {
-      "@type": "SoftwareSourceCode",
-      name: p.title,
-      description: p.description,
-      url: p.demo,
-      programmingLanguage: p.stack,
-      author: { "@id": personId },
-      // Both are optional on ProjectItem, so only emit them when present
-      ...(p.repo && p.repo !== "#" ? { codeRepository: p.repo } : {}),
-      ...(p.image ? { image: absoluteUrl(p.image) } : {}),
-    },
-  })),
-};
+  return {
+    "@type": "WebSite",
+    "@id": websiteId,
+    url: siteUrl,
+    name: siteName,
+    description: t.meta.description,
+    inLanguage: [...locales],
+    publisher: { "@id": personId },
+  };
+}
+
+function breadcrumb(locale: Locale, trail: { name: string; path: string }[]) {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: getDictionary(locale).breadcrumb.home,
+        item: localeUrl(locale, "/"),
+      },
+      ...trail.map((step, i) => ({
+        "@type": "ListItem",
+        position: i + 2,
+        name: step.name,
+        item: localeUrl(locale, step.path),
+      })),
+    ],
+  };
+}
+
+/** One project as SoftwareSourceCode, reused by the list and the detail page. */
+function projectNode(locale: Locale, p: ProjectItem) {
+  const c = p.content[locale];
+
+  return {
+    "@type": "SoftwareSourceCode",
+    "@id": localeUrl(locale, `/projects/${p.slug}`),
+    name: p.title,
+    headline: c.tagline,
+    // Falls back to the tagline while the case study is still unwritten.
+    description: c.summary ?? c.tagline,
+    url: localeUrl(locale, `/projects/${p.slug}`),
+    sameAs: p.demo,
+    inLanguage: locale,
+    datePublished: p.date,
+    programmingLanguage: p.stack,
+    keywords: p.stack.join(", "),
+    author: { "@id": personId },
+    ...(p.repo && p.repo !== "#" ? { codeRepository: p.repo } : {}),
+    ...(p.image ? { image: absoluteUrl(p.image) } : {}),
+  };
+}
+
+function projectList(locale: Locale) {
+  return {
+    "@type": "ItemList",
+    "@id": localeUrl(locale, "/projects") + "#list",
+    name: getDictionary(locale).projects.title,
+    itemListOrder: "https://schema.org/ItemListOrderDescending",
+    numberOfItems: projects.length,
+    itemListElement: projects.map((p, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      item: projectNode(locale, p),
+    })),
+  };
+}
 
 /** Site-wide entities. Emitted once from the root layout on every page. */
-export const siteJsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [person, website],
-};
+export function siteJsonLd(locale: Locale) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [person(locale), website(locale)],
+  };
+}
 
 /** Homepage-only graph: the ProfilePage itself plus the project list. */
-export const homeJsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [
-    projectList,
-    {
-      "@type": "ProfilePage",
-      "@id": absoluteUrl("/"),
-      url: siteUrl,
-      name: defaultTitle,
-      description: defaultDescription,
-      inLanguage: "es",
-      isPartOf: { "@id": websiteId },
-      about: { "@id": personId },
-      mainEntity: { "@id": personId },
-      hasPart: [{ "@id": absoluteUrl("/#projects") }],
-    },
-  ],
-};
+export function homeJsonLd(locale: Locale) {
+  const t = getDictionary(locale);
 
-export const certificatesJsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "CollectionPage",
-      "@id": absoluteUrl("/certificates"),
-      url: absoluteUrl("/certificates"),
-      name: "Certificados y cursos",
-      description:
-        "Certificados y cursos completados por Jesús David Benavides Chicaiza en desarrollo web, Git, frontend e idiomas.",
-      inLanguage: "es",
-      isPartOf: { "@id": websiteId },
-      about: { "@id": personId },
-    },
-    {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Inicio", item: siteUrl },
-        {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      projectList(locale),
+      {
+        "@type": "ProfilePage",
+        "@id": localeUrl(locale, "/"),
+        url: localeUrl(locale, "/"),
+        name: t.meta.title,
+        description: t.meta.description,
+        inLanguage: locale,
+        isPartOf: { "@id": websiteId },
+        about: { "@id": personId },
+        mainEntity: { "@id": personId },
+      },
+    ],
+  };
+}
+
+export function certificatesJsonLd(locale: Locale) {
+  const t = getDictionary(locale);
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": localeUrl(locale, "/certificates"),
+        url: localeUrl(locale, "/certificates"),
+        name: t.certificates.title,
+        description: t.certificates.metaDescription,
+        inLanguage: locale,
+        isPartOf: { "@id": websiteId },
+        about: { "@id": personId },
+      },
+      breadcrumb(locale, [
+        { name: t.certificates.title, path: "/certificates" },
+      ]),
+      {
+        "@type": "ItemList",
+        name: t.certificates.title,
+        numberOfItems: certificates.length,
+        itemListElement: certificates.map((c, i) => ({
           "@type": "ListItem",
-          position: 2,
-          name: "Certificados",
-          item: absoluteUrl("/certificates"),
-        },
-      ],
-    },
-    {
-      "@type": "ItemList",
-      name: "Certificados",
-      numberOfItems: certificates.length,
-      itemListElement: certificates.map((c, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        item: {
-          "@type": "EducationalOccupationalCredential",
-          name: c.title,
-          url: c.url,
-          credentialCategory: "certificate",
-          dateCreated: c.date,
-          recognizedBy: { "@type": "Organization", name: c.provider },
-          about: c.category,
-        },
-      })),
-    },
-  ],
-};
+          position: i + 1,
+          item: {
+            "@type": "EducationalOccupationalCredential",
+            name: c.title[locale],
+            url: c.url,
+            credentialCategory: "certificate",
+            dateCreated: c.date,
+            recognizedBy: { "@type": "Organization", name: c.provider },
+            about: c.category[locale],
+          },
+        })),
+      },
+    ],
+  };
+}
 
+export function projectsJsonLd(locale: Locale) {
+  const t = getDictionary(locale);
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": localeUrl(locale, "/projects"),
+        url: localeUrl(locale, "/projects"),
+        name: t.projects.listTitle,
+        description: t.projects.metaDescription,
+        inLanguage: locale,
+        isPartOf: { "@id": websiteId },
+        about: { "@id": personId },
+      },
+      breadcrumb(locale, [{ name: t.projects.listTitle, path: "/projects" }]),
+      projectList(locale),
+    ],
+  };
+}
+
+export function projectJsonLd(locale: Locale, p: ProjectItem) {
+  const t = getDictionary(locale);
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      projectNode(locale, p),
+      breadcrumb(locale, [
+        { name: t.projects.listTitle, path: "/projects" },
+        { name: p.title, path: `/projects/${p.slug}` },
+      ]),
+    ],
+  };
+}
+
+export function blogJsonLd(locale: Locale) {
+  const t = getDictionary(locale);
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Blog",
+        "@id": blogId,
+        url: localeUrl(locale, "/blog"),
+        name: `${t.blog.title} | ${profile.name}`,
+        description: t.blog.metaDescription,
+        inLanguage: locale,
+        isPartOf: { "@id": websiteId },
+        author: { "@id": personId },
+        publisher: { "@id": personId },
+        blogPost: publishedPosts.map((p) => ({
+          "@type": "BlogPosting",
+          "@id": localeUrl(locale, `/blog/${p.slug}`),
+          headline: p.content[locale].title,
+          description: p.content[locale].description,
+          url: localeUrl(locale, `/blog/${p.slug}`),
+          datePublished: p.date,
+          dateModified: p.updated ?? p.date,
+          inLanguage: locale,
+          author: { "@id": personId },
+        })),
+      },
+      breadcrumb(locale, [{ name: t.blog.title, path: "/blog" }]),
+    ],
+  };
+}
+
+export function postJsonLd(locale: Locale, post: Post) {
+  const t = getDictionary(locale);
+  const c = post.content[locale];
+  const url = localeUrl(locale, `/blog/${post.slug}`);
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "@id": url,
+        mainEntityOfPage: url,
+        url,
+        headline: c.title,
+        description: c.description,
+        inLanguage: locale,
+        datePublished: post.date,
+        dateModified: post.updated ?? post.date,
+        keywords: post.tags.join(", "),
+        author: { "@id": personId },
+        publisher: { "@id": personId },
+        isPartOf: { "@id": blogId },
+      },
+      breadcrumb(locale, [
+        { name: t.blog.title, path: "/blog" },
+        { name: c.title, path: `/blog/${post.slug}` },
+      ]),
+    ],
+  };
+}

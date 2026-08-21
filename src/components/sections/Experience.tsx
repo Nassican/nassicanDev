@@ -1,20 +1,28 @@
 import SectionTitle from "@/components/ui/SectionTitle";
 import SkillIcon from "@/components/ui/SkillIcon";
 import { experience } from "@/lib/data";
+import type { Dictionary } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n/config";
 
-export default function Experience() {
+export default function Experience({
+  locale,
+  t,
+}: {
+  locale: Locale;
+  t: Dictionary;
+}) {
   return (
     <section
       id="experience"
       className="mx-auto max-w-5xl scroll-mt-24 px-4 py-16 md:scroll-mt-28"
     >
-      <SectionTitle className="mb-8">Experiencia</SectionTitle>
+      <SectionTitle className="mb-8">{t.experience.title}</SectionTitle>
       <ol>
         {experience.map((item) => {
           const ongoing = !item.end;
           return (
             <li
-              key={item.title + item.period}
+              key={item.title[locale] + item.start}
               // The rail is drawn per item so it stops at the last dot
               // instead of dangling below the list.
               className="relative pb-10 pl-8 last:pb-0 before:absolute before:bottom-0 before:left-[5px] before:top-5 before:w-px before:bg-black/10 last:before:hidden dark:before:bg-white/10"
@@ -32,20 +40,22 @@ export default function Experience() {
                   dateTime={item.start}
                   className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
                 >
-                  {item.period}
+                  {item.period[locale]}
                 </time>
                 {ongoing && (
                   <span className="rounded-full border border-black/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-700 dark:border-white/10 dark:text-zinc-300">
-                    Actual
+                    {t.experience.current}
                   </span>
                 )}
               </div>
-              <h3 className="mt-1.5 text-base font-medium">{item.title}</h3>
+              <h3 className="mt-1.5 text-base font-medium">
+                {item.title[locale]}
+              </h3>
               <div className="text-sm text-zinc-500 dark:text-zinc-400">
                 {item.org}
               </div>
               <p className="mt-2 max-w-[65ch] text-sm text-zinc-700 dark:text-zinc-300">
-                {item.desc}
+                {item.desc[locale]}
               </p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                 {item.stack.map((s) => (

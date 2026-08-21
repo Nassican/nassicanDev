@@ -4,6 +4,7 @@ import SectionTitle from "@/components/ui/SectionTitle";
 import SkillIcon from "@/components/ui/SkillIcon";
 import Card from "@/components/ui/Card";
 import { skills, skillsRegistry } from "@/lib/data";
+import type { Dictionary } from "@/lib/i18n";
 
 function hexToRgb(hex: string): string {
   const cleanHex = hex.replace("#", "");
@@ -52,7 +53,7 @@ function getBrandStyles(itemName: string): React.CSSProperties {
     "--brand-glow": parseColor(glowHex, glowOpacity),
   } as React.CSSProperties;
 }
-export default function Skills() {
+export default function Skills({ t }: { t: Dictionary }) {
   const [viewMode, setViewMode] = useState<"marquee" | "grid">("marquee");
   // Generate perfect repeated list for seamless loop (even repeats & min length)
   function getRepeatedList(list: string[]) {
@@ -65,25 +66,15 @@ export default function Skills() {
     }
     return result;
   }
-  const getGroupTitle = (group: string) => {
-    switch (group) {
-      case "frontend":
-        return "Desarrollo Frontend";
-      case "backend":
-        return "Desarrollo Backend";
-      case "databases":
-        return "Bases de Datos";
-      case "tools":
-        return "Herramientas y DevOps";
-      default:
-        return group;
-    }
-  };
+  // The keys of `skills` and of `t.skills.groups` are kept in sync by hand;
+  // an unknown group falls back to its raw key rather than rendering blank.
+  const groupTitles: Record<string, string> = t.skills.groups;
+  const getGroupTitle = (group: string) => groupTitles[group] ?? group;
   return (
     <section id="skills" className="w-full scroll-mt-24 px-0 py-12 md:scroll-mt-28">
       {/* Header Section: Title and View Selector */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 mx-auto max-w-5xl">
-        <SectionTitle className="mb-0">Tecnologías</SectionTitle>
+        <SectionTitle className="mb-0">{t.skills.title}</SectionTitle>
         
         {/* Toggle Mode Button */}
         <div className="inline-flex rounded-full border border-black/10 p-1 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.02] text-xs self-start sm:self-auto backdrop-blur-md">
@@ -95,8 +86,7 @@ export default function Skills() {
                 : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
             }`}
           >
-            
-            Carrusel
+            {t.skills.marquee}
           </button>
           <button
             onClick={() => setViewMode("grid")}
@@ -106,7 +96,7 @@ export default function Skills() {
                 : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
             }`}
           >
-            Cuadrícula
+            {t.skills.grid}
           </button>
         </div>
       </div>
