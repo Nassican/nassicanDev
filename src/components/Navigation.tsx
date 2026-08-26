@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { BsEnvelope, BsGithub, BsLinkedin } from "react-icons/bs";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { profile } from "@/lib/data";
@@ -20,6 +21,8 @@ export default function Navigation({
   locale: Locale;
   t: Dictionary;
 }) {
+  const github = profile.socials.find((social) => social.label === "GitHub");
+  const linkedin = profile.socials.find((social) => social.label === "LinkedIn");
   const [open, setOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
@@ -281,24 +284,29 @@ export default function Navigation({
           <LanguageSwitcher locale={locale} label={t.language.switchTo} />
           <div className="flex items-center gap-3">
             <a
-              aria-label="GitHub"
-              href="https://github.com/Nassican"
+              aria-label={github?.label ?? "GitHub"}
+              href={github?.href}
               target="_blank"
               rel="noreferrer"
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition-all duration-200"
             >
-              <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                <path d="M12 .5A11.5 11.5 0 0 0 .5 12.3c0 5.2 3.3 9.6 7.8 11.1.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.2-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.6 1.2 1.6 1.2 1 .1.7 1.9 2.6 2.5.5-.4.9-.7 1.1-1-2.5-.3-5.2-1.3-5.2-5.8 0-1.3.5-2.4 1.2-3.3-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.4 1.2a11.6 11.6 0 0 1 6.2 0c2.4-1.5 3.4-1.2 3.4-1.2.6 1.6.2 2.8.1 3.1.8.9 1.2 2 1.2 3.3 0 4.5-2.7 5.5-5.2 5.8.4.3.8.9.8 1.9v2.8c0 .3.2.7.8.6 4.5-1.5 7.8-5.9 7.8-11.1A11.5 11.5 0 0 0 12 .5Z" />
-              </svg>
+              <BsGithub className="h-5 w-5" aria-hidden="true" />
+            </a>
+            <a
+              aria-label={linkedin?.label ?? "LinkedIn"}
+              href={linkedin?.href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition-all duration-200"
+            >
+              <BsLinkedin className="h-5 w-5" aria-hidden="true" />
             </a>
             <a
               aria-label={t.contact.email}
               href={`mailto:${profile.email}`}
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition-all duration-200"
             >
-              <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                <path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h15A2.5 2.5 0 0 1 22 6.5v11A2.5 2.5 0 0 1 19.5 20h-15A2.5 2.5 0 0 1 2 17.5v-11Zm2.2-.5 7.1 5.3c.2.2.6.2.8 0L19.2 6H4.2Zm15.3 2.1-6.6 5a2.5 2.5 0 0 1-3.1 0L3.2 8.1v9.4c0 .6.5 1 1 1h15.6c.5 0 1-.4 1-1V8.1Z" />
-              </svg>
+              <BsEnvelope className="h-5 w-5" aria-hidden="true" />
             </a>
             <ThemeToggle t={t} className="!h-10 !w-10" />
           </div>
