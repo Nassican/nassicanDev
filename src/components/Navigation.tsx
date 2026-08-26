@@ -141,7 +141,7 @@ export default function Navigation({
               <span className="text-sm font-semibold tracking-wide text-zinc-900 transition-colors duration-200 dark:text-zinc-100 group-hover:text-black dark:group-hover:text-white">
                 {profile.name}
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-colors duration-200 group-hover:text-zinc-500 dark:group-hover:text-zinc-400">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 transition-colors duration-200 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-300">
                 {t.nav.portfolio}
               </span>
             </div>
@@ -189,10 +189,12 @@ export default function Navigation({
             <button
               type="button"
               aria-label={t.nav.openMenu}
+              aria-expanded={open}
+              aria-controls="mobile-navigation"
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-black/10 text-zinc-700 transition-colors hover:bg-black/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
               onClick={() => setOpen(true)}
             >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
@@ -202,6 +204,7 @@ export default function Navigation({
 
       {/* Mobile Drawer Backdrop */}
       <div
+        aria-hidden="true"
         className={`fixed inset-0 z-50 bg-black/30 dark:bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
@@ -210,13 +213,22 @@ export default function Navigation({
 
       {/* Mobile Drawer Panel */}
       <div
+        id="mobile-navigation"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobile-navigation-title"
+        aria-hidden={!open}
+        inert={!open}
         className={`fixed top-0 right-0 z-50 h-full w-[80%] max-w-[300px] bg-white/95 dark:bg-black/95 backdrop-blur-xl border-l border-black/10 dark:border-white/10 shadow-2xl transition-transform duration-300 ease-out transform lg:hidden ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-black/5 dark:border-white/5">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+          <span
+            id="mobile-navigation-title"
+            className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400"
+          >
             {t.nav.navigation}
           </span>
           <button
@@ -225,7 +237,7 @@ export default function Navigation({
             onClick={() => setOpen(false)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 text-zinc-700 hover:bg-black/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5 transition-colors duration-200"
           >
-            <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg aria-hidden viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
@@ -248,6 +260,7 @@ export default function Navigation({
               >
                 <span>{item.label}</span>
                 <svg
+                  aria-hidden
                   viewBox="0 0 24 24"
                   className={`h-4 w-4 transition-transform duration-200 ${
                     active ? "translate-x-1 opacity-100" : "opacity-0"
@@ -273,7 +286,7 @@ export default function Navigation({
             }`}
           >
             <span>{t.nav.contact}</span>
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </Link>
@@ -310,7 +323,7 @@ export default function Navigation({
             </a>
             <ThemeToggle t={t} className="!h-10 !w-10" />
           </div>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
+          <p className="text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
             © {new Date().getFullYear()} Nassican. {t.footer.rights}
           </p>
         </div>

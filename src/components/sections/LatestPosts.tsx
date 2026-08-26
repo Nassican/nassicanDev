@@ -26,6 +26,7 @@ export default function LatestPosts({
         <SectionTitle>{t.blog.latest}</SectionTitle>
         <Link
           href={localePath(locale, "/blog")}
+          aria-label={t.nav.blog}
           className="flex shrink-0 items-center gap-1 rounded-full border border-black/10 px-3 py-1.5 text-xs text-zinc-700 transition hover:bg-zinc-900/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
         >
           {t.blog.viewAll} <BsArrowRight className="h-4 w-4" aria-hidden />

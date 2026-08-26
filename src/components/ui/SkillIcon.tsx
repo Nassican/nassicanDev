@@ -29,7 +29,14 @@ import {
   SiElectron
 } from "react-icons/si";
 
-const iconMap: Record<string, ComponentType<{ className?: string }>> = {
+const iconMap: Record<
+  string,
+  ComponentType<{
+    className?: string;
+    role?: string;
+    "aria-hidden"?: boolean;
+  }>
+> = {
   React: SiReact,
   "Next.js": SiNextdotjs,
   TypeScript: SiTypescript,
@@ -62,6 +69,8 @@ type IconName = keyof typeof iconMap | string;
 
 export default function SkillIcon({ name, className = "w-6 h-6" }: { name: IconName; className?: string }) {
   const Comp = iconMap[name as string];
-  if (Comp) return <Comp className={className} />;
-  return <SiCodepen className={className} />;
+  if (Comp) {
+    return <Comp className={className} role="presentation" aria-hidden />;
+  }
+  return <SiCodepen className={className} role="presentation" aria-hidden />;
 }

@@ -48,7 +48,7 @@ export default async function BlogPage({ params }: PageParams) {
 
       {publishedPosts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-black/15 bg-white/40 px-6 py-14 text-center backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.02]">
-          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
             {t.blog.comingSoon}
           </p>
           <p className="mx-auto mt-3 max-w-[46ch] text-sm text-zinc-600 dark:text-zinc-400">

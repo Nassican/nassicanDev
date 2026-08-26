@@ -12,7 +12,7 @@ export default function NotFound() {
 
   return (
     <main className="mx-auto flex min-h-[60dvh] max-w-3xl flex-col items-start justify-center gap-4 px-4 py-24">
-      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
         404
       </p>
       <h1 className="text-2xl font-semibold tracking-tight">

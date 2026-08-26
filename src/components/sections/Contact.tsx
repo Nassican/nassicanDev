@@ -78,6 +78,7 @@ export default function Contact({
               <li key={label} className="flex-1">
                 <a
                   href={href}
+                  aria-label={label}
                   {...(external
                     ? { target: "_blank", rel: "noreferrer" }
                     : null)}

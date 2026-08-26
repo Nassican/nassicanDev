@@ -39,18 +39,29 @@ export default function LanguageSwitcher({
     >
       {locales.map((l) => {
         const active = l === locale;
-        return (
+        const itemClass = `rounded-full px-2.5 py-1 uppercase tracking-wide transition-colors ${
+          active
+            ? "bg-black/5 text-black dark:bg-white/10 dark:text-white"
+            : "text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-white"
+        }`;
+
+        return active ? (
+          <span
+            key={l}
+            lang={l}
+            aria-current="true"
+            className={itemClass}
+          >
+            {l}
+          </span>
+        ) : (
           <a
             key={l}
             href={localePath(l, canonicalPath)}
             hrefLang={l}
-            aria-current={active ? "true" : undefined}
-            aria-label={active ? undefined : `${label} ${localeNames[l]}`}
-            className={`rounded-full px-2.5 py-1 uppercase tracking-wide transition-colors ${
-              active
-                ? "bg-black/5 text-black dark:bg-white/10 dark:text-white"
-                : "text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white"
-            }`}
+            lang={l}
+            aria-label={`${label} ${localeNames[l]}`}
+            className={itemClass}
           >
             {l}
           </a>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Button from "@/components/ui/Button";
+import { buttonClassName } from "@/components/ui/Button";
 import { profile } from "@/lib/data";
 import type { Dictionary } from "@/lib/i18n";
 import { localePath, type Locale } from "@/lib/i18n/config";
@@ -17,16 +17,24 @@ export default function Hero({ locale, t }: { locale: Locale; t: Dictionary }) {
         {t.hero.description}
       </p>
       <div className="flex gap-3">
-        <Link href={localePath(locale, "/projects")}>
-          <Button>{t.hero.viewProjects}</Button>
+        <Link
+          href={localePath(locale, "/projects")}
+          aria-label={t.nav.projects}
+          className={buttonClassName()}
+        >
+          {t.hero.viewProjects}
         </Link>
-        <a href="#contact">
-          <Button variant="outline">{t.hero.contact}</Button>
+        <a
+          href="#contact"
+          aria-label={t.nav.contact}
+          className={buttonClassName("outline")}
+        >
+          {t.hero.contact}
         </a>
       </div>
       <a
         href="#about"
-        aria-label={t.hero.scrollAria}
+        aria-label={t.nav.about}
         className="group absolute bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium text-zinc-600 transition-colors hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
       >
         <span className="mr-2 align-middle">{t.hero.scroll}</span>

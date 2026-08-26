@@ -116,7 +116,7 @@ export default async function ProjectPage({ params }: PageParams) {
         <article className="md:col-span-2">
           {project.comingSoon ? (
             <div className="rounded-2xl border border-dashed border-black/15 bg-white/40 px-6 py-12 backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.02]">
-              <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
                 {t.projects.comingSoon}
               </p>
               <p className="mt-3 max-w-[52ch] text-sm text-zinc-600 dark:text-zinc-400">
@@ -143,7 +143,7 @@ export default async function ProjectPage({ params }: PageParams) {
         <aside className="flex flex-col gap-6 md:sticky md:top-28 md:self-start">
           {c.role && (
             <div>
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
                 {t.projects.role}
               </h2>
               <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -153,7 +153,7 @@ export default async function ProjectPage({ params }: PageParams) {
           )}
 
           <div>
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
               {t.projects.year}
             </h2>
             <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -162,7 +162,7 @@ export default async function ProjectPage({ params }: PageParams) {
           </div>
 
           <div>
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
               {t.projects.stack}
             </h2>
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -180,7 +180,7 @@ export default async function ProjectPage({ params }: PageParams) {
 
           {c.highlights && c.highlights.length > 0 && (
             <div>
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
                 {t.projects.highlights}
               </h2>
               <ul className="mt-2 space-y-2 text-sm text-zinc-700 dark:text-zinc-300">

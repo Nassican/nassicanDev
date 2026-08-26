@@ -26,7 +26,11 @@ export default function ProjectCard({
   return (
     <Card className="flex flex-col">
       {project.image ? (
-        <Link href={href} className="mb-3 block overflow-hidden rounded-xl">
+        <Link
+          href={href}
+          aria-label={project.title}
+          className="mb-3 block overflow-hidden rounded-xl"
+        >
           <div className="relative aspect-video w-full">
             <Image
               src={project.image}
@@ -43,7 +47,11 @@ export default function ProjectCard({
 
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-base font-medium">
-          <Link href={href} className="underline-offset-4 hover:underline">
+          <Link
+            href={href}
+            aria-label={project.title}
+            className="underline-offset-4 hover:underline"
+          >
             {project.title}
           </Link>
         </h3>
@@ -79,6 +87,7 @@ export default function ProjectCard({
 
       <Link
         href={href}
+        aria-label={project.title}
         className="group mt-4 inline-flex items-center gap-1.5 self-start text-sm text-zinc-700 underline-offset-4 transition hover:underline dark:text-zinc-300"
       >
         {project.comingSoon ? t.projects.comingSoon : t.projects.caseStudy}

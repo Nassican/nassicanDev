@@ -85,8 +85,8 @@ export default function Footer({
             <ul className="space-y-2 text-sm text-zinc-600 dark:text-zinc-300">
               <li><Link href={section("about")} className="hover:underline">{t.nav.about}</Link></li>
               <li><Link href={section("contact")} className="hover:underline">{t.nav.contact}</Link></li>
-              <li><a href={profile.cv[0].href} hrefLang="es" download className="hover:underline">{t.footer.cvEs}</a></li>
-              <li><a href={profile.cv[1].href} hrefLang="en" download className="hover:underline">{t.footer.cvEn}</a></li>
+              <li><a href={profile.cv[0].href} hrefLang="es" download aria-label={`${t.contact.download} ${profile.cv[0].label[locale]}`} className="hover:underline">{t.footer.cvEs}</a></li>
+              <li><a href={profile.cv[1].href} hrefLang="en" download aria-label={`${t.contact.download} ${profile.cv[1].label[locale]}`} className="hover:underline">{t.footer.cvEn}</a></li>
             </ul>
           </div>
         </div>

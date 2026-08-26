@@ -61,7 +61,6 @@ export const es = {
     viewProjects: "Ver Proyectos",
     contact: "Contactar",
     scroll: "Desplázate",
-    scrollAria: "Desplazarse a Sobre mí",
   },
 
   about: {

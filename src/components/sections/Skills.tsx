@@ -113,7 +113,7 @@ export default function Skills({ t }: { t: Dictionary }) {
               <div key={group} className="space-y-3">
                 {/* Section title positioned static, no fading */}
                 <div className="px-4 mx-auto max-w-5xl">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
                     {getGroupTitle(group)}
                   </h3>
                 </div>
@@ -151,7 +151,7 @@ export default function Skills({ t }: { t: Dictionary }) {
           {Object.entries(skills).map(([group, list]) => (
             <Card key={group} className="flex flex-col gap-4 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-md">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
                   {getGroupTitle(group)}
                 </h3>
               </div>

@@ -61,7 +61,6 @@ export const en: Dictionary = {
     viewProjects: "View Projects",
     contact: "Get in touch",
     scroll: "Scroll",
-    scrollAria: "Scroll to About",
   },
 
   about: {

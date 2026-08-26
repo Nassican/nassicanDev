@@ -30,7 +30,11 @@ export default function PostCard({
       </div>
 
       <h3 className="mt-2 text-base font-medium">
-        <Link href={href} className="underline-offset-4 hover:underline">
+        <Link
+          href={href}
+          aria-label={c.title}
+          className="underline-offset-4 hover:underline"
+        >
           {c.title}
         </Link>
       </h3>
@@ -52,6 +56,7 @@ export default function PostCard({
 
       <Link
         href={href}
+        aria-label={c.title}
         className="group mt-4 inline-flex items-center gap-1.5 self-start text-sm text-zinc-700 underline-offset-4 transition hover:underline dark:text-zinc-300"
       >
         {t.blog.readMore}
