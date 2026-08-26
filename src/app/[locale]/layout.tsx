@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { notFound } from "next/navigation";
 import "../globals.css";
 import Navigation from "@/components/Navigation";
@@ -16,18 +15,6 @@ import {
 } from "@/lib/i18n/config";
 import { alternatesFor, siteJsonLd, siteName, siteUrl } from "@/lib/seo";
 import { themeInitScript } from "@/lib/theme";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 type LayoutParams = { params: Promise<{ locale: string }> };
 
@@ -132,9 +119,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <Navigation locale={locale} t={t} />
         {children}
         <Footer locale={locale} t={t} />
