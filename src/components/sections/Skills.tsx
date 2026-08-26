@@ -54,7 +54,7 @@ function getBrandStyles(itemName: string): React.CSSProperties {
   } as React.CSSProperties;
 }
 export default function Skills({ t }: { t: Dictionary }) {
-  const [viewMode, setViewMode] = useState<"marquee" | "grid">("grid");
+  const [viewMode, setViewMode] = useState<"marquee" | "grid">("marquee");
   // Generate perfect repeated list for seamless loop (even repeats & min length)
   function getRepeatedList(list: string[]) {
     const minItems = 24;
