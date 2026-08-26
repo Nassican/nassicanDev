@@ -8,7 +8,7 @@ export const es = {
   meta: {
     title: "Jesús David Benavides Chicaiza | Desarrollador Web Full Stack",
     description:
-      "Portafolio de Jesús David Benavides Chicaiza (Nassican), desarrollador web full stack en Pasto, Colombia. Proyectos con Next.js, React, TypeScript, NestJS y PostgreSQL.",
+      "Portafolio de Jesús David Benavides Chicaiza (Nassican), desarrollador web full stack, Colombia. Proyectos con Next.js, React, TypeScript, NestJS y PostgreSQL.",
     jobTitle: "Desarrollador Web Full Stack",
     keywords: [
       "Jesús David Benavides Chicaiza",
@@ -55,9 +55,9 @@ export const es = {
   },
 
   hero: {
-    badge: "Desarrollador",
+    badge: "Desarrollador web full stack",
     description:
-      "Desarrollador web full stack e ingeniero de sistemas en Pasto, Colombia. Construyo aplicaciones con Next.js, React, TypeScript, NestJS y PostgreSQL.",
+      "Soy ingeniero de sistemas, Colombia. Desarrollo aplicaciones con Next.js, React, TypeScript, NestJS y PostgreSQL.",
     viewProjects: "Ver Proyectos",
     contact: "Contactar",
     scroll: "Desplázate",
@@ -69,9 +69,9 @@ export const es = {
     frontendLabel: "Frontend",
     backendLabel: "Backend",
     frontend:
-      "Jesús David Benavides Chicaiza, estudiante de Ingeniería de Sistemas. Me enfoco en crear interfaces limpias, accesibles y de alto rendimiento. Trabajo con React y Next.js para construir experiencias rápidas y escalables, usando componentes reutilizables y un diseño monocromático que comunica modernidad y confianza. Cuido el detalle en UX/UI, estados de carga y transiciones CSS sutiles.",
+      "Desarrollo interfaces con React, Next.js y TypeScript. Organizo el trabajo en componentes reutilizables y cuido la navegación por teclado, la legibilidad, los estados de carga y el rendimiento.",
     backend:
-      "Diseño APIs robustas y mantenibles, con tipado estricto y validación consistente. Integro bases de datos y servicios externos cuidando la arquitectura, observabilidad y seguridad. Busco un backend predecible y escalable que sirva datos de forma eficiente para apps full‑stack, con foco en claridad, testing y despliegues confiables.",
+      "Construyo APIs con NestJS y TypeScript, y trabajo con PostgreSQL y Prisma para modelar y consultar datos. Mantengo contratos claros entre frontend y backend, validación de entradas y una estructura fácil de mantener.",
   },
 
   skills: {
@@ -162,7 +162,7 @@ export const es = {
   contact: {
     title: "Contacto",
     intro:
-      "¿Tienes un proyecto web, una vacante o una idea que quieras construir? Escríbeme y te respondo lo antes posible.",
+      "Si quieres hablar sobre un proyecto o una oportunidad laboral, puedes escribirme por correo o LinkedIn.",
     email: "Correo",
     resumeTitle: "Currículum",
     resumeSubtitle: "Disponible en dos idiomas.",
@@ -171,7 +171,7 @@ export const es = {
 
   footer: {
     tagline:
-      "Construyendo experiencias web con un enfoque en diseño monocromático, rendimiento y accesibilidad.",
+      "Desarrollo aplicaciones web y documento cómo las construyo.",
     content: "Contenido",
     background: "Trayectoria",
     more: "Más",

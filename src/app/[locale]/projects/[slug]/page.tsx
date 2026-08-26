@@ -102,7 +102,7 @@ export default async function ProjectPage({ params }: PageParams) {
         <div className="relative mt-10 aspect-video w-full overflow-hidden rounded-2xl border border-black/10 dark:border-white/10">
           <Image
             src={project.image}
-            alt={`${project.title} — ${c.tagline}`}
+            alt={`${project.title} - ${c.tagline}`}
             fill
             sizes="(min-width: 1024px) 64rem, 100vw"
             className="object-cover"

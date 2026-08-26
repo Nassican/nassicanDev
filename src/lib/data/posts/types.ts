@@ -29,7 +29,7 @@ export type PostMeta = {
 export type Post = PostMeta & {
   /**
    * `Localized` makes every language required, so a post cannot ship with a
-   * missing translation — the build fails instead.
+   * missing translation - the build fails instead.
    */
   content: Localized<PostTranslation>;
 };

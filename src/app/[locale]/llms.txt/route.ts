@@ -18,7 +18,7 @@ import {
 } from "@/lib/i18n/config";
 
 /**
- * /llms.txt — the llmstxt.org convention: a plain-text brief that AI assistants
+ * /llms.txt - the llmstxt.org convention: a plain-text brief that AI assistants
  * (ChatGPT, Claude, Perplexity) read to get a clean summary of the site without
  * parsing the rendered HTML. Built from the same data as the pages so it can
  * never drift out of date, and emitted once per language.

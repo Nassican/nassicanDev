@@ -15,7 +15,7 @@ import { project as cursovisor } from "./cursovisor";
  *
  * To add one: copy an existing folder, rename it to the slug, translate both
  * files and register it below. Leave `comingSoon: true` in `index.ts` until the
- * real case study is written — never invent one.
+ * real case study is written - never invent one.
  */
 export const projects: ProjectItem[] = [strategix, cursovisor];
 

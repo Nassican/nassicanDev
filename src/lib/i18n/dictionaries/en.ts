@@ -8,7 +8,7 @@ export const en: Dictionary = {
   meta: {
     title: "Jesús David Benavides Chicaiza | Full Stack Web Developer",
     description:
-      "Portfolio of Jesús David Benavides Chicaiza (Nassican), full stack web developer based in Pasto, Colombia. Projects built with Next.js, React, TypeScript, NestJS and PostgreSQL.",
+      "Portfolio of Jesús David Benavides Chicaiza (Nassican), full stack web developer, Colombia. Projects built with Next.js, React, TypeScript, NestJS and PostgreSQL.",
     jobTitle: "Full Stack Web Developer",
     keywords: [
       "Jesús David Benavides Chicaiza",
@@ -55,9 +55,9 @@ export const en: Dictionary = {
   },
 
   hero: {
-    badge: "Developer",
+    badge: "Full stack web developer",
     description:
-      "Full stack web developer and systems engineer based in Pasto, Colombia. I build applications with Next.js, React, TypeScript, NestJS and PostgreSQL.",
+      "I am a systems engineer, Colombia. I build applications with Next.js, React, TypeScript, NestJS and PostgreSQL.",
     viewProjects: "View Projects",
     contact: "Get in touch",
     scroll: "Scroll",
@@ -69,9 +69,9 @@ export const en: Dictionary = {
     frontendLabel: "Frontend",
     backendLabel: "Backend",
     frontend:
-      "Jesús David Benavides Chicaiza, systems engineering student. I focus on building clean, accessible, high-performance interfaces. I work with React and Next.js to ship fast, scalable experiences using reusable components and a monochrome design language that reads as modern and trustworthy. I care about the details in UX/UI, loading states and subtle CSS transitions.",
+      "I build interfaces with React, Next.js and TypeScript. I organize the work into reusable components and pay attention to keyboard navigation, readability, loading states and performance.",
     backend:
-      "I design robust, maintainable APIs with strict typing and consistent validation. I integrate databases and third-party services with an eye on architecture, observability and security. The goal is a predictable, scalable backend that serves data efficiently to full-stack apps, with a focus on clarity, testing and reliable deployments.",
+      "I build APIs with NestJS and TypeScript, and use PostgreSQL and Prisma to model and query data. I keep clear contracts between the frontend and backend, validate inputs and favor a structure that is easy to maintain.",
   },
 
   skills: {
@@ -162,7 +162,7 @@ export const en: Dictionary = {
   contact: {
     title: "Contact",
     intro:
-      "Have a web project, an open role or an idea you want to build? Send me a message and I will get back to you as soon as I can.",
+      "If you would like to discuss a project or a job opportunity, you can reach me by email or LinkedIn.",
     email: "Email",
     resumeTitle: "Resume",
     resumeSubtitle: "Available in two languages.",
@@ -171,7 +171,7 @@ export const en: Dictionary = {
 
   footer: {
     tagline:
-      "Building web experiences with a focus on monochrome design, performance and accessibility.",
+      "I build web applications and document how I make them.",
     content: "Content",
     background: "Background",
     more: "More",

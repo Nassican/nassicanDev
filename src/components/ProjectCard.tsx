@@ -30,7 +30,7 @@ export default function ProjectCard({
           <div className="relative aspect-video w-full">
             <Image
               src={project.image}
-              alt={`${project.title} — ${c.tagline}`}
+              alt={`${project.title} - ${c.tagline}`}
               fill
               sizes="(min-width: 640px) 50vw, 100vw"
               className="object-cover transition-transform duration-500 hover:scale-[1.03]"

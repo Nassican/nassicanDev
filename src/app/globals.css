@@ -129,3 +129,10 @@ body.nav-expanded .site-nav-inner {
 .animate-scroll-cue {
   animation: scroll-cue 1.6s ease-in-out infinite;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .animate-scroll-cue {
+    animation: none;
+  }
+}

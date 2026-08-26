@@ -49,7 +49,7 @@ export type ProjectMeta = {
 export type ProjectItem = ProjectMeta & {
   /**
    * `Localized` makes every language required, so a project cannot ship with a
-   * missing translation — the build fails instead.
+   * missing translation - the build fails instead.
    */
   content: Localized<ProjectTranslation>;
 };

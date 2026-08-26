@@ -126,7 +126,7 @@ export default function Navigation({
           <Link href={home} className="group flex items-center gap-3">
             {/* The logo art is a black mark on an opaque white square. The
                 transform lives on the wrapper, not the image, so the mask
-                scales and rotates with it — otherwise the square corners of
+                scales and rotates with it - otherwise the square corners of
                 the artwork slide out from under the clip on hover. */}
             <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full transition-transform duration-500 ease-out group-hover:scale-110 group-hover:rotate-6">
               <Image

@@ -12,13 +12,10 @@ export default function About({ t }: { t: Dictionary }) {
       <SectionTitle className="mb-4">{t.about.title}</SectionTitle>
       <div className="grid gap-6 md:grid-cols-2">
         {cards.map((card) => (
-          <div
-            key={card.label}
-            className="rounded-2xl border border-black/10 bg-white/50 p-5 backdrop-blur-sm dark:border-white/10 dark:bg-black/40"
-          >
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-black/10 px-2.5 py-0.5 text-[11px] uppercase tracking-wider text-zinc-700 dark:border-white/10 dark:text-zinc-300">
-              <span>{card.label}</span>
-            </div>
+          <div key={card.label} className="border-t border-black/15 pt-4 dark:border-white/15">
+            <h3 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {card.label}
+            </h3>
             <p className="text-zinc-700 dark:text-zinc-300">{card.text}</p>
           </div>
         ))}

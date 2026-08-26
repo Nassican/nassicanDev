@@ -54,7 +54,7 @@ function getBrandStyles(itemName: string): React.CSSProperties {
   } as React.CSSProperties;
 }
 export default function Skills({ t }: { t: Dictionary }) {
-  const [viewMode, setViewMode] = useState<"marquee" | "grid">("marquee");
+  const [viewMode, setViewMode] = useState<"marquee" | "grid">("grid");
   // Generate perfect repeated list for seamless loop (even repeats & min length)
   function getRepeatedList(list: string[]) {
     const minItems = 24;
@@ -79,7 +79,9 @@ export default function Skills({ t }: { t: Dictionary }) {
         {/* Toggle Mode Button */}
         <div className="inline-flex rounded-full border border-black/10 p-1 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.02] text-xs self-start sm:self-auto backdrop-blur-md">
           <button
+            type="button"
             onClick={() => setViewMode("marquee")}
+            aria-pressed={viewMode === "marquee"}
             className={`px-4 py-1.5 rounded-full transition-all duration-200 cursor-pointer font-medium ${
               viewMode === "marquee"
                 ? "bg-foreground text-background shadow-sm"
@@ -89,7 +91,9 @@ export default function Skills({ t }: { t: Dictionary }) {
             {t.skills.marquee}
           </button>
           <button
+            type="button"
             onClick={() => setViewMode("grid")}
+            aria-pressed={viewMode === "grid"}
             className={`px-4 py-1.5 rounded-full transition-all duration-200 cursor-pointer font-medium ${
               viewMode === "grid"
                 ? "bg-foreground text-background shadow-sm"

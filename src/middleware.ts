@@ -41,7 +41,7 @@ export default function middleware(request: NextRequest) {
 export const config = {
   /**
    * Everything except Next internals, /sitemap.xml, /robots.txt, the manifest
-   * and any file in /public — all matched by the dot in their name.
+   * and any file in /public - all matched by the dot in their name.
    *
    * `/llms.txt` is the exception: it is a real localized route living under
    * `[locale]`, so it is listed explicitly to opt back into the rewrite. The

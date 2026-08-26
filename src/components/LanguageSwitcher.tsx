@@ -15,7 +15,7 @@ import {
  *
  * Plain `<a>` rather than `<Link>` on purpose. Changing the locale changes the
  * `[locale]` param of the root layout, which makes React remount `<html>` and
- * drop the `dark` class the pre-paint script put there — the theme would reset
+ * drop the `dark` class the pre-paint script put there - the theme would reset
  * on every language change. A full document load re-runs that script, and it
  * is also the honest thing to do when the whole document's `lang` changes.
  */
