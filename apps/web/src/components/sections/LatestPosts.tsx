@@ -2,19 +2,19 @@ import Link from "next/link";
 import { BsArrowRight } from "react-icons/bs";
 import SectionTitle from "@/components/ui/SectionTitle";
 import PostCard from "@/components/PostCard";
-import { publishedPosts } from "@/lib/data";
+import { getPublishedPosts } from "@/lib/data/posts";
 import type { Dictionary } from "@/lib/i18n";
 import { localePath, type Locale } from "@/lib/i18n/config";
 
 /** Homepage teaser for the blog. Renders nothing while there are no posts. */
-export default function LatestPosts({
+export default async function LatestPosts({
   locale,
   t,
 }: {
   locale: Locale;
   t: Dictionary;
 }) {
-  const latest = publishedPosts.slice(0, 2);
+  const latest = (await getPublishedPosts()).slice(0, 2);
   if (!latest.length) return null;
 
   return (

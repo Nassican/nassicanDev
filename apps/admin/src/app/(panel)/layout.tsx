@@ -1,8 +1,35 @@
 import Link from "next/link";
 import Image from "next/image";
 import SignOutButton from "@/components/SignOutButton";
-import { navigation } from "@/lib/navigation";
+import { navigation, type NavEntry } from "@/lib/navigation";
 import { requireUser } from "@/lib/session";
+
+/**
+ * A module that is not built yet still appears, greyed out. Showing the whole
+ * map from day one makes it obvious what exists and what does not; a menu that
+ * hides the unbuilt half does not.
+ */
+function NavLink({ entry }: { entry: NavEntry }) {
+  if (!entry.ready) {
+    return (
+      <span
+        className="block cursor-default rounded px-2 py-1.5 text-sm text-neutral-600"
+        title="Pendiente de implementar"
+      >
+        {entry.label}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      href={entry.href}
+      className="block rounded px-2 py-1.5 text-sm text-neutral-300 transition-colors hover:bg-neutral-900 hover:text-neutral-100"
+    >
+      {entry.label}
+    </Link>
+  );
+}
 
 /**
  * Everything inside this route group is behind the session check. `requireUser`
@@ -28,25 +55,17 @@ export default async function PanelLayout({
           <nav>
             <ul className="flex flex-col gap-0.5">
               {navigation.map((entry) => (
-                <li key={entry.href}>
-                  {entry.ready ? (
-                    <Link
-                      href={entry.href}
-                      className="block rounded px-2 py-1.5 text-sm text-neutral-300 transition-colors hover:bg-neutral-900 hover:text-neutral-100"
-                    >
-                      {entry.label}
-                    </Link>
-                  ) : (
-                    <span
-                      className="flex items-center justify-between rounded px-2 py-1.5 text-sm text-neutral-600"
-                      title="Pendiente de implementar"
-                    >
-                      {entry.label}
-                      <span className="font-mono text-[10px] text-neutral-700">
-                        ·
-                      </span>
-                    </span>
-                  )}
+                <li key={entry.label}>
+                  <NavLink entry={entry} />
+                  {entry.children ? (
+                    <ul className="mt-0.5 ml-3 flex flex-col gap-0.5 border-l border-neutral-900 pl-2">
+                      {entry.children.map((child) => (
+                        <li key={child.href}>
+                          <NavLink entry={child} />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </li>
               ))}
             </ul>

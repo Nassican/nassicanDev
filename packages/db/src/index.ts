@@ -1,3 +1,11 @@
+/**
+ * Turns "PrismaClient is unable to run in this browser environment" - a
+ * runtime error only visible once a page is opened - into a build error that
+ * names the client component responsible. Anything a client component needs
+ * (types, pure helpers) belongs somewhere else, not here.
+ */
+import "server-only";
+
 import { PrismaClient, type Locale as DbLocale } from "../generated/prisma";
 import {
   isContentBody,

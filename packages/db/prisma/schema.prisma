@@ -286,7 +286,12 @@ model CategoryTranslation {
 model Tag {
   id   String @id @default(uuid())
   slug String @unique
-  /// Replaces the string matching that skills.ts does today to resolve icons.
+  /// Display name, identical in every language: tags are technology names
+  /// ("Next.js", "PostgreSQL"), not prose. This is what the public site puts
+  /// in `PostMeta.tags`, and what `skills.ts` matches to resolve an icon.
+  /// `TagTranslation` exists for the rare tag that is genuinely a phrase.
+  label String
+  /// Resolves the icon by foreign key instead of by string match.
   technologyId String? @map("technology_id")
 
   technology   Technology?      @relation(fields: [technologyId], references: [id], onDelete: SetNull)

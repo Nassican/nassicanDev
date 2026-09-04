@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { profile, projectsByDate, publishedPosts } from "@/lib/data";
+import { profile, projectsByDate } from "@/lib/data";
+import { getPublishedPosts } from "@/lib/data/posts";
 import { absoluteUrl, localeUrl } from "@/lib/seo";
 import { locales } from "@/lib/i18n/config";
 
@@ -24,8 +25,9 @@ function localizedEntries(
   }));
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
+  const publishedPosts = await getPublishedPosts();
 
   return [
     ...localizedEntries("/", {

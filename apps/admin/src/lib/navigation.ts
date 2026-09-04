@@ -14,10 +14,10 @@ export const navigation: NavEntry[] = [
   { label: "Dashboard", href: "/", ready: true },
   {
     label: "Contenido",
-    href: "/contenido",
-    ready: false,
+    href: "/contenido/blogs",
+    ready: true,
     children: [
-      { label: "Blogs", href: "/contenido/blogs", ready: false },
+      { label: "Blogs", href: "/contenido/blogs", ready: true },
       { label: "Proyectos", href: "/contenido/proyectos", ready: false },
       { label: "Páginas", href: "/contenido/paginas", ready: false },
       { label: "Multimedia", href: "/contenido/multimedia", ready: false },

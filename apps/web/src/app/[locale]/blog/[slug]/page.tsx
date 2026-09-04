@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BsArrowLeft } from "react-icons/bs";
 import Prose from "@/components/Prose";
-import { getPost, publishedPosts, readingMinutes } from "@/lib/data";
+import { readingMinutes } from "@/lib/data";
+import { getPost, getPublishedPosts } from "@/lib/data/posts";
 import { formatDate } from "@/lib/format";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales, localePath } from "@/lib/i18n/config";
@@ -11,10 +12,15 @@ import { pageMetadata, postJsonLd } from "@/lib/seo";
 
 type PageParams = { params: Promise<{ locale: string; slug: string }> };
 
-/** Every post exists in every language, so the matrix is a full product. */
-export function generateStaticParams() {
+/**
+ * Every post exists in every language, so the matrix is a full product.
+ * A post published after this build has no entry here and renders on demand,
+ * which is what `dynamicParams` gives by default.
+ */
+export async function generateStaticParams() {
+  const posts = await getPublishedPosts();
   return locales.flatMap((locale) =>
-    publishedPosts.map((post) => ({ locale, slug: post.slug })),
+    posts.map((post) => ({ locale, slug: post.slug })),
   );
 }
 
@@ -23,7 +29,7 @@ export async function generateMetadata({
 }: PageParams): Promise<Metadata> {
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
-  const post = getPost(slug);
+  const post = await getPost(slug);
   if (!post) return {};
   const c = post.content[locale];
 
@@ -43,7 +49,7 @@ export default async function PostPage({ params }: PageParams) {
   const { locale, slug } = await params;
   if (!isLocale(locale)) notFound();
 
-  const post = getPost(slug);
+  const post = await getPost(slug);
   if (!post) notFound();
 
   const t = getDictionary(locale);

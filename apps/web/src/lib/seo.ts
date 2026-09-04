@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import {
   profile,
   projects,
-  publishedPosts,
   certificates,
   education,
   experience,
@@ -377,7 +376,7 @@ export function projectJsonLd(locale: Locale, p: ProjectItem) {
   };
 }
 
-export function blogJsonLd(locale: Locale) {
+export function blogJsonLd(locale: Locale, publishedPosts: Post[]) {
   const t = getDictionary(locale);
 
   return {

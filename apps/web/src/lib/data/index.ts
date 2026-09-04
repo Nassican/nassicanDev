@@ -23,8 +23,10 @@ export {
 } from "./projects";
 export type { ProjectItem, ProjectMeta, ProjectTranslation } from "./projects";
 
-export { posts, publishedPosts, getPost } from "./posts";
-export type { Post, PostMeta, PostTranslation } from "./posts";
+// Post queries are NOT re-exported here on purpose: this barrel is imported
+// by client components, and the query module reaches Prisma. Import them from
+// "@/lib/data/posts" in server code instead.
+export type { Post, PostMeta, PostTranslation } from "./posts/types";
 
 export { certificates } from "./certificates";
 export type { Certificate } from "./certificates";

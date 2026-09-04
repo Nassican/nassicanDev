@@ -131,10 +131,10 @@ Cada cambio de contenido visible debe implementarse tanto en español como en in
 
 ### Publicar un artículo
 
-1. Copia `src/lib/data/posts/_example/` y renombra la carpeta con el slug.
-2. Completa y traduce `es.ts` y `en.ts`.
-3. Registra el artículo en `src/lib/data/posts/index.ts`.
-4. Elimina `draft: true` cuando esté listo para publicarse.
+Los artículos ya no viven en el repositorio: se escriben en
+`app.nassican.com/contenido/blogs`. El sitio público los lee de la base de
+datos, y el panel invalida su caché al publicar. Publicar exige que ambos
+idiomas estén completos.
 
 ## Variables de entorno
 
@@ -145,6 +145,8 @@ analítica. Cada workspace trae su `.env.example`.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | `apps/web` | Base de las URLs absolutas; por defecto `https://nassican.com` |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | `apps/web` | Etiqueta GA4 del flujo de datos web (`G-…`) |
+| `DATABASE_URL` | `apps/web` | **Obligatoria**: el sitio lee los artículos de la base, también al compilar |
+| `REVALIDATE_SECRET` | `apps/web` y `apps/admin` | Mismo valor en ambos; autentica la invalidación de caché |
 | `DATABASE_URL` · `DIRECT_DATABASE_URL` | `packages/db` | Conexión agrupada y directa de Neon |
 | `GOOGLE_CLIENT_ID` · `GOOGLE_CLIENT_SECRET` | `apps/admin` | Login con Google y acceso a sus APIs |
 | `ADMIN_ALLOWED_EMAILS` | `apps/admin` | Única cuenta con acceso al panel |

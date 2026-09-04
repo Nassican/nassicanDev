@@ -46,6 +46,38 @@ El enum `Locale` de Postgres y la lista `locales` de `packages/shared` tienen
 que moverse juntos; `localeParity` en `src/index.ts` falla al compilar si se
 separan.
 
+#### La frontera cliente/servidor no es negociable
+
+`packages/db` empieza con `import "server-only"`. Si un componente de cliente
+lo alcanza —aunque sea a través de tres reexportaciones— el build falla y
+nombra al culpable. Sin esa guarda el error aparece en el navegador, en tiempo
+de ejecución, con el mensaje inútil «PrismaClient is unable to run in this
+browser environment», y **el build pasa igualmente**: compilar no demuestra que
+la frontera esté bien.
+
+Dos consecuencias prácticas:
+
+- **Un componente de cliente nunca importa de un módulo que consulte la base.**
+  Los tipos y las funciones puras que necesite van en un módulo aparte
+  (`apps/admin/src/lib/post-draft.ts` frente a `posts.ts`), o en
+  `packages/shared`.
+- **El barril `apps/web/src/lib/data/index.ts` no reexporta las consultas de
+  artículos**, porque tres componentes de cliente importan de él.
+  `getPublishedPosts` y `getPost` se importan desde `@/lib/data/posts`.
+
+Al tocar esto, la verificación no es `npm run build` sino comprobar que Prisma
+no aparece en los bundles de cliente:
+
+```bash
+grep -rl "PrismaClient" apps/web/.next/static apps/admin/.next/static
+```
+
+#### Windows: el motor de Prisma se queda bloqueado
+
+`prisma generate` renombra `query_engine-windows.dll.node`, y un servidor de
+desarrollo en marcha lo tiene abierto. Detén `npm run dev` y `npm run dev:admin`
+antes de migrar o compilar, o verás `EPERM: operation not permitted, rename`.
+
 ### La regla de traducción con base de datos
 
 `Localized<T>` hacía que una traducción faltante rompiera el build. Con el
@@ -162,20 +194,23 @@ Al agregar una ruta nueva:
 
 ## Contenido
 
-Todo el contenido editable vive en `src/lib/data/` como módulos tipados. Las
-páginas, el JSON-LD y `llms.txt` leen los mismos objetos, así que un dato se
-edita una sola vez.
+El contenido está a medio migrar a la base de datos. **Los artículos ya vienen
+de Postgres**; el resto sigue en módulos tipados bajo `src/lib/data/`.
 
-| Archivo | Qué contiene |
-| --- | --- |
-| `profile.ts` | Nombre, correo, ubicación, redes, CVs |
-| `skills.ts` | Registro de tecnologías (colores e iconos) y agrupación |
-| `experience.ts` | Historial laboral |
-| `education.ts` | Formación académica |
-| `certificates.ts` | Certificados y cursos |
-| `projects/` | Proyectos y casos de estudio, una carpeta por proyecto |
-| `posts/` | Artículos del blog, una carpeta por artículo |
-| `content.ts` | Tipo `ContentBlock` y utilidades (tiempo de lectura, anclas) |
+| Archivo | Qué contiene | Fuente |
+| --- | --- | --- |
+| `posts/index.ts` | Consultas de artículos publicados | **base de datos** |
+| `profile.ts` | Nombre, correo, ubicación, redes, CVs | módulo |
+| `skills.ts` | Registro de tecnologías (colores e iconos) y agrupación | módulo |
+| `experience.ts` | Historial laboral | módulo |
+| `education.ts` | Formación académica | módulo |
+| `certificates.ts` | Certificados y cursos | módulo |
+| `projects/` | Proyectos y casos de estudio, una carpeta por proyecto | módulo |
+| `content.ts` | Reexporta `ContentBlock` y utilidades de `@nassican/shared` | — |
+
+Consecuencia de la migración: **`apps/web` necesita `DATABASE_URL`**, también
+en tiempo de build. `generateStaticParams` consulta la base para saber qué
+artículos prerenderizar, así que sin base no hay build.
 
 ### Cuerpo de artículos y casos de estudio
 
@@ -185,31 +220,39 @@ No se usa Markdown ni MDX: el cuerpo es un arreglo de `ContentBlock`
 traducción faltante falla en `tsc` en lugar de renderizarse mal en producción.
 Si algún día se migra a MDX, el cambio debería quedar contenido en `Prose`.
 
-### Agregar un artículo
+### Artículos: se escriben en el panel, no en el repositorio
 
-Los artículos viven en carpetas, uno por carpeta, con un archivo por idioma:
+Ya no hay carpetas por artículo. Se crean y publican desde
+`app.nassican.com/contenido/blogs`, y `apps/web/src/lib/data/posts/index.ts`
+solo contiene las consultas. El tipo `Post` no cambió, y por eso `PostCard`,
+`Prose` y los ayudantes de SEO siguieron intactos: lo que cambió es de dónde
+salen los datos, no su forma.
 
-```
-src/lib/data/posts/
-  index.ts            registro: una línea de import y una entrada por artículo
-  types.ts            Post, PostMeta, PostTranslation
-  _example/           plantilla en borrador, no es un artículo
-    index.ts          metadatos (slug, date, tags, draft) + unión de idiomas
-    es.ts             título, descripción y cuerpo en español
-    en.ts             título, descripción y cuerpo en inglés
-```
+**Publicar exige los dos idiomas.** Un locale cuenta como escrito cuando tiene
+título, descripción y al menos un bloque; `publishPost` rechaza la publicación
+enumerando los que faltan. Es la regla principal de este documento trasladada
+del compilador al momento en que importa.
 
-Ningún archivo acumula todos los artículos: `index.ts` crece dos líneas por
-artículo y el contenido queda aislado por idioma, así que corregir el español no
-toca el inglés y el diff de un artículo nuevo es una carpeta.
+#### Cómo llega un cambio al sitio público
 
-Para publicar: copia `_example`, renombra la carpeta al slug, traduce `es.ts` y
-`en.ts`, regístralo en `posts/index.ts` y quita `draft`. La lista, el teaser de
-la portada, el sitemap, `llms.txt` y el JSON-LD lo recogen automáticamente.
+Las dos aplicaciones son despliegues distintos, así que `revalidateTag` en el
+panel no alcanza a la caché del sitio. La cadena es:
 
-No hay artículos publicados todavía: `/blog` muestra su estado "Próximamente"
-mientras `publishedPosts` esté vacío. `draft: true` deja un artículo fuera de
-todas esas superficies, incluida la generación estática.
+1. Las lecturas de `apps/web` se etiquetan con `cacheTags` de
+   `@nassican/shared` (`posts`, `post:<slug>`).
+2. Al publicar, el panel llama a `POST /api/revalidate` del sitio con esas
+   etiquetas, autenticado con `REVALIDATE_SECRET`, que **ambos lados deben
+   compartir**.
+3. El sitio ejecuta `revalidateTag(tag, { expire: 0 })` y las páginas se
+   regeneran en la siguiente petición.
+
+Entre publicaciones las páginas siguen siendo estáticas. Un artículo publicado
+después del último build no tiene entrada en `generateStaticParams` y se
+renderiza bajo demanda, que es lo que da `dynamicParams` por defecto.
+
+Si la llamada de revalidación falla, el panel lo dice pero **no revierte la
+publicación**: el contenido ya está guardado, y una caché que tarda es mejor
+que un botón que parece haber fallado.
 
 ### Agregar un proyecto
 

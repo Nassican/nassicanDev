@@ -4,9 +4,9 @@ import {
   experience,
   profile,
   projectsByDate,
-  publishedPosts,
   skills,
 } from "@/lib/data";
+import { getPublishedPosts } from "@/lib/data/posts";
 import { absoluteUrl, localeUrl } from "@/lib/seo";
 import { getDictionary } from "@/lib/i18n";
 import {
@@ -89,7 +89,7 @@ const copy: Record<Locale, Record<string, string>> = {
   },
 };
 
-function build(locale: Locale): string {
+async function build(locale: Locale): Promise<string> {
   const t = getDictionary(locale);
   const c = copy[locale];
   const url = (path: string) => localeUrl(locale, path);
@@ -118,7 +118,7 @@ function build(locale: Locale): string {
     }`;
   });
 
-  const postLines = publishedPosts.map((p) => {
+  const postLines = (await getPublishedPosts()).map((p) => {
     const pc = p.content[locale];
     return `- [${pc.title}](${url(`/blog/${p.slug}`)}) (${p.date}): ${pc.description}`;
   });
@@ -201,7 +201,7 @@ export async function GET(
   { params }: { params: Promise<{ locale: string }> },
 ) {
   const { locale } = await params;
-  const body = build(isLocale(locale) ? locale : defaultLocale);
+  const body = await build(isLocale(locale) ? locale : defaultLocale);
 
   return new Response(body, {
     headers: {
