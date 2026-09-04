@@ -138,13 +138,26 @@ Cada cambio de contenido visible debe implementarse tanto en español como en in
 
 ## Variables de entorno
 
-La aplicación funciona sin variables obligatorias. Para generar URLs absolutas de otro dominio puede definirse:
+Ninguna es obligatoria: sin ellas el sitio compila y funciona, solo sin
+analítica. Cada workspace trae su `.env.example`.
 
-```env
-NEXT_PUBLIC_SITE_URL=https://nassican.com
-```
+| Variable | Workspace | Para qué |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | `apps/web` | Base de las URLs absolutas; por defecto `https://nassican.com` |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | `apps/web` | Etiqueta GA4 del flujo de datos web (`G-…`) |
+| `DATABASE_URL` · `DIRECT_DATABASE_URL` | `packages/db` | Conexión agrupada y directa de Neon |
+| `GOOGLE_CLIENT_ID` · `GOOGLE_CLIENT_SECRET` | `apps/admin` | Login con Google y acceso a sus APIs |
+| `ADMIN_ALLOWED_EMAILS` | `apps/admin` | Única cuenta con acceso al panel |
+| `GA4_PROPERTY_ID` | `apps/admin` | Propiedad que consulta la Data API (numérico) |
 
-Si no se establece, se utiliza `https://nassican.com`.
+El identificador de medición y el de propiedad son distintos y no
+intercambiables: el primero es donde el sitio **envía**, el segundo es de donde
+el panel **lee**.
+
+`NEXT_PUBLIC_GA_MEASUREMENT_ID` debe definirse solo en el entorno de
+producción de Vercel. La analítica además no se emite fuera de un build de
+producción, para que las sesiones de desarrollo no acaben en la misma
+propiedad que alimenta el panel.
 
 ## Despliegue
 

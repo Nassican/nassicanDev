@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "../globals.css";
 import Navigation from "@/components/Navigation";
 import SectionNavigator from "@/components/SectionNavigator";
@@ -17,6 +18,15 @@ import { alternatesFor, siteJsonLd, siteName, siteUrl } from "@/lib/seo";
 import { themeInitScript } from "@/lib/theme";
 
 type LayoutParams = { params: Promise<{ locale: string }> };
+
+/**
+ * GA4 measurement id: identifies the data stream the browser sends events to,
+ * not the property the admin reads. It is public by design - it ships in the
+ * page source - so it belongs in a `NEXT_PUBLIC_` variable rather than a
+ * secret. Moves to `seo_settings.ga4_measurement_id` when this app starts
+ * reading its configuration from the database.
+ */
+const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 /** One static branch per language; there is no runtime locale detection. */
 export function generateStaticParams() {
@@ -127,6 +137,15 @@ export default async function RootLayout({
           previousLabel={t.nav.previousSection}
           nextLabel={t.nav.nextSection}
         />
+        {/*
+          Analytics only ships from a production build. The variable is scoped
+          to Vercel's Production environment, and the NODE_ENV check is the
+          backstop that keeps a local `.env.local` from sending development
+          sessions into the same property the dashboard reads.
+        */}
+        {gaMeasurementId && process.env.NODE_ENV === "production" ? (
+          <GoogleAnalytics gaId={gaMeasurementId} />
+        ) : null}
       </body>
     </html>
   );

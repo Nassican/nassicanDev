@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@nassican/shared": "*",
+    "@next/third-parties": "^16.3.4",
     "next": "16.0.10",
     "react": "19.2.0",
     "react-dom": "19.2.0",
