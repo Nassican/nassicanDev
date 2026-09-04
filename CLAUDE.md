@@ -1,6 +1,63 @@
 # CLAUDE.md
 
-Guía del repositorio para agentes que trabajen en este portafolio.
+Guía del repositorio para agentes que trabajen en este proyecto.
+
+## Estructura del repositorio
+
+Es un monorepo de workspaces de npm:
+
+| Workspace | Qué es |
+| --- | --- |
+| `apps/web` | Sitio público bilingüe → `nassican.com` |
+| `apps/admin` | Plataforma de gestión, en español → `app.nassican.com` |
+| `packages/shared` | `Locale`, `Localized<T>`, `ContentBlock` y utilidades puras |
+| `packages/db` | Esquema Prisma y cliente de base de datos |
+
+**Todos los caminos `src/...` de este documento son relativos a `apps/web/`**,
+salvo que se indique otra cosa; el resto del documento describe el sitio
+público. Cada aplicación tiene su propio `package.json`, `tsconfig.json` y
+alias `@/*`: no hay imports cruzados entre `apps/web` y `apps/admin`, lo
+compartido va en `packages/`.
+
+Los comandos se ejecutan desde la raíz del repositorio, no desde `apps/web`.
+
+### `packages/shared`
+
+Dueño de `locales`, `Locale`, `Localized<T>` y del tipo `ContentBlock` con sus
+utilidades (`wordCount`, `readingMinutes`, `headingId`, `extractLinks`).
+`src/lib/i18n/config.ts` y `src/lib/data/content.ts` los reexportan, así que
+dentro de `apps/web` se siguen importando desde donde siempre. Al tocar
+cualquiera de esos tipos, edítalos en `packages/shared`, no en el reexport.
+
+### `packages/db`
+
+El esquema vive en `packages/db/prisma/schema.prisma`. Dos convenciones lo
+recorren entero:
+
+- **Las traducciones son filas.** Cada entidad con texto visible se parte en un
+  modelo base y un `*Translation` con clave `(entidadId, locale)`.
+- **Los cuerpos siguen siendo `ContentBlock[]`** en columnas `jsonb`. Prisma
+  los tipa como `Json` opaco, así que el cliente extendido de
+  `packages/db/src/index.ts` es **el único sitio donde se hace el cast** al
+  leer, y `prismaJson` de `src/json.ts` el único por donde se escribe. No
+  castees JSON en ningún otro archivo.
+
+El enum `Locale` de Postgres y la lista `locales` de `packages/shared` tienen
+que moverse juntos; `localeParity` en `src/index.ts` falla al compilar si se
+separan.
+
+### La regla de traducción con base de datos
+
+`Localized<T>` hacía que una traducción faltante rompiera el build. Con el
+contenido en filas eso deja de ser posible: la comprobación se desplaza al
+momento de publicar. Una entidad no pasa a `published` si le falta cualquier
+locale. Los diccionarios de interfaz (`src/lib/i18n/dictionaries/`) **no se
+migran**: siguen en el código, donde el tipo `Dictionary` sigue rompiendo el
+build.
+
+`apps/admin` es de un solo operador y está en español únicamente. La regla
+bilingüe cubre lo que leen los visitantes, no el panel — pero lo que el panel
+*edita* sí es bilingüe y se valida antes de publicar.
 
 ## Regla principal: todo cambio lleva su traducción
 
@@ -190,11 +247,21 @@ pintar. No cambies ese `<a>` por `<Link>`.
 
 ## Comandos
 
+Desde la raíz del repositorio:
+
 ```bash
-npm run dev     # desarrollo
-npm run build   # build de producción; valida tipos y traducciones
-npm run lint    # ESLint
+npm run dev          # sitio público en :3000
+npm run dev:admin    # plataforma de gestión en :3001
+npm run build        # build de producción de todos los workspaces
+npm run lint         # ESLint en las dos aplicaciones
+npm run typecheck    # tsc --noEmit en todos los workspaces
+npm run db:generate  # regenera el cliente de Prisma
+npm run db:migrate   # crea y aplica una migración
+npm run db:studio    # Prisma Studio
 ```
+
+Tras editar `schema.prisma` hay que ejecutar `npm run db:generate` antes de que
+los tipos nuevos existan.
 
 `npm run build` es la verificación mínima antes de dar por terminado cualquier
 cambio.

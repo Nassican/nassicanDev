@@ -1,18 +1,22 @@
 /**
- * Locale registry. Everything else in the app derives from this list, so
- * adding a language means adding it here, adding its dictionary, and letting
- * TypeScript point at every `Localized<T>` that is still missing a value.
+ * Locale routing for the public site.
+ *
+ * The registry itself - `locales`, `Locale`, `Localized<T>` - lives in
+ * `@nassican/shared` so the admin and the database layer agree with this app on
+ * what a language is. It is re-exported here because every component in this
+ * app already imports it from this path, and because the routing helpers below
+ * are the only part of it the public site cares about.
  */
-export const locales = ["es", "en"] as const;
+export {
+  locales,
+  defaultLocale,
+  localeNames,
+  isLocale,
+  type Locale,
+  type Localized,
+} from "@nassican/shared";
 
-export type Locale = (typeof locales)[number];
-
-/**
- * The default locale is served from the root of the site (`/`, `/blog`), not
- * from `/es`. `proxy.ts` rewrites those paths onto the `[locale]` segment and
- * redirects `/es/*` back to the root so only one URL per page is indexable.
- */
-export const defaultLocale: Locale = "es";
+import { locales, defaultLocale, type Locale } from "@nassican/shared";
 
 /** Value used for `<html lang>` and OpenGraph `locale`. */
 export const htmlLang: Record<Locale, string> = {
@@ -24,19 +28,6 @@ export const openGraphLocale: Record<Locale, string> = {
   es: "es_CO",
   en: "en_US",
 };
-
-/** Name of each language written in that language, for the switcher. */
-export const localeNames: Record<Locale, string> = {
-  es: "Español",
-  en: "English",
-};
-
-/** Every translatable value in the content layer is shaped like this. */
-export type Localized<T> = Record<Locale, T>;
-
-export function isLocale(value: string): value is Locale {
-  return (locales as readonly string[]).includes(value);
-}
 
 /** `/en` for prefixed locales, `""` for the default one. */
 export function localePrefix(locale: Locale): string {

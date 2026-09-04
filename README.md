@@ -1,10 +1,21 @@
 <p align="center">
-  <img src="public/brand/LogoNassican.png" alt="Logo de Nassican" width="180" />
+  <img src="apps/web/public/brand/LogoNassican.png" alt="Logo de Nassican" width="180" />
 </p>
 
-# Nassican - Portafolio personal
+# Nassican
 
-Portafolio bilingüe de Jesús David Benavides Chicaiza, construido con Next.js. Presenta su perfil profesional, experiencia, formación, habilidades, certificados, proyectos y artículos en español e inglés.
+Monorepo de [nassican.com](https://nassican.com). Contiene dos aplicaciones:
+
+| Workspace | Dominio | Qué es |
+| --- | --- | --- |
+| `apps/web` | `nassican.com` | Sitio público: portafolio bilingüe de Jesús David Benavides Chicaiza |
+| `apps/admin` | `app.nassican.com` | Plataforma de gestión del sitio |
+| `packages/shared` | — | Tipos y utilidades comunes: `Locale`, `Localized<T>`, `ContentBlock` |
+| `packages/db` | — | Esquema Prisma y cliente de base de datos (Postgres en Neon) |
+
+## Sitio público (`apps/web`)
+
+Portafolio bilingüe construido con Next.js. Presenta el perfil profesional, experiencia, formación, habilidades, certificados, proyectos y artículos en español e inglés.
 
 ## Características
 
@@ -46,35 +57,55 @@ Abre [http://localhost:3000](http://localhost:3000). La versión inglesa está d
 
 ## Comandos
 
+Todos se ejecutan desde la raíz del repositorio:
+
 ```bash
-npm run dev       # servidor de desarrollo
-npm run lint      # análisis estático con ESLint
-npm run build     # compilación optimizada de producción
-npm run start     # ejecuta la compilación de producción
+npm run dev          # sitio público en :3000
+npm run dev:admin    # plataforma de gestión en :3001
+npm run build        # compila todos los workspaces
+npm run build:web    # compila solo el sitio público
+npm run lint         # ESLint
+npm run typecheck    # tsc --noEmit
+npm run db:generate  # regenera el cliente de Prisma
+npm run db:migrate   # crea y aplica una migración
+npm run db:studio    # Prisma Studio
 ```
 
 ## Estructura
 
 ```text
-src/
-├── app/
-│   ├── [locale]/        # páginas, layout y rutas localizadas
-│   ├── globals.css      # estilos globales y tema
-│   ├── manifest.ts
-│   ├── robots.ts
-│   └── sitemap.ts
-├── components/
-│   ├── sections/        # secciones de la página principal
-│   └── ui/              # componentes reutilizables
-├── lib/
-│   ├── data/            # contenido tipado del portafolio
-│   ├── i18n/            # configuración y diccionarios es/en
-│   ├── seo.ts
-│   └── theme.ts
-└── middleware.ts        # redirección y reescritura de idiomas
+.
+├── apps/
+│   ├── web/                     # sitio público (nassican.com)
+│   │   ├── public/              # recursos estáticos, capturas y CV
+│   │   └── src/
+│   │       ├── app/
+│   │       │   ├── [locale]/    # páginas, layout y rutas localizadas
+│   │       │   ├── globals.css  # estilos globales y tema
+│   │       │   ├── manifest.ts
+│   │       │   ├── robots.ts
+│   │       │   └── sitemap.ts
+│   │       ├── components/
+│   │       │   ├── sections/    # secciones de la página principal
+│   │       │   └── ui/          # componentes reutilizables
+│   │       ├── lib/
+│   │       │   ├── data/        # contenido tipado del portafolio
+│   │       │   ├── i18n/        # configuración y diccionarios es/en
+│   │       │   ├── seo.ts
+│   │       │   └── theme.ts
+│   │       └── middleware.ts    # redirección y reescritura de idiomas
+│   └── admin/                   # plataforma de gestión (app.nassican.com)
+│       └── src/app/             # panel en español, sin segmento [locale]
+└── packages/
+    ├── shared/                  # Locale, Localized<T>, ContentBlock
+    └── db/
+        ├── prisma/schema.prisma # modelo de datos
+        └── src/                 # cliente Prisma y acceso tipado al jsonb
 ```
 
-Los recursos estáticos, capturas de proyectos y CV se encuentran en `public/`.
+El alias `@/*` está definido por aplicación: dentro de `apps/web` resuelve a
+`apps/web/src/*`. Los caminos citados en este documento son relativos a la
+aplicación correspondiente.
 
 ## Gestión de contenido
 
@@ -117,11 +148,12 @@ Si no se establece, se utiliza `https://nassican.com`.
 
 ## Despliegue
 
-El proyecto puede desplegarse en Vercel o en cualquier plataforma compatible con Next.js:
+Cada aplicación se despliega como un proyecto independiente de Vercel sobre
+este mismo repositorio, distinguidos por su *Root Directory*:
 
-```bash
-npm run build
-npm run start
-```
+| Proyecto de Vercel | Root Directory | Dominio |
+| --- | --- | --- |
+| Sitio público | `apps/web` | `nassican.com` |
+| Plataforma de gestión | `apps/admin` | `app.nassican.com` |
 
 Antes de publicar cambios se recomienda ejecutar `npm run lint` y `npm run build`.

@@ -2,10 +2,8 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 /**
- * This app lives in a workspace, not at the repository root. Both Turbopack
- * and the production file tracer walk upwards looking for a lockfile to infer
- * the workspace root; pointing them at it explicitly keeps that inference from
- * changing behaviour when a sibling app is added.
+ * See apps/web/next.config.ts: both apps pin the workspace root explicitly
+ * rather than letting Turbopack and the file tracer infer it from the lockfile.
  */
 const monorepoRoot = path.join(import.meta.dirname, "..", "..");
 
@@ -16,7 +14,9 @@ const nextConfig: NextConfig = {
     root: monorepoRoot,
   },
   /** Workspace packages ship TypeScript source, not a build. */
-  transpilePackages: ["@nassican/shared"],
+  transpilePackages: ["@nassican/db", "@nassican/shared"],
+  /** Prisma loads its query engine at runtime; bundling it breaks that. */
+  serverExternalPackages: ["@prisma/client"],
 };
 
 export default nextConfig;

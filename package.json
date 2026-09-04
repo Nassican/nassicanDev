@@ -1,0 +1,24 @@
+{
+  "name": "nassican-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @nassican/web",
+    "dev:admin": "npm run dev --workspace @nassican/admin",
+    "build": "npm run build --workspaces --if-present",
+    "build:web": "npm run build --workspace @nassican/web",
+    "build:admin": "npm run build --workspace @nassican/admin",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run generate --workspace @nassican/db",
+    "db:migrate": "npm run migrate --workspace @nassican/db",
+    "db:studio": "npm run studio --workspace @nassican/db"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

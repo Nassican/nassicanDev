@@ -1,0 +1,1041 @@
+// Data model for App Nassican, the management platform behind nassican.com.
+//
+// Two conventions run through the whole file:
+//
+//   1. Translations are rows, not columns. Every entity with visible text is
+//      split into a base model and a `*Translation` sibling keyed by
+//      (entityId, locale). Adding a language means inserting rows, not
+//      migrating columns.
+//   2. Long-form bodies stay as `ContentBlock[]` in a Json column. The shape is
+//      declared in `src/content.ts` and applied on read by the client
+//      extension in `src/index.ts` - Prisma types Json as opaque, so that
+//      extension is the single sanctioned place where the cast happens.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Pooled connection for the application.
+  url = env("DATABASE_URL")
+  // Direct connection for migrations: Neon's pooler rejects session-level DDL.
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Mirrors `locales` in apps/web/src/lib/i18n/config.ts. The two must move
+/// together; a test compares them.
+enum Locale {
+  es
+  en
+}
+
+enum ContentStatus {
+  draft
+  scheduled
+  published
+  archived
+}
+
+enum UserRole {
+  owner
+  editor
+  viewer
+}
+
+/// `system` pages already exist as routes under app/[locale]; only their SEO is
+/// editable. `custom` pages are created in the panel and carry a body.
+enum PageKind {
+  system
+  custom
+}
+
+enum MediaKind {
+  image
+  document
+  video
+  other
+}
+
+enum NavLocation {
+  header
+  footer
+}
+
+enum LinkKind {
+  page
+  route
+  external
+}
+
+enum LogLevel {
+  info
+  warn
+  error
+}
+
+enum SyncSource {
+  ga4
+  search_console
+  vercel
+  uptime
+  content_stats
+  link_check
+}
+
+enum SyncStatus {
+  running
+  ok
+  failed
+}
+
+// ---------------------------------------------------------------------------
+// Access
+// ---------------------------------------------------------------------------
+
+/// Model names and fields in this block follow what the Better Auth Prisma
+/// adapter expects. Only `role` and `isActive` are ours.
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String?
+  image         String?
+  role          UserRole  @default(owner)
+  /// Second lock, independent of Google: revoking access never needs the
+  /// identity provider to cooperate.
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  posts         Post[]         @relation("PostAuthor")
+  postRevisions PostRevision[]
+  uploads       Media[]        @relation("MediaUploader")
+  auditEntries  AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Holds the Google OAuth grant. `refreshToken` is what lets the SEO and
+/// Analytics modules query GA4 and Search Console without a service account.
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ---------------------------------------------------------------------------
+// Blog
+// ---------------------------------------------------------------------------
+
+model Post {
+  id       String        @id @default(uuid())
+  slug     String        @unique
+  status   ContentStatus @default(draft)
+  /// A future date with status `scheduled` is a scheduled publication.
+  publishedAt DateTime? @map("published_at")
+  /// Last edit with editorial weight, not every UPDATE.
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  authorId      String? @map("author_id")
+  categoryId    String? @map("category_id")
+  coverMediaId  String? @map("cover_media_id")
+  featured      Boolean @default(false)
+  /// Computed with readingMinutes() on save rather than on every render.
+  readingMinutes Int? @map("reading_minutes")
+
+  author     User?          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  category   Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  coverMedia Media?         @relation("PostCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+
+  translations PostTranslation[]
+  revisions    PostRevision[]
+  tags         PostTag[]
+  links        PostLink[]
+
+  @@index([status, publishedAt])
+  @@map("posts")
+}
+
+model PostTranslation {
+  postId String @map("post_id")
+  locale Locale
+
+  title       String
+  description String
+  /// ContentBlock[] - see src/content.ts
+  body Json
+
+  seoTitle       String?  @map("seo_title")
+  seoDescription String?  @map("seo_description")
+  ogImageId      String?  @map("og_image_id")
+  canonicalUrl   String?  @map("canonical_url")
+  noindex        Boolean  @default(false)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  post    Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  ogImage Media? @relation("PostOgImage", fields: [ogImageId], references: [id], onDelete: SetNull)
+
+  @@id([postId, locale])
+  @@map("post_translations")
+}
+
+/// Lets an edit be undone without git. One row per save, per language.
+model PostRevision {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  locale    Locale
+  /// The whole PostTranslation row as it stood.
+  snapshot  Json
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?  @map("created_by")
+
+  post Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([postId, locale, createdAt])
+  @@map("post_revisions")
+}
+
+model Category {
+  id       String  @id @default(uuid())
+  slug     String  @unique
+  parentId String? @map("parent_id")
+  position Int     @default(0)
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+
+  translations CategoryTranslation[]
+  posts        Post[]
+
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  categoryId  String  @map("category_id")
+  locale      Locale
+  name        String
+  description String?
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, locale])
+  @@map("category_translations")
+}
+
+model Tag {
+  id   String @id @default(uuid())
+  slug String @unique
+  /// Replaces the string matching that skills.ts does today to resolve icons.
+  technologyId String? @map("technology_id")
+
+  technology   Technology?      @relation(fields: [technologyId], references: [id], onDelete: SetNull)
+  translations TagTranslation[]
+  posts        PostTag[]
+
+  @@map("tags")
+}
+
+model TagTranslation {
+  tagId  String @map("tag_id")
+  locale Locale
+  name   String
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([tagId, locale])
+  @@map("tag_translations")
+}
+
+model PostTag {
+  postId   String @map("post_id")
+  tagId    String @map("tag_id")
+  /// The order tags appear in is an editorial decision.
+  position Int    @default(0)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+/// Outbound links extracted from bodies on save, so the SEO module can report
+/// broken ones without re-parsing every post.
+model PostLink {
+  id            String    @id @default(uuid())
+  postId        String    @map("post_id")
+  locale        Locale
+  url           String
+  isInternal    Boolean   @default(false) @map("is_internal")
+  lastStatus    Int?      @map("last_status")
+  lastCheckedAt DateTime? @map("last_checked_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, locale])
+  @@map("post_links")
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+model Project {
+  id   String @id @default(uuid())
+  slug String @unique
+  /// Product name: not translated, so it lives on the base model.
+  title String
+  /// "2024" or "2023 - 2024", exactly as shown next to the title.
+  yearLabel String        @map("year_label")
+  date      DateTime      @db.Date
+  status    ContentStatus @default(draft)
+  /// Listed without a case study; the detail page says so explicitly rather
+  /// than rendering an empty shell.
+  comingSoon   Boolean  @default(false) @map("coming_soon")
+  featured     Boolean  @default(false)
+  demoUrl      String?  @map("demo_url")
+  repoUrl      String?  @map("repo_url")
+  coverMediaId String?  @map("cover_media_id")
+  position     Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  coverMedia   Media?               @relation("ProjectCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  translations ProjectTranslation[]
+  technologies ProjectTechnology[]
+
+  @@index([status, position])
+  @@map("projects")
+}
+
+model ProjectTranslation {
+  projectId String @map("project_id")
+  locale    Locale
+
+  /// The only required field, as today: a project can ship with just a tagline.
+  tagline String
+  summary String?
+  role    String?
+  /// string[] - sidebar bullets.
+  highlights Json?
+  /// ContentBlock[] - the case study itself.
+  body Json?
+
+  seoTitle       String?  @map("seo_title")
+  seoDescription String?  @map("seo_description")
+  ogImageId      String?  @map("og_image_id")
+  noindex        Boolean  @default(false)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ogImage Media?  @relation("ProjectOgImage", fields: [ogImageId], references: [id], onDelete: SetNull)
+
+  @@id([projectId, locale])
+  @@map("project_translations")
+}
+
+/// Replaces skillsRegistry in apps/web/src/lib/data/skills.ts.
+model Technology {
+  id String @id @default(uuid())
+  /// "Next.js", "PostgreSQL" - the current registry key.
+  key         String  @unique
+  name        String
+  hex         String
+  textColor   String? @map("text_color")
+  bgColor     String? @map("bg_color")
+  borderColor String? @map("border_color")
+  glow        String?
+  glowOpacity Float?  @map("glow_opacity")
+  /// react-icons component name.
+  iconSlug String? @map("icon_slug")
+
+  projects   ProjectTechnology[]
+  experience ExperienceTechnology[]
+  groups     SkillGroupItem[]
+  tags       Tag[]
+
+  @@map("technologies")
+}
+
+model ProjectTechnology {
+  projectId    String @map("project_id")
+  technologyId String @map("technology_id")
+  position     Int    @default(0)
+
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, technologyId])
+  @@map("project_technologies")
+}
+
+model SkillGroup {
+  id       String @id @default(uuid())
+  /// frontend, backend, tools, databases
+  key      String @unique
+  position Int    @default(0)
+
+  translations SkillGroupTranslation[]
+  items        SkillGroupItem[]
+
+  @@map("skill_groups")
+}
+
+model SkillGroupTranslation {
+  groupId String @map("group_id")
+  locale  Locale
+  label   String
+
+  group SkillGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, locale])
+  @@map("skill_group_translations")
+}
+
+model SkillGroupItem {
+  groupId      String @map("group_id")
+  technologyId String @map("technology_id")
+  position     Int    @default(0)
+
+  group      SkillGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, technologyId])
+  @@map("skill_group_items")
+}
+
+// ---------------------------------------------------------------------------
+// Profile
+// ---------------------------------------------------------------------------
+
+/// Single row, pinned to id 1. Prisma cannot express the CHECK constraint, so
+/// it is added in the migration and enforced by the accessor in src/index.ts.
+model Profile {
+  id       Int     @id @default(1)
+  fullName String  @map("full_name")
+  email    String
+  location String?
+  /// { platform, url, label }[]
+  socials        Json?
+  avatarMediaId  String? @map("avatar_media_id")
+  /// One media id per locale: { es: "...", en: "..." }
+  cvMedia   Json?    @map("cv_media")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  avatar       Media?               @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: SetNull)
+  translations ProfileTranslation[]
+
+  @@map("profile")
+}
+
+model ProfileTranslation {
+  profileId Int    @map("profile_id")
+  locale    Locale
+  /// "Estudiante de Ingeniería de Sistemas"
+  headline String
+  /// string[] - the paragraphs of the About section.
+  bio Json
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, locale])
+  @@map("profile_translations")
+}
+
+model Experience {
+  id        String    @id @default(uuid())
+  /// Organisation name, kept as written in both languages.
+  org       String
+  startDate DateTime  @map("start_date") @db.Date
+  /// Null while ongoing.
+  endDate  DateTime? @map("end_date") @db.Date
+  position Int       @default(0)
+
+  translations ExperienceTranslation[]
+  technologies ExperienceTechnology[]
+
+  @@map("experience")
+}
+
+model ExperienceTranslation {
+  experienceId String @map("experience_id")
+  locale       Locale
+  title        String
+  /// "ago. 2024 - dic. 2026" - date formatting differs per language, so the
+  /// rendered label is stored rather than derived.
+  periodLabel String @map("period_label")
+  description String
+
+  experience Experience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@id([experienceId, locale])
+  @@map("experience_translations")
+}
+
+model ExperienceTechnology {
+  experienceId String @map("experience_id")
+  technologyId String @map("technology_id")
+  position     Int    @default(0)
+
+  experience Experience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([experienceId, technologyId])
+  @@map("experience_technologies")
+}
+
+model Education {
+  id          String    @id @default(uuid())
+  institution String
+  startDate   DateTime  @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  position    Int       @default(0)
+
+  translations EducationTranslation[]
+
+  @@map("education")
+}
+
+model EducationTranslation {
+  educationId String  @map("education_id")
+  locale      Locale
+  degree      String
+  periodLabel String  @map("period_label")
+  description String?
+
+  education Education @relation(fields: [educationId], references: [id], onDelete: Cascade)
+
+  @@id([educationId, locale])
+  @@map("education_translations")
+}
+
+model Certificate {
+  id String @id @default(uuid())
+  /// "Platzi" - a proper name, kept as written in both languages.
+  provider      String
+  issuedOn      DateTime? @map("issued_on") @db.Date
+  credentialUrl String    @map("credential_url")
+  fileMediaId   String?   @map("file_media_id")
+  position      Int       @default(0)
+  /// Linked diplomas rot; the link checker records what it found.
+  lastStatus    Int?      @map("last_status")
+  lastCheckedAt DateTime? @map("last_checked_at")
+
+  file         Media?                   @relation("CertificateFile", fields: [fileMediaId], references: [id], onDelete: SetNull)
+  translations CertificateTranslation[]
+
+  @@map("certificates")
+}
+
+model CertificateTranslation {
+  certificateId String @map("certificate_id")
+  locale        Locale
+  title         String
+  /// Feeds the filters on /certificates.
+  category String
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+
+  @@id([certificateId, locale])
+  @@map("certificate_translations")
+}
+
+// ---------------------------------------------------------------------------
+// Pages
+// ---------------------------------------------------------------------------
+
+model Page {
+  id     String        @id @default(uuid())
+  kind   PageKind      @default(custom)
+  /// Canonical path with no locale prefix: "/", "/blog", "/certificates".
+  route    String        @unique
+  status   ContentStatus @default(draft)
+  parentId String?       @map("parent_id")
+  position Int           @default(0)
+
+  sitemapPriority   Float?  @map("sitemap_priority")
+  sitemapChangefreq String? @map("sitemap_changefreq")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  parent   Page?  @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Page[] @relation("PageTree")
+
+  translations    PageTranslation[]
+  navigationItems NavigationItem[]
+
+  @@map("pages")
+}
+
+model PageTranslation {
+  pageId String @map("page_id")
+  locale Locale
+  title  String
+  /// ContentBlock[] - null on `system` pages, whose body lives in code.
+  body Json?
+
+  seoTitle       String? @map("seo_title")
+  seoDescription String? @map("seo_description")
+  ogImageId      String? @map("og_image_id")
+  /// string[] - indicative, for your own tracking.
+  keywords  Json?
+  noindex   Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  page    Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  ogImage Media? @relation("PageOgImage", fields: [ogImageId], references: [id], onDelete: SetNull)
+
+  @@id([pageId, locale])
+  @@map("page_translations")
+}
+
+// ---------------------------------------------------------------------------
+// Media
+// ---------------------------------------------------------------------------
+
+model Media {
+  id          String    @id @default(uuid())
+  kind        MediaKind @default(image)
+  /// Path within Vercel Blob.
+  storageKey  String    @map("storage_key")
+  url         String
+  mimeType    String    @map("mime_type")
+  sizeBytes   BigInt    @map("size_bytes")
+  /// next/image needs both to avoid layout shift.
+  width       Int?
+  height      Int?
+  blurDataUrl String?   @map("blur_data_url")
+  /// SHA-256, so the same file is not uploaded twice.
+  checksum   String?  @unique
+  folderId   String?  @map("folder_id")
+  uploadedBy String?  @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  folder   MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploader User?        @relation("MediaUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  translations MediaTranslation[]
+  usages       MediaUsage[]
+
+  postCovers         Post[]               @relation("PostCover")
+  postOgImages       PostTranslation[]    @relation("PostOgImage")
+  projectCovers      Project[]            @relation("ProjectCover")
+  projectOgImages    ProjectTranslation[] @relation("ProjectOgImage")
+  pageOgImages       PageTranslation[]    @relation("PageOgImage")
+  profileAvatars     Profile[]            @relation("ProfileAvatar")
+  certificateFiles   Certificate[]        @relation("CertificateFile")
+  seoDefaultOgImages SeoSettings[]        @relation("SeoDefaultOgImage")
+
+  @@index([folderId])
+  @@map("media")
+}
+
+model MediaTranslation {
+  mediaId String @map("media_id")
+  locale  Locale
+  /// Visible text: CLAUDE.md requires both languages here too.
+  alt     String
+  caption String?
+  title   String?
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([mediaId, locale])
+  @@map("media_translations")
+}
+
+model MediaFolder {
+  id       String  @id @default(uuid())
+  /// Internal organisation only; never rendered, so not translated.
+  name     String
+  parentId String? @map("parent_id")
+
+  parent   MediaFolder?  @relation("MediaFolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children MediaFolder[] @relation("MediaFolderTree")
+  media    Media[]
+
+  @@map("media_folders")
+}
+
+/// Turns "delete image" from a blind operation into one with an answer:
+/// this image appears in 3 posts and 1 project. Recomputed on every body save.
+model MediaUsage {
+  id         String  @id @default(uuid())
+  mediaId    String  @map("media_id")
+  entityType String  @map("entity_type")
+  entityId   String  @map("entity_id")
+  locale     Locale?
+  /// "cover", "og_image", or "body".
+  field String
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, entityType, entityId, field, locale])
+  @@index([entityType, entityId])
+  @@map("media_usages")
+}
+
+// ---------------------------------------------------------------------------
+// SEO
+// ---------------------------------------------------------------------------
+
+model SeoSettings {
+  id Int @id @default(1)
+  /// Replaces NEXT_PUBLIC_SITE_URL.
+  siteUrl       String  @map("site_url")
+  titleTemplate String? @map("title_template")
+
+  defaultOgImageId String? @map("default_og_image_id")
+
+  googleSiteVerification String? @map("google_site_verification")
+  /// Target of the GA4 Data API queries.
+  ga4PropertyId String? @map("ga4_property_id")
+  /// G-XXXXXXX - the tag the public site loads.
+  ga4MeasurementId String? @map("ga4_measurement_id")
+  /// sc-domain:nassican.com
+  gscSiteUrl String? @map("gsc_site_url")
+  /// Appended to the generated robots.txt.
+  robotsExtra String?  @map("robots_extra")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  defaultOgImage Media?                    @relation("SeoDefaultOgImage", fields: [defaultOgImageId], references: [id], onDelete: SetNull)
+  translations   SeoSettingsTranslation[]
+
+  @@map("seo_settings")
+}
+
+model SeoSettingsTranslation {
+  settingsId         Int    @map("settings_id")
+  locale             Locale
+  defaultTitle       String @map("default_title")
+  defaultDescription String @map("default_description")
+  /// string[]
+  keywords Json?
+
+  settings SeoSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@id([settingsId, locale])
+  @@map("seo_settings_translations")
+}
+
+model Redirect {
+  id          String    @id @default(uuid())
+  source      String    @unique
+  destination String
+  statusCode  Int       @default(308) @map("status_code")
+  isEnabled   Boolean   @default(true) @map("is_enabled")
+  /// Shows which redirects nobody follows any more and can be retired.
+  hits      BigInt    @default(0)
+  lastHitAt DateTime? @map("last_hit_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("redirects")
+}
+
+/// The five dimensions the Search Console API returns. Rows are pruned past
+/// 16 months, which is Search Console's own retention.
+model SearchConsoleDaily {
+  date        DateTime @db.Date
+  page        String
+  query       String
+  country     String
+  device      String
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  ctr         Float    @default(0)
+  /// Average position; comparing across dates gives the trend.
+  position Float @default(0)
+
+  @@id([date, page, query, country, device])
+  @@index([date])
+  @@index([query])
+  @@map("search_console_daily")
+}
+
+// ---------------------------------------------------------------------------
+// Analytics
+// ---------------------------------------------------------------------------
+//
+// Four narrow rollups rather than one wide table: crossing every GA4 dimension
+// at once produces a combinatorial explosion no dashboard ever reads.
+
+model AnalyticsDailyTotals {
+  date              DateTime @id @db.Date
+  users             Int      @default(0)
+  newUsers          Int      @default(0) @map("new_users")
+  sessions          Int      @default(0)
+  pageViews         Int      @default(0) @map("page_views")
+  avgSessionSeconds Float    @default(0) @map("avg_session_seconds")
+  engagementRate    Float    @default(0) @map("engagement_rate")
+  bounceRate        Float    @default(0) @map("bounce_rate")
+
+  @@map("analytics_daily_totals")
+}
+
+model AnalyticsDailyPage {
+  date DateTime @db.Date
+  path String
+  /// Derived from the path prefix, which is what makes es and en comparable.
+  locale               Locale?
+  pageViews            Int     @default(0) @map("page_views")
+  users                Int     @default(0)
+  avgEngagementSeconds Float   @default(0) @map("avg_engagement_seconds")
+
+  @@id([date, path])
+  @@index([date])
+  @@map("analytics_daily_pages")
+}
+
+model AnalyticsDailySource {
+  date         DateTime @db.Date
+  source       String
+  medium       String
+  channelGroup String?  @map("channel_group")
+  sessions     Int      @default(0)
+  users        Int      @default(0)
+
+  @@id([date, source, medium])
+  @@index([date])
+  @@map("analytics_daily_sources")
+}
+
+model AnalyticsDailyGeo {
+  date        DateTime @db.Date
+  countryCode String   @map("country_code")
+  users       Int      @default(0)
+  sessions    Int      @default(0)
+
+  @@id([date, countryCode])
+  @@index([date])
+  @@map("analytics_daily_geo")
+}
+
+model AnalyticsDailyDevice {
+  date           DateTime @db.Date
+  deviceCategory String   @map("device_category")
+  browser        String
+  os             String
+  users          Int      @default(0)
+  sessions       Int      @default(0)
+
+  @@id([date, deviceCategory, browser, os])
+  @@index([date])
+  @@map("analytics_daily_devices")
+}
+
+/// Health of the content itself, not of the traffic.
+model ContentStatsDaily {
+  date              DateTime @id @db.Date
+  publishedPosts    Int      @default(0) @map("published_posts")
+  draftPosts        Int      @default(0) @map("draft_posts")
+  publishedProjects Int      @default(0) @map("published_projects")
+  mediaCount        Int      @default(0) @map("media_count")
+  mediaBytes        BigInt   @default(0) @map("media_bytes")
+  totalWords        Int      @default(0) @map("total_words")
+  /// Share of entities complete in every locale. The main rule of CLAUDE.md,
+  /// expressed as a metric.
+  translationCoverage Float @default(0) @map("translation_coverage")
+  brokenLinks         Int   @default(0) @map("broken_links")
+
+  @@map("content_stats_daily")
+}
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+model SiteSettings {
+  id Int @id @default(1)
+  /// The value themeInitScript applies when no cookie is set.
+  defaultTheme String  @default("dark") @map("default_theme")
+  contactEmail String? @map("contact_email")
+  /// Sets the daily cutoff for every rollup.
+  timezone        String   @default("America/Bogota")
+  maintenanceMode Boolean  @default(false) @map("maintenance_mode")
+  featureFlags    Json?    @map("feature_flags")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
+model NavigationItem {
+  id       String      @id @default(uuid())
+  location NavLocation
+  parentId String?     @map("parent_id")
+  /// `page` resolves the destination through `pages`, so renaming a route
+  /// never breaks the menu. `external` stores the literal URL.
+  kind   LinkKind @default(page)
+  pageId String?  @map("page_id")
+  /// Unprefixed path; localePath() adds the locale.
+  href      String?
+  position  Int     @default(0)
+  isVisible Boolean @default(true) @map("is_visible")
+
+  parent   NavigationItem?  @relation("NavTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children NavigationItem[] @relation("NavTree")
+  page     Page?            @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  translations NavigationItemTranslation[]
+
+  @@index([location, position])
+  @@map("navigation_items")
+}
+
+model NavigationItemTranslation {
+  itemId String @map("item_id")
+  locale Locale
+  label  String
+  /// aria-label is visible text to a screen reader, so it is translated.
+  ariaLabel String? @map("aria_label")
+
+  item NavigationItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, locale])
+  @@map("navigation_item_translations")
+}
+
+/// Reorder or hide homepage sections without a deploy.
+model HomeSection {
+  key       String  @id
+  position  Int     @default(0)
+  isVisible Boolean @default(true) @map("is_visible")
+
+  @@map("home_sections")
+}
+
+// ---------------------------------------------------------------------------
+// System
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id     BigInt  @id @default(autoincrement())
+  userId String? @map("user_id")
+  /// create, update, publish, delete
+  action     String
+  entityType String  @map("entity_type")
+  entityId   String? @map("entity_id")
+  /// Only the fields that changed, before and after.
+  diff      Json?
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+/// One row per synchroniser run. An expired Google token surfaces here rather
+/// than nowhere.
+model SyncRun {
+  id          String     @id @default(uuid())
+  source      SyncSource
+  rangeStart  DateTime?  @map("range_start") @db.Date
+  rangeEnd    DateTime?  @map("range_end") @db.Date
+  status      SyncStatus @default(running)
+  rowsWritten Int        @default(0) @map("rows_written")
+  error       String?
+  startedAt   DateTime   @default(now()) @map("started_at")
+  finishedAt  DateTime?  @map("finished_at")
+
+  @@index([source, startedAt])
+  @@map("sync_runs")
+}
+
+model SystemEvent {
+  id        BigInt   @id @default(autoincrement())
+  level     LogLevel @default(info)
+  source    String
+  message   String
+  context   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([level, createdAt])
+  @@map("system_events")
+}
+
+model Deployment {
+  /// Vercel's own deployment id.
+  id String @id
+  /// web | admin
+  project    String
+  commitSha  String?   @map("commit_sha")
+  branch     String?
+  state      String
+  createdAt  DateTime  @map("created_at")
+  /// Its distance from createdAt is the build duration.
+  readyAt DateTime? @map("ready_at")
+
+  @@index([project, createdAt])
+  @@map("deployments")
+}
+
+model UptimeCheck {
+  id         BigInt   @id @default(autoincrement())
+  url        String
+  checkedAt  DateTime @default(now()) @map("checked_at")
+  statusCode Int?     @map("status_code")
+  responseMs Int?     @map("response_ms")
+  isOk       Boolean  @map("is_ok")
+
+  @@index([url, checkedAt])
+  @@map("uptime_checks")
+}
