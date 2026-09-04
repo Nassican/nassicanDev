@@ -143,7 +143,12 @@ model Session {
 /// Holds the Google OAuth grant. `refreshToken` is what lets the SEO and
 /// Analytics modules query GA4 and Search Console without a service account.
 model Account {
-  id                    String    @id @default(cuid())
+  id String @id @default(cuid())
+  /// The identity provider's own issuer URL - "https://accounts.google.com".
+  /// Better Auth looks an account up by (issuer, accountId) rather than by
+  /// provider name, so that the same subject from two configurations of the
+  /// same provider is still one account. Required by the library, not by us.
+  issuer                String
   userId                String    @map("user_id")
   accountId             String    @map("account_id")
   providerId            String    @map("provider_id")
@@ -160,6 +165,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
+  @@index([issuer, accountId])
   @@index([userId])
   @@map("accounts")
 }

@@ -53,13 +53,15 @@ function parseStringArray(value: unknown): string[] | null {
  * the one sanctioned place where those columns are given back the types they
  * were written with, so no cast is needed at any call site.
  */
-function createClient() {
+function createBaseClient() {
   return new PrismaClient({
     log:
-      process.env.NODE_ENV === "development"
-        ? ["warn", "error"]
-        : ["error"],
-  }).$extends({
+      process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  });
+}
+
+function extend(base: PrismaClient) {
+  return base.$extends({
     result: {
       postTranslation: {
         body: {
@@ -105,14 +107,25 @@ function createClient() {
   });
 }
 
-export type Db = ReturnType<typeof createClient>;
+export type Db = ReturnType<typeof extend>;
 
 /**
  * One client per process. Next's dev server re-evaluates modules on every
  * change, which would otherwise open a new connection pool each time.
  */
-const globalForPrisma = globalThis as unknown as { nassicanDb?: Db };
+const globalForPrisma = globalThis as unknown as { nassicanDb?: PrismaClient };
 
-export const db: Db = globalForPrisma.nassicanDb ?? createClient();
+const base: PrismaClient = globalForPrisma.nassicanDb ?? createBaseClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.nassicanDb = db;
+if (process.env.NODE_ENV !== "production") globalForPrisma.nassicanDb = base;
+
+/**
+ * The unextended client, for libraries that introspect the model delegates
+ * directly - Better Auth's Prisma adapter among them. `$extends` returns a new
+ * client over the *same* connection pool, so exporting both costs nothing.
+ * Application code should use `db`, which gives typed access to the jsonb
+ * columns; `dbBase` is for adapters only.
+ */
+export const dbBase: PrismaClient = base;
+
+export const db: Db = extend(base);

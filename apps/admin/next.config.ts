@@ -17,6 +17,14 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@nassican/db", "@nassican/shared"],
   /** Prisma loads its query engine at runtime; bundling it breaks that. */
   serverExternalPackages: ["@prisma/client"],
+  /**
+   * The query engine is a binary loaded by path, not by import, so the tracer
+   * cannot infer it. Without this the build succeeds and every database call
+   * fails at runtime on Vercel.
+   */
+  outputFileTracingIncludes: {
+    "/**": ["../../packages/db/generated/prisma/**/*"],
+  },
 };
 
 export default nextConfig;

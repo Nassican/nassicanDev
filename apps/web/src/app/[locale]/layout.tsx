@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import { Analytics } from "@vercel/analytics/next";
 import "../globals.css";
 import Navigation from "@/components/Navigation";
 import SectionNavigator from "@/components/SectionNavigator";
@@ -146,6 +147,13 @@ export default async function RootLayout({
         {gaMeasurementId && process.env.NODE_ENV === "production" ? (
           <GoogleAnalytics gaId={gaMeasurementId} />
         ) : null}
+        {/*
+          Vercel Web Analytics measures something GA4 does not: it counts every
+          visit without cookies, so it needs no consent banner and is not lost
+          to ad blockers, which distort GA4 badly on a developer audience. It
+          no-ops outside a Vercel deployment, so it needs no guard.
+        */}
+        <Analytics />
       </body>
     </html>
   );

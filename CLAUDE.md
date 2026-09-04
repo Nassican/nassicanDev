@@ -59,6 +59,39 @@ build.
 bilingüe cubre lo que leen los visitantes, no el panel — pero lo que el panel
 *edita* sí es bilingüe y se valida antes de publicar.
 
+### Autenticación del panel
+
+Better Auth con Google como único proveedor. `src/lib/auth.ts` concentra la
+configuración; el acceso está cerrado tres veces y cada cierre funciona sin los
+otros dos:
+
+1. Google verifica la identidad.
+2. `ADMIN_ALLOWED_EMAILS` rechaza cualquier otra dirección en el hook
+   `user.create.before`, antes de que exista fila.
+3. `isActive` en la fila se comprueba al crear sesión y en cada petición, así
+   que revocar el acceso no depende de Google.
+
+Las rutas protegidas viven en el grupo `src/app/(panel)/`, cuyo layout llama a
+`requireUser()` antes de renderizar nada. `/login` queda fuera del grupo. No
+hay middleware: la comprobación en el layout es la de verdad, y añadir una
+optimista en el proxy solo ahorraría un viaje al servidor.
+
+`requireUser()` relee el usuario en cada petición en vez de fiarse de la sesión,
+para que desactivar una cuenta surta efecto de inmediato.
+
+Better Auth define sus tablas en código, así que actualizarlo puede añadir una
+columna sin que nada falle hasta que alguien intenta entrar. **Tras cada
+actualización de `better-auth`, ejecuta `npm run check:auth --workspace
+@nassican/admin`**, que compara `getAuthTables()` contra los modelos de Prisma.
+Así se encontró `account.issuer`, y de la peor manera: por un error en tiempo
+de ejecución en el callback de OAuth.
+
+El login pide además permisos de solo lectura sobre Analytics y Search Console:
+el `refreshToken` que Google devuelve queda en `accounts` y es lo que hace
+innecesaria una service account. Por eso el proveedor lleva `accessType:
+"offline"` y `prompt: "consent"` — sin ambos, Google entrega el refresh token
+solo en el primer consentimiento y nunca más.
+
 ## Regla principal: todo cambio lleva su traducción
 
 **Este sitio es bilingüe (español e inglés). Ningún cambio que introduzca o
