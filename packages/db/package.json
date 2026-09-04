@@ -14,7 +14,8 @@
     "push": "prisma db push",
     "studio": "prisma studio",
     "format": "prisma format",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@nassican/shared": "*",
