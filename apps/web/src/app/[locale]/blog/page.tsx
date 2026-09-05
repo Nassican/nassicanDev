@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import PostCard from "@/components/PostCard";
 import { getPublishedPosts } from "@/lib/data/posts";
 import { getProfile } from "@/lib/data/profile";
+import { getPageSeo } from "@/lib/data/pages";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales } from "@/lib/i18n/config";
 import { blogJsonLd, pageMetadata } from "@/lib/seo";
@@ -20,9 +21,12 @@ export async function generateMetadata({
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
 
+  const override = await getPageSeo("/blog", locale);
+
   return pageMetadata({
     locale,
     path: "/blog",
+    override,
     title: t.blog.title,
     description: t.blog.metaDescription,
   });

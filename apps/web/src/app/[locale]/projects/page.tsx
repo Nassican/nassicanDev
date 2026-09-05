@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ProjectCard from "@/components/ProjectCard";
 import { getProjectsByDate } from "@/lib/data/projects";
+import { getPageSeo } from "@/lib/data/pages";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales } from "@/lib/i18n/config";
 import { pageMetadata, projectsJsonLd } from "@/lib/seo";
@@ -19,9 +20,12 @@ export async function generateMetadata({
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
 
+  const override = await getPageSeo("/projects", locale);
+
   return pageMetadata({
     locale,
     path: "/projects",
+    override,
     title: t.projects.listTitle,
     description: t.projects.metaDescription,
   });

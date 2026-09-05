@@ -6,6 +6,7 @@ import { db, prismaJson } from "@nassican/db";
 import { cacheTags, type ContentBlock, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { revalidatePublicSite } from "@/lib/revalidate";
+import { syncMediaUsage } from "@/lib/media-usage";
 import {
   incompleteLocales,
   slugify,
@@ -91,6 +92,13 @@ export async function saveProject(
       create: { projectId: draft.id, locale: t.locale as Locale, ...data },
     });
   }
+
+  await syncMediaUsage({
+    entityType: "project",
+    entityId: draft.id,
+    coverMediaId: draft.coverMediaId,
+    bodies: draft.translations.map((t) => ({ locale: t.locale, body: t.body })),
+  });
 
   // Stack names are foreign keys now, not strings: an unknown one is dropped
   // rather than silently stored, which is what used to break the icons.

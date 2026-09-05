@@ -13,6 +13,8 @@ export const cacheTags = {
   experience: "experience",
   education: "education",
   certificates: "certificates",
+  pages: "pages",
+  page: (route: string) => `page:${route}`,
 } as const;
 
 /**

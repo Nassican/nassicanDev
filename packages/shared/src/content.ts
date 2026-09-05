@@ -11,7 +11,24 @@ export type ContentBlock =
   | { type: "heading"; text: string }
   | { type: "list"; items: string[]; ordered?: boolean }
   | { type: "code"; language?: string; code: string }
-  | { type: "quote"; text: string };
+  | { type: "quote"; text: string }
+  | {
+      type: "image";
+      /** Which media row this is, so usage can be tracked. */
+      mediaId: string;
+      /** `/media/<checksum>.webp` - immutable, so it needs no lookup to render. */
+      url: string;
+      /**
+       * Alt text lives on the block, not on the media row, because a body is
+       * already per-language and because the same picture needs different
+       * wording in different contexts. The media row keeps a default for the
+       * library; this is what actually reaches the page.
+       */
+      alt: string;
+      caption?: string;
+      width?: number;
+      height?: number;
+    };
 
 export const contentBlockTypes = [
   "paragraph",
@@ -19,6 +36,7 @@ export const contentBlockTypes = [
   "list",
   "code",
   "quote",
+  "image",
 ] as const satisfies readonly ContentBlock["type"][];
 
 /**
@@ -45,6 +63,12 @@ export function isContentBlock(value: unknown): value is ContentBlock {
       );
     case "code":
       return typeof block.code === "string";
+    case "image":
+      return (
+        typeof block.mediaId === "string" &&
+        typeof block.url === "string" &&
+        typeof block.alt === "string"
+      );
     default:
       return false;
   }
@@ -73,6 +97,9 @@ export function wordCount(body: ContentBlock[]): number {
       case "code":
         // Code is skimmed, not read; count it at a fraction of prose.
         return total + Math.round(block.code.split(/\s+/).filter(Boolean).length / 3);
+      case "image":
+        // A picture is looked at, not read: the caption is the only prose.
+        return total + (block.caption?.split(/\s+/).filter(Boolean).length ?? 0);
     }
   }, 0);
 }
@@ -101,14 +128,24 @@ export function extractLinks(body: ContentBlock[]): string[] {
   const found = new Set<string>();
 
   for (const block of body) {
-    const text =
-      block.type === "list"
-        ? block.items.join(" ")
-        : block.type === "code"
-          ? ""
-          : block.text;
+    let text = "";
+    if (block.type === "list") text = block.items.join(" ");
+    else if (block.type === "image") text = block.caption ?? "";
+    else if (block.type !== "code") text = block.text;
+
     for (const match of text.matchAll(pattern)) found.add(match[0]);
   }
 
   return [...found];
+}
+
+/** Every media id a body references, so usage can be recomputed on save. */
+export function extractMediaIds(body: ContentBlock[]): string[] {
+  return [
+    ...new Set(
+      body
+        .filter((b): b is Extract<ContentBlock, { type: "image" }> => b.type === "image")
+        .map((b) => b.mediaId),
+    ),
+  ];
 }

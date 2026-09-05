@@ -257,6 +257,51 @@ npm run media:optimise -- --dry   # informa sin escribir
 npm run media:optimise            # mueve a la base lo que quede en /public
 ```
 
+#### El texto alternativo vive en dos sitios, y es a propósito
+
+- **En el bloque**, para una imagen dentro de un cuerpo. Un cuerpo ya es por
+  idioma, y la misma foto necesita otra redacción según dónde aparezca, así que
+  el `alt` que llega a la página es el del bloque.
+- **En `media_translations`**, como valor por defecto de la biblioteca y de las
+  portadas, en los dos idiomas.
+
+El editor avisa cuando un bloque de imagen se queda sin `alt`, y la biblioteca
+cuenta cuántas imágenes están incompletas. Es accesibilidad, no cosmética.
+
+#### Borrado seguro
+
+`media_usages` responde *esta imagen aparece en 3 artículos*. Se recalcula
+entera en cada guardado en vez de mantenerse incrementalmente: la fuente de
+verdad es la entidad, y reconstruir sus filas se cura solo.
+
+Pero `describeUsage` lee **dos** fuentes: esa tabla, para las imágenes dentro de
+un cuerpo, y las claves foráneas de portada e imagen social directamente. Sin
+lo segundo, una imagen importada por script figuraba como «no se usa» aunque
+fuese la portada de un proyecto — que es exactamente lo que pasó la primera vez.
+Leer las claves foráneas hace que la respuesta sea correcta sin necesitar un
+backfill.
+
+`deleteMedia` se niega mientras algo apunte a la imagen, y dice cuántos.
+
+### Páginas
+
+En `app.nassican.com/contenido/paginas`. Una sola tabla y dos cosas distintas,
+separadas por `kind`:
+
+- **`system`**: una ruta que ya existe en `app/[locale]/`. Solo se editan sus
+  metadatos; el contenido está en el código. Se siembran solas al abrir el
+  módulo, desde `systemRoutes` en `apps/admin/src/lib/pages.ts` — añadir una
+  ruta al sitio significa añadirla ahí y nada más.
+- **`custom`**: una página escrita en el panel, con cuerpo de `ContentBlock[]`.
+
+Las personalizadas las sirve **el catch-all `[...notFound]`**, no una ruta
+propia: ya hacía falta para los 404, y reutilizarlo hace que «esta ruta es una
+página» y «esta ruta no existe» se decidan en el mismo sitio en vez de competir.
+
+Los overrides de SEO se pasan a `pageMetadata({ override })` en lugar de que
+`seo.ts` los consulte, para que ese módulo siga siendo puro y síncrono — la
+misma razón por la que recibe posts y proyectos como argumentos.
+
 ### Perfil y credenciales
 
 En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,

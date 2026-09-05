@@ -118,6 +118,8 @@ desde una única fuente.
 | Artículos | Panel → Contenido → Blogs |
 | Proyectos y casos de estudio | Panel → Contenido → Proyectos |
 | Perfil, experiencia, formación, certificados | Panel → Perfil |
+| Imágenes y su texto alternativo | Panel → Contenido → Multimedia |
+| Páginas nuevas y SEO de las rutas | Panel → Contenido → Páginas |
 | Colores e iconos de tecnologías | `apps/web/src/lib/data/skills.ts` |
 
 Cada cambio de contenido visible debe existir en español y en inglés. En los

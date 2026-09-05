@@ -2,14 +2,9 @@
 
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { savingLabel, uploadImage, type UploadedMedia } from "@/lib/upload";
 
-export type UploadedMedia = {
-  id: string;
-  url: string;
-  width: number | null;
-  height: number | null;
-  sizeBytes: number;
-};
+export type { UploadedMedia };
 
 /**
  * Uploads a cover image and reports the stored media back to the editor.
@@ -35,28 +30,16 @@ export default function CoverPicker({
     setError(null);
     setInfo(null);
 
-    const body = new FormData();
-    body.append("file", file);
+    const result = await uploadImage(file);
+    setPending(false);
 
-    try {
-      const response = await fetch("/api/media/upload", { method: "POST", body });
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(result.error ?? "No se pudo subir la imagen.");
-        return;
-      }
-
-      const saved = Math.round((1 - result.sizeBytes / file.size) * 100);
-      setInfo(
-        `${Math.round(file.size / 1024)} KB → ${Math.round(result.sizeBytes / 1024)} KB webp${saved > 0 ? ` (−${saved}%)` : ""} · ${result.width}×${result.height}`,
-      );
-      onChange(result as UploadedMedia);
-    } catch {
-      setError("No se pudo contactar con el servidor.");
-    } finally {
-      setPending(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
     }
+
+    setInfo(savingLabel(file.size, result.media));
+    onChange(result.media);
   }
 
   return (

@@ -6,6 +6,7 @@ import { db, prismaJson } from "@nassican/db";
 import { postTags, type ContentBlock, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { revalidatePublicSite } from "@/lib/revalidate";
+import { syncMediaUsage } from "@/lib/media-usage";
 import {
   estimateReadingMinutes,
   incompleteLocales,
@@ -102,6 +103,12 @@ export async function savePost(draft: PostDraft): Promise<ActionResult> {
 
   await writeTranslations(draft.id, draft.translations);
   await syncTags(draft.id, draft.tags);
+  await syncMediaUsage({
+    entityType: "post",
+    entityId: draft.id,
+    coverMediaId: draft.coverMediaId,
+    bodies: draft.translations.map((t) => ({ locale: t.locale, body: t.body })),
+  });
 
   revalidatePath(`/contenido/blogs/${draft.id}`);
   revalidatePath("/contenido/blogs");

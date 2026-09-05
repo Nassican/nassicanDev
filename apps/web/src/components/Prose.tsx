@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { headingId, type ContentBlock } from "@/lib/data";
 
 /**
@@ -70,6 +71,25 @@ export default function Prose({ blocks }: { blocks: ContentBlock[] }) {
               >
                 {block.text}
               </blockquote>
+            );
+
+          case "image":
+            return (
+              <figure key={i} className="flex flex-col gap-2">
+                <Image
+                  src={block.url}
+                  alt={block.alt}
+                  width={block.width ?? 1600}
+                  height={block.height ?? 900}
+                  sizes="(min-width: 768px) 768px, 100vw"
+                  className="h-auto w-full rounded-2xl border border-black/10 dark:border-white/10"
+                />
+                {block.caption ? (
+                  <figcaption className="max-w-[68ch] text-sm text-zinc-500 dark:text-zinc-400">
+                    {block.caption}
+                  </figcaption>
+                ) : null}
+              </figure>
             );
         }
       })}

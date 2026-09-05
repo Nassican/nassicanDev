@@ -1,6 +1,9 @@
 "use client";
 
+import Image from "next/image";
+import { useRef, useState } from "react";
 import { contentBlockTypes, type ContentBlock } from "@nassican/shared";
+import { savingLabel, uploadImage } from "@/lib/upload";
 
 const typeLabels: Record<ContentBlock["type"], string> = {
   paragraph: "Párrafo",
@@ -8,9 +11,17 @@ const typeLabels: Record<ContentBlock["type"], string> = {
   list: "Lista",
   code: "Código",
   quote: "Cita",
+  image: "Imagen",
 };
 
-function emptyBlock(type: ContentBlock["type"]): ContentBlock {
+/**
+ * An image block cannot start empty - it needs a picture - so "add image"
+ * opens the file picker instead of inserting a placeholder. Every other type
+ * starts blank.
+ */
+function emptyBlock(
+  type: Exclude<ContentBlock["type"], "image">,
+): ContentBlock {
   switch (type) {
     case "list":
       return { type: "list", items: [""] };
@@ -41,6 +52,38 @@ export default function BlockEditor({
   blocks: ContentBlock[];
   onChange: (blocks: ContentBlock[]) => void;
 }) {
+  const picker = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  async function addImage(file: File) {
+    setUploading(true);
+    setUploadError(null);
+    setSaving(null);
+
+    const result = await uploadImage(file);
+    setUploading(false);
+
+    if (!result.ok) {
+      setUploadError(result.error);
+      return;
+    }
+
+    setSaving(savingLabel(file.size, result.media));
+    onChange([
+      ...blocks,
+      {
+        type: "image",
+        mediaId: result.media.id,
+        url: result.media.url,
+        alt: "",
+        width: result.media.width ?? undefined,
+        height: result.media.height ?? undefined,
+      },
+    ]);
+  }
+
   function replace(index: number, block: ContentBlock) {
     onChange(blocks.map((b, i) => (i === index ? block : b)));
   }
@@ -172,6 +215,46 @@ export default function BlockEditor({
                   onChange={(e) => replace(index, { ...block, code: e.target.value })}
                 />
               </>
+            ) : block.type === "image" ? (
+              <>
+                <div className="flex gap-3">
+                  <Image
+                    src={block.url}
+                    alt=""
+                    width={block.width ?? 160}
+                    height={block.height ?? 90}
+                    className="h-20 w-auto rounded border border-neutral-800 object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-[10px] break-all text-neutral-600">
+                      {block.url}
+                    </p>
+                    <p className="mt-1 text-[11px] text-neutral-600">
+                      {block.width}×{block.height}
+                    </p>
+                  </div>
+                </div>
+                <input
+                  className={field}
+                  value={block.alt}
+                  placeholder="Texto alternativo — qué se ve en la imagen"
+                  onChange={(e) => replace(index, { ...block, alt: e.target.value })}
+                />
+                {!block.alt.trim() ? (
+                  <p className="text-[11px] text-amber-500">
+                    Sin texto alternativo: un lector de pantalla no podrá
+                    describir esta imagen.
+                  </p>
+                ) : null}
+                <input
+                  className={field}
+                  value={block.caption ?? ""}
+                  placeholder="Pie de foto (opcional)"
+                  onChange={(e) =>
+                    replace(index, { ...block, caption: e.target.value || undefined })
+                  }
+                />
+              </>
             ) : (
               <textarea
                 className={`${field} ${block.type === "heading" ? "min-h-0" : "min-h-24"}`}
@@ -185,18 +268,51 @@ export default function BlockEditor({
         </article>
       ))}
 
-      <div className="flex flex-wrap gap-2">
-        {contentBlockTypes.map((type) => (
-          <button
-            key={type}
-            type="button"
-            className={iconButton}
-            onClick={() => onChange([...blocks, emptyBlock(type)])}
-          >
-            + {typeLabels[type]}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        {contentBlockTypes.map((type) =>
+          type === "image" ? (
+            <button
+              key={type}
+              type="button"
+              className={iconButton}
+              disabled={uploading}
+              onClick={() => picker.current?.click()}
+            >
+              {uploading ? "Subiendo…" : "+ Imagen"}
+            </button>
+          ) : (
+            <button
+              key={type}
+              type="button"
+              className={iconButton}
+              onClick={() => onChange([...blocks, emptyBlock(type)])}
+            >
+              + {typeLabels[type]}
+            </button>
+          ),
+        )}
+
+        {saving ? (
+          <span className="text-[11px] text-neutral-600">{saving}</span>
+        ) : null}
+        {uploadError ? (
+          <span role="alert" className="text-[11px] text-red-400">
+            {uploadError}
+          </span>
+        ) : null}
       </div>
+
+      <input
+        ref={picker}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/avif,image/gif"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void addImage(file);
+          e.target.value = "";
+        }}
+      />
     </div>
   );
 }

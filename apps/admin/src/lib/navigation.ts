@@ -19,8 +19,8 @@ export const navigation: NavEntry[] = [
     children: [
       { label: "Blogs", href: "/contenido/blogs", ready: true },
       { label: "Proyectos", href: "/contenido/proyectos", ready: true },
-      { label: "Páginas", href: "/contenido/paginas", ready: false },
-      { label: "Multimedia", href: "/contenido/multimedia", ready: false },
+      { label: "Páginas", href: "/contenido/paginas", ready: true },
+      { label: "Multimedia", href: "/contenido/multimedia", ready: true },
     ],
   },
   { label: "Perfil", href: "/perfil", ready: true },

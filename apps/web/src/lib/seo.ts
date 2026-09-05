@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { skills } from "./data";
+import type { PageSeoOverride } from "./data/pages";
 import type {
   Certificate,
   EducationItem,
@@ -77,11 +78,17 @@ type PageMetaInput = {
   publishedTime?: string;
   modifiedTime?: string;
   tags?: string[];
+  /** Editable in the panel; wins over the values above when set. */
+  override?: PageSeoOverride | null;
 };
 
 /**
  * Builds the metadata every page repeats: canonical, hreflang, OpenGraph and
  * Twitter card. Page files only pass what actually differs.
+ *
+ * `override` comes from the Pages module and is passed in rather than fetched
+ * here, so this module stays pure and never reaches the database - the same
+ * reason posts and projects arrive as arguments.
  */
 export function pageMetadata({
   locale,
@@ -92,12 +99,18 @@ export function pageMetadata({
   publishedTime,
   modifiedTime,
   tags,
+  override,
 }: PageMetaInput): Metadata {
   const url = localeUrl(locale, path);
+
+  if (override?.title) title = override.title;
+  if (override?.description) description = override.description;
 
   return {
     title,
     description,
+    ...(override?.keywords?.length ? { keywords: override.keywords } : {}),
+    ...(override?.noindex ? { robots: { index: false, follow: true } } : {}),
     alternates: alternatesFor(locale, path),
     openGraph: {
       type: type === "profile" ? "profile" : type,
