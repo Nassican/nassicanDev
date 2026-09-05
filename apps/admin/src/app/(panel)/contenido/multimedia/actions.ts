@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@nassican/db";
 import { cacheTags, locales, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
-import { revalidatePublicSite } from "@/lib/revalidate";
+import { logAudit } from "@/lib/audit";
+import { notifyPublicSite } from "@/lib/revalidate";
 import type { MediaText } from "@/lib/media-library";
 
 export type ActionResult =
@@ -58,7 +59,7 @@ export async function saveMediaText(
  * hopeful one.
  */
 export async function deleteMedia(mediaId: string): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const usage = await db.mediaUsage.count({ where: { mediaId } });
   if (usage > 0) {
@@ -89,7 +90,13 @@ export async function deleteMedia(mediaId: string): Promise<ActionResult> {
   await db.media.delete({ where: { id: mediaId } });
 
   revalidatePath("/contenido/multimedia");
-  await revalidatePublicSite([cacheTags.posts, cacheTags.projects]);
+  notifyPublicSite([cacheTags.posts, cacheTags.projects]);
+  await logAudit({
+    userId: actor.id,
+    action: "delete",
+    entityType: "media",
+    entityId: mediaId,
+  });
 
   return { ok: true, message: "Imagen eliminada." };
 }

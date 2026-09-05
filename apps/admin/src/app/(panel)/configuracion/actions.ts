@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@nassican/db";
 import { cacheTags, configTags, locales, type SiteSettings } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
-import { revalidatePublicSite } from "@/lib/revalidate";
+import { logAudit } from "@/lib/audit";
+import { notifyPublicSite } from "@/lib/revalidate";
 import {
   danglingSectionLinks,
   navItemProblem,
@@ -19,23 +20,17 @@ export type ActionResult =
   | { ok: true; message: string }
   | { ok: false; message: string };
 
-/** Saved, then the site is told - and told even if the telling fails. */
-async function done(tags: string[], what: string): Promise<ActionResult> {
+/** Saved, and the site told once this answer is on its way. */
+function done(tags: string[], what: string): ActionResult {
   revalidatePath("/configuracion");
-  const result = await revalidatePublicSite(tags);
-
-  return result.ok
-    ? { ok: true, message: `${what} Sitio actualizado.` }
-    : {
-        ok: true,
-        message: `${what} Pero no se pudo avisar al sitio (${result.reason}); tardará hasta cinco minutos.`,
-      };
+  notifyPublicSite(tags);
+  return { ok: true, message: what };
 }
 
 export async function saveSettings(
   settings: SiteSettings,
 ): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const problem = settingsProblem(settings);
   if (problem) return { ok: false, message: problem };
@@ -54,6 +49,13 @@ export async function saveSettings(
     where: { id: 1 },
     update: fields,
     create: { id: 1, ...fields },
+  });
+
+  await logAudit({
+    userId: actor.id,
+    action: "update",
+    entityType: "settings",
+    diff: { label: "parámetros globales", maintenance: settings.maintenanceMode },
   });
 
   return done(
@@ -76,7 +78,7 @@ export async function saveNavigation(
   nav: NavDraft,
   sections: SectionDraft[],
 ): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const columns = nav.footer.map((c) => c.column);
   const all = [
@@ -162,6 +164,15 @@ export async function saveNavigation(
       create: { key: section.key, position, isVisible: section.isVisible },
     });
   }
+
+  await logAudit({
+    userId: actor.id,
+    action: "update",
+    entityType: "navigation",
+    diff: {
+      label: `${all.length} enlaces, ${sections.filter((s) => s.isVisible).length} secciones visibles`,
+    },
+  });
 
   return done(configTags, "Navegación y secciones guardadas.");
 }

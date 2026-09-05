@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { db, prismaJson } from "@nassican/db";
 import { cacheTags, locales, type ContentBlock, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
-import { revalidatePublicSite } from "@/lib/revalidate";
+import { logAudit } from "@/lib/audit";
+import { notifyPublicSite } from "@/lib/revalidate";
 import { syncMediaUsage } from "@/lib/media-usage";
 import {
   incompleteLocales,
@@ -109,13 +110,13 @@ export async function savePage(draft: PageDraft): Promise<ActionResult> {
   revalidatePath("/contenido/paginas");
   revalidatePath(`/contenido/paginas/${draft.id}`);
 
-  if (draft.status === "published") await revalidatePublicSite(tagsFor(route));
+  if (draft.status === "published") notifyPublicSite(tagsFor(route));
 
   return { ok: true, message: "Guardado." };
 }
 
 export async function publishPage(draft: PageDraft): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const saved = await savePage(draft);
   if (!saved.ok) return saved;
@@ -136,19 +137,21 @@ export async function publishPage(draft: PageDraft): Promise<ActionResult> {
     data: { status: "published" },
   });
 
-  const result = await revalidatePublicSite(tagsFor(route));
+  notifyPublicSite(tagsFor(route));
+  await logAudit({
+    userId: actor.id,
+    action: "publish",
+    entityType: "page",
+    entityId: draft.id,
+    diff: { label: route },
+  });
   revalidatePath("/contenido/paginas");
 
-  return result.ok
-    ? { ok: true, message: "Publicada y sitio actualizado." }
-    : {
-        ok: true,
-        message: `Publicada, pero no se pudo avisar al sitio (${result.reason}).`,
-      };
+  return { ok: true, message: "Publicada." };
 }
 
 export async function unpublishPage(id: string): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const page = await db.page.findUnique({
     where: { id },
@@ -163,7 +166,14 @@ export async function unpublishPage(id: string): Promise<ActionResult> {
   }
 
   await db.page.update({ where: { id }, data: { status: "draft" } });
-  if (page) await revalidatePublicSite(tagsFor(page.route));
+  if (page) notifyPublicSite(tagsFor(page.route));
+  await logAudit({
+    userId: actor.id,
+    action: "unpublish",
+    entityType: "page",
+    entityId: id,
+    diff: { label: page?.route ?? id },
+  });
 
   revalidatePath("/contenido/paginas");
   revalidatePath(`/contenido/paginas/${id}`);
@@ -172,7 +182,7 @@ export async function unpublishPage(id: string): Promise<ActionResult> {
 }
 
 export async function deletePage(id: string): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const page = await db.page.findUnique({
     where: { id },
@@ -189,7 +199,14 @@ export async function deletePage(id: string): Promise<ActionResult> {
 
   await db.page.delete({ where: { id } });
   await db.mediaUsage.deleteMany({ where: { entityType: "page", entityId: id } });
-  await revalidatePublicSite(tagsFor(page.route));
+  notifyPublicSite(tagsFor(page.route));
+  await logAudit({
+    userId: actor.id,
+    action: "delete",
+    entityType: "page",
+    entityId: id,
+    diff: { label: page.route },
+  });
 
   revalidatePath("/contenido/paginas");
   return { ok: true, message: "Página eliminada." };

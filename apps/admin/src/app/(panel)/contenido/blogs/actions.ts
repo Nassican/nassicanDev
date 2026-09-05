@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { db, prismaJson } from "@nassican/db";
 import { postTags, type ContentBlock, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
-import { revalidatePublicSite } from "@/lib/revalidate";
+import { logAudit } from "@/lib/audit";
+import { notifyPublicSite } from "@/lib/revalidate";
 import { syncMediaUsage } from "@/lib/media-usage";
 import {
   estimateReadingMinutes,
@@ -114,13 +115,13 @@ export async function savePost(draft: PostDraft): Promise<ActionResult> {
   revalidatePath("/contenido/blogs");
 
   // A published post that is edited has to reach the site again.
-  if (draft.status === "published") await revalidatePublicSite(postTags(slug));
+  if (draft.status === "published") notifyPublicSite(postTags(slug));
 
   return { ok: true, message: "Guardado." };
 }
 
 export async function publishPost(draft: PostDraft): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const saved = await savePost(draft);
   if (!saved.ok) return saved;
@@ -142,20 +143,22 @@ export async function publishPost(draft: PostDraft): Promise<ActionResult> {
     },
   });
 
-  const result = await revalidatePublicSite(postTags(slug));
+  notifyPublicSite(postTags(slug));
+  await logAudit({
+    userId: actor.id,
+    action: "publish",
+    entityType: "post",
+    entityId: draft.id,
+    diff: { label: draft.translations[0]?.title || slug, slug },
+  });
   revalidatePath("/contenido/blogs");
   revalidatePath(`/contenido/blogs/${draft.id}`);
 
-  return result.ok
-    ? { ok: true, message: "Publicado y sitio actualizado." }
-    : {
-        ok: true,
-        message: `Publicado, pero no se pudo avisar al sitio (${result.reason}). Aparecerá en el siguiente despliegue.`,
-      };
+  return { ok: true, message: "Publicado." };
 }
 
 export async function unpublishPost(id: string): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const post = await db.post.update({
     where: { id },
@@ -163,7 +166,14 @@ export async function unpublishPost(id: string): Promise<ActionResult> {
     select: { slug: true },
   });
 
-  await revalidatePublicSite(postTags(post.slug));
+  notifyPublicSite(postTags(post.slug));
+  await logAudit({
+    userId: actor.id,
+    action: "unpublish",
+    entityType: "post",
+    entityId: id,
+    diff: { label: post.slug },
+  });
   revalidatePath("/contenido/blogs");
   revalidatePath(`/contenido/blogs/${id}`);
 
@@ -171,12 +181,19 @@ export async function unpublishPost(id: string): Promise<ActionResult> {
 }
 
 export async function deletePost(id: string): Promise<never> {
-  await requireUser();
+  const actor = await requireUser();
 
   // Translations, tags and revisions cascade from the schema.
   const post = await db.post.delete({ where: { id }, select: { slug: true } });
 
-  await revalidatePublicSite(postTags(post.slug));
+  notifyPublicSite(postTags(post.slug));
+  await logAudit({
+    userId: actor.id,
+    action: "delete",
+    entityType: "post",
+    entityId: id,
+    diff: { label: post.slug },
+  });
   revalidatePath("/contenido/blogs");
   redirect("/contenido/blogs");
 }

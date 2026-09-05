@@ -1,5 +1,8 @@
 import "server-only";
 
+import { after } from "next/server";
+import { db, prismaJson } from "@nassican/db";
+
 /**
  * Tells the public site to drop the cache entries carrying these tags.
  *
@@ -10,6 +13,8 @@ import "server-only";
  * A failure is reported, never thrown: content is already saved by the time
  * this runs, and a cache that clears a few minutes late is a smaller problem
  * than a publish action that appears to have failed.
+ *
+ * Callers want `notifyPublicSite` below; this is the part that does the work.
  */
 export async function revalidatePublicSite(
   tags: string[],
@@ -60,4 +65,39 @@ export async function revalidatePublicSite(
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : "fallo de red" };
   }
+}
+
+/**
+ * The same call, moved out of the way of the answer.
+ *
+ * Waiting for it cost every save between 150 ms and 1.5 s - the round trip to
+ * Vercel, plus a cold function when the site had been quiet. None of that
+ * changes what was saved, so `after()` runs it once the response is already on
+ * its way.
+ *
+ * The failure is not lost, it moves: it lands in `system_events`, where the
+ * Sistema module lists it. That is the right home for it anyway. A cache that
+ * did not clear is a problem with the deployment, not with the thing the
+ * operator just saved, and telling them about it inside a success message was
+ * always slightly the wrong place.
+ */
+export function notifyPublicSite(tags: string[]): void {
+  after(async () => {
+    const result = await revalidatePublicSite(tags);
+    if (result.ok) return;
+
+    try {
+      await db.systemEvent.create({
+        data: {
+          level: "warn",
+          source: "revalidate",
+          message: result.reason,
+          context: prismaJson.record({ tags }),
+        },
+      });
+    } catch {
+      // Nowhere left to report to; the console is what the platform keeps.
+      console.error("no se pudo avisar al sitio ni registrarlo:", result.reason);
+    }
+  });
 }

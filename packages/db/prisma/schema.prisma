@@ -1119,6 +1119,25 @@ model SystemEvent {
   @@map("system_events")
 }
 
+/// Vercel Web Analytics, synced daily.
+///
+/// One table with a dimension discriminator rather than one per grouping,
+/// because Vercel answers every grouping with the same two numbers - unlike
+/// GA4, where each report carries its own metrics and needed its own shape.
+/// `dimension` is "total" for the day's own row, and `value` is empty there
+/// because there is nothing to name.
+model VercelAnalyticsDaily {
+  date      DateTime @db.Date
+  dimension String
+  value     String
+  pageviews Int      @default(0)
+  visitors  Int      @default(0)
+
+  @@id([date, dimension, value])
+  @@index([dimension, date])
+  @@map("vercel_analytics_daily")
+}
+
 model Deployment {
   /// Vercel's own deployment id.
   id String @id

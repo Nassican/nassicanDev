@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db, prismaJson } from "@nassican/db";
 import { cacheTags, locales } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
-import { revalidatePublicSite } from "@/lib/revalidate";
+import { notifyPublicSite } from "@/lib/revalidate";
 import type {
   CertificateDraft,
   EducationDraft,
@@ -23,14 +23,9 @@ export type ActionResult =
  */
 async function done(tag: string, what: string): Promise<ActionResult> {
   revalidatePath("/perfil");
-  const result = await revalidatePublicSite([tag]);
+  notifyPublicSite([tag]);
 
-  return result.ok
-    ? { ok: true, message: `${what} guardado. Sitio actualizado.` }
-    : {
-        ok: true,
-        message: `${what} guardado, pero no se pudo avisar al sitio (${result.reason}).`,
-      };
+  return { ok: true, message: `${what} guardado.` };
 }
 
 export async function saveProfile(draft: ProfileDraft): Promise<ActionResult> {

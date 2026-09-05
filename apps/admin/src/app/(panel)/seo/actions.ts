@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { db, prismaJson } from "@nassican/db";
 import { cacheTags, locales } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
-import { revalidatePublicSite } from "@/lib/revalidate";
+import { logAudit } from "@/lib/audit";
+import { notifyPublicSite } from "@/lib/revalidate";
 import { listSearchConsoleSites, syncSearchConsole } from "@/lib/search-console";
 import {
   normaliseDestination,
@@ -21,7 +22,7 @@ export type ActionResult =
 export async function saveSeoSettings(
   draft: SeoSettingsDraft,
 ): Promise<ActionResult> {
-  await requireUser();
+  const actor = await requireUser();
 
   const fields = {
     // `siteUrl` is not editable here: the public site reads the origin from its
@@ -58,14 +59,15 @@ export async function saveSeoSettings(
   }
 
   revalidatePath("/seo");
-  const result = await revalidatePublicSite([cacheTags.seoSettings]);
+  notifyPublicSite([cacheTags.seoSettings]);
+  await logAudit({
+    userId: actor.id,
+    action: "update",
+    entityType: "seo",
+    diff: { label: "metadatos globales" },
+  });
 
-  return result.ok
-    ? { ok: true, message: "Ajustes guardados. Sitio actualizado." }
-    : {
-        ok: true,
-        message: `Guardados, pero no se pudo avisar al sitio (${result.reason}).`,
-      };
+  return { ok: true, message: "Ajustes guardados." };
 }
 
 /**
@@ -76,7 +78,7 @@ export async function saveSeoSettings(
 export async function saveRedirects(
   items: RedirectDraft[],
 ): Promise<ActionResult> {
-  await requireUser();
+  const redirectActor = await requireUser();
 
   const keep = items.filter((r) => r.source.trim() && r.destination.trim());
 
@@ -127,14 +129,15 @@ export async function saveRedirects(
   }
 
   revalidatePath("/seo");
-  const result = await revalidatePublicSite([cacheTags.redirects]);
+  notifyPublicSite([cacheTags.redirects]);
+  await logAudit({
+    userId: redirectActor.id,
+    action: "update",
+    entityType: "redirect",
+    diff: { label: `${keep.length} redirecciones` },
+  });
 
-  return result.ok
-    ? { ok: true, message: `${keep.length} redirecciones guardadas.` }
-    : {
-        ok: true,
-        message: `Guardadas, pero no se pudo avisar al sitio (${result.reason}).`,
-      };
+  return { ok: true, message: `${keep.length} redirecciones guardadas.` };
 }
 
 export type DetectedSite = { siteUrl: string; permission: string };

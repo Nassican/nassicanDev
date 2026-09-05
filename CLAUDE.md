@@ -145,13 +145,18 @@ la página pega un salto cuando llegan los datos.
 son transitorios, así que merecen un botón de reintentar —que vuelve a ejecutar
 el componente de servidor— y no una traza.
 
-#### Lo que todavía se espera al guardar
+#### Guardar ya no espera al sitio
 
-Guardar avisa al sitio público antes de responder, y esa llamada tarda entre
-150 ms y 1,5 s según si la función de Vercel está caliente. Es a propósito: es
-lo que permite decir «guardado, pero no se pudo avisar al sitio» en vez de
-dejar el contenido rancio en silencio. Si algún día molesta, la salida es
-`after()`, a cambio de perder ese aviso.
+El aviso al sitio público costaba entre 150 ms y 1,5 s en cada guardado —el
+viaje a Vercel, más un arranque en frío si el sitio llevaba rato quieto—, y
+nada de eso cambia lo que se guardó. `notifyPublicSite` lo mete en `after()`,
+que corre cuando la respuesta ya va de camino.
+
+El aviso de fallo no se pierde, se muda: acaba en `system_events` y lo lista
+Sistema. Que es donde debía estar desde el principio — una caché que no se
+limpió es un problema del despliegue, no de lo que el operador acababa de
+guardar, y meterlo dentro de un mensaje de «guardado» siempre fue el sitio
+ligeramente equivocado.
 
 #### Windows: el motor de Prisma se queda bloqueado
 
@@ -578,6 +583,77 @@ el build nuevo leyendo de la base. Portada, blog, proyectos y certificados, en
 los dos idiomas: **los 50 enlaces de cada página idénticos, en el mismo orden**,
 y la única diferencia de texto visible fue la de los CV cambiados de columna.
 
+### Sistema: auditoría, sincronizaciones, despliegues y disponibilidad
+
+En `app.nassican.com/sistema`. Es el único módulo que no habla del contenido
+sino del propio funcionamiento, y por eso recoge lo que los demás dejan caer.
+
+**La auditoría registra decisiones, no filas.** Se escribe desde las acciones y
+no desde una extensión de Prisma, aunque la extensión saldría gratis: apuntaría
+cada fila escrita y nada más — cuatro upserts de un mismo guardado, sin saber
+cuál era el hecho, y sin poder nombrar al usuario, porque la capa de base de
+datos no tiene sesión. Lo que vale la pena guardar es *publicó*, *borró*,
+*guardó*, y eso solo lo sabe la acción.
+
+`logAudit` no lanza nunca. Y lee las cabeceras en su propio `try`: `headers()`
+falla fuera de una petición, y perder la IP de quien actuó es infinitamente
+menos grave que perder la entrada entera. La diferencia entre un registro con
+una columna en blanco y un registro con un agujero justo donde hubo un borrado.
+
+**Las sincronizaciones ya existían**, repartidas: cada módulo escribía su
+`sync_run` y solo enseñaba la última. Aquí están todas juntas, que es donde se
+ve el patrón — cuál falla siempre, cuál tarda de más.
+
+**Los avisos** son la otra mitad del cambio a `after()`. Cuando el aviso al
+sitio público no llega, ya no se cuela dentro de un mensaje de «guardado»:
+aterriza en `system_events` y se lista aquí. Es su sitio natural. Una caché que
+no se limpió es un problema del despliegue, no de lo que el operador acababa de
+guardar.
+
+**La disponibilidad se comprueba cuando se pide.** El panel no tiene
+planificador, y una página de monitorización cuyos datos solo se mueven al
+abrirla es mejor decirlo que disimularlo. Se pide `GET` y no `HEAD` a propósito:
+lo que importa es que la página se renderice, y con la caché fría se renderiza
+bajo demanda — que es justo el caso que vale la pena medir.
+
+#### Vercel
+
+`VERCEL_TOKEN`, `VERCEL_PROJECT_WEB` y, si el proyecto vive en un equipo,
+`VERCEL_TEAM_ID`. A diferencia de Google, aquí **no** se usa el OAuth del
+operador: Vercel no tiene un flujo de consentimiento para esto, así que es un
+token personal en el entorno. Como el panel no puede crearlo, sí hace lo
+siguiente mejor: el botón «Ver proyectos» pregunta los ids en lugar de mandarte
+a buscarlos al panel de Vercel — lo mismo que hacen GA4 y Search Console con
+los suyos.
+
+Sin configurar, los dos módulos lo dicen nombrando la variable que falta y **no
+registran un `sync_run` fallido**: una integración sin configurar no es una
+sincronización que falló.
+
+**Web Analytics de Vercel va junto a GA4, no en su lugar.** Discrepan a
+propósito y la discrepancia es el dato: Vercel cuenta sin cookies, así que no
+la pierden los bloqueadores —que en una audiencia de desarrolladores distorsionan
+bastante a GA4—, mientras que GA4 sabe de sesiones, interacción y procedencia.
+La diferencia entre las dos cifras es lo que GA4 no ve.
+
+Se sincroniza a `vercel_analytics_daily` y el panel lee de ahí, como Search
+Console y GA4. Una sola tabla con un discriminador `dimension`, porque Vercel
+responde a toda agrupación con los mismos dos números — al contrario que GA4,
+donde cada informe trae sus propias métricas y necesitaba su propia forma.
+
+Dos cosas que el código no explica solo:
+
+- **Las agrupaciones que no son por día se archivan bajo el último día del
+  rango.** No tienen fecha propia: son totales del rango entero. Es lo que hace
+  que «rutas más vistas en 28 días» sea un conjunto de filas y no veintiocho.
+- **Los visitantes no se suman entre días.** La misma persona el lunes y el
+  martes es un visitante, no dos, así que la cifra destacada es el día con más
+  y no una suma que sobrecontaría en silencio.
+
+Antes que nada, Web Analytics tiene que estar **activado en el proyecto de
+Vercel**: `@vercel/analytics` ya está en el sitio, pero con el interruptor
+apagado no se guarda nada y la API responde vacío.
+
 ### Perfil y credenciales
 
 En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,
@@ -664,9 +740,11 @@ invalidación de etiquetas, no el despliegue.** Si el panel avisa de que no pudo
 contactar con el sitio, el contenido puede quedarse atrás indefinidamente. Al
 depurar «¿por qué no se ve mi cambio?», empieza por ahí y no por el build.
 
-Si la llamada de revalidación falla, el panel lo dice pero **no revierte la
-publicación**: el contenido ya está guardado, y una caché que tarda es mejor
-que un botón que parece haber fallado.
+Si la llamada de revalidación falla, la publicación **no se revierte**: el
+contenido ya está guardado, y una caché que tarda es mejor que un botón que
+parece haber fallado. El fallo se registra en `system_events` y aparece en
+Sistema, porque desde que el aviso corre en `after()` la acción ya ha
+respondido cuando se sabe el resultado.
 
 ### Proyectos: se gestionan en el panel
 
