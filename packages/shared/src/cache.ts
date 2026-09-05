@@ -17,7 +17,19 @@ export const cacheTags = {
   page: (route: string) => `page:${route}`,
   seoSettings: "seo-settings",
   redirects: "redirects",
+  siteSettings: "site-settings",
+  navigation: "navigation",
+  homeSections: "home-sections",
 } as const;
+
+/**
+ * Everything a change in the Configuración module can affect.
+ *
+ * Sent together because they are read together: the layout renders the menu,
+ * the footer and the theme script from one page load, so invalidating one and
+ * not the others would leave the site briefly disagreeing with itself.
+ */
+export const configTags: string[] = ["site-settings", "navigation", "home-sections"];
 
 /**
  * Backstop lifetime for every cached read of content, in seconds.

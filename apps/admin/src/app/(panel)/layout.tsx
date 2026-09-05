@@ -74,7 +74,11 @@ export default async function PanelLayout({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-neutral-900 px-6 py-3">
+        {/* Pinned rather than scrolled away with the content: it carries who is
+            signed in and the way out, and both are answers you want without
+            scrolling back up a long list. The opaque background is required -
+            the rows underneath would otherwise show through it. */}
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-neutral-900 bg-[var(--background)] px-6 py-3">
           <div className="flex min-w-0 items-center gap-3">
             {user.image ? (
               <Image

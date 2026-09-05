@@ -1,6 +1,13 @@
 export type Theme = "dark" | "light";
 
-/** Dark unless the visitor has explicitly chosen otherwise. */
+/**
+ * What the site shows before anyone has chosen anything: dark, and the system
+ * preference is deliberately not consulted.
+ *
+ * The panel can change it, so this is now the fallback rather than the answer
+ * - what the client reads before hydration, and what the inline script uses
+ * if reading the cookie throws.
+ */
 export const DEFAULT_THEME: Theme = "dark";
 
 export const THEME_COOKIE = "theme";
@@ -53,5 +60,8 @@ export function subscribeToTheme(onChange: () => void) {
  *
  * It also adopts the value the previous `localStorage`-based toggle left
  * behind, so returning visitors keep the theme they had chosen.
+ *
+ * The default arrives as an argument rather than being read here: the script
+ * is a string assembled on the server, and the panel decides what it says.
  */
-export const themeInitScript = `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)${THEME_COOKIE}=(dark|light)/);var t=m&&m[1];if(!t){var l=localStorage.getItem("${THEME_COOKIE}");if(l==="dark"||l==="light"){t=l;document.cookie="${THEME_COOKIE}="+t+";path=/;max-age=${COOKIE_MAX_AGE};samesite=lax";}}if(!t){t="${DEFAULT_THEME}";}document.documentElement.classList.toggle("dark",t==="dark");}catch(e){document.documentElement.classList.add("dark");}})();`;
+export const themeInitScript = (fallback: Theme = DEFAULT_THEME) => `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)${THEME_COOKIE}=(dark|light)/);var t=m&&m[1];if(!t){var l=localStorage.getItem("${THEME_COOKIE}");if(l==="dark"||l==="light"){t=l;document.cookie="${THEME_COOKIE}="+t+";path=/;max-age=${COOKIE_MAX_AGE};samesite=lax";}}if(!t){t="${fallback === "light" ? "light" : "dark"}";}document.documentElement.classList.toggle("dark",t==="dark");}catch(e){document.documentElement.classList.add("dark");}})();`;

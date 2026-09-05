@@ -6,11 +6,13 @@ import "../globals.css";
 import Navigation from "@/components/Navigation";
 import SectionNavigator from "@/components/SectionNavigator";
 import Footer from "@/components/Footer";
+import Maintenance from "@/components/Maintenance";
 import { getCertificates } from "@/lib/data/certificates";
 import { getEducation } from "@/lib/data/education";
 import { getExperience } from "@/lib/data/experience";
 import { getProfile } from "@/lib/data/profile";
 import { getSeoSettings } from "@/lib/data/seo-settings";
+import { getNavigation, getSiteSettings } from "@/lib/data/site-config";
 import { getDictionary } from "@/lib/i18n";
 import {
   htmlLang,
@@ -94,7 +96,9 @@ export async function generateMetadata({
       creator: "@Nassican",
     },
     robots: {
-      index: true,
+      // While the site is down for maintenance the only page that exists is
+      // the notice, and a notice in the index outlives the maintenance.
+      index: !(await getSiteSettings()).maintenanceMode,
       follow: true,
       googleBot: {
         index: true,
@@ -129,12 +133,15 @@ export default async function RootLayout({
   const locale = raw as Locale;
   const t = getDictionary(locale);
 
-  const [profile, experience, education, certificates] = await Promise.all([
-    getProfile(),
-    getExperience(),
-    getEducation(),
-    getCertificates(),
-  ]);
+  const [profile, experience, education, certificates, settings, nav] =
+    await Promise.all([
+      getProfile(),
+      getExperience(),
+      getEducation(),
+      getCertificates(),
+      getSiteSettings(),
+      getNavigation(locale),
+    ]);
 
   return (
     // `scroll-behavior: smooth` on <html> breaks the router's own scroll
@@ -148,7 +155,11 @@ export default async function RootLayout({
     >
       <head>
         {/* Applies the stored theme before paint to avoid a flash of the wrong one */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: themeInitScript(settings.defaultTheme),
+          }}
+        />
         {/* Site-wide structured data: the Person and the WebSite they publish */}
         <script
           type="application/ld+json"
@@ -165,13 +176,33 @@ export default async function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <Navigation locale={locale} t={t} profile={profile} />
-        {children}
-        <Footer locale={locale} t={t} />
-        <SectionNavigator
-          previousLabel={t.nav.previousSection}
-          nextLabel={t.nav.nextSection}
-        />
+        {settings.maintenanceMode ? (
+          <Maintenance t={t} />
+        ) : (
+          <>
+            <Navigation
+              locale={locale}
+              t={t}
+              profile={profile}
+              nav={nav}
+              copyrightName={settings.copyrightName}
+            />
+            {children}
+            <Footer
+              locale={locale}
+              t={t}
+              nav={nav}
+              brandLine={settings.brandLine}
+              copyrightName={settings.copyrightName}
+            />
+            {settings.showSectionNavigator ? (
+              <SectionNavigator
+                previousLabel={t.nav.previousSection}
+                nextLabel={t.nav.nextSection}
+              />
+            ) : null}
+          </>
+        )}
         {/*
           Analytics only ships from a production build. The variable is scoped
           to Vercel's Production environment, and the NODE_ENV check is the

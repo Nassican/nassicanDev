@@ -1,8 +1,15 @@
 import "server-only";
 
 import { db } from "@nassican/db";
-import { locales, wordCount, type ContentBlock, type Locale } from "@nassican/shared";
+import {
+  calendarDate,
+  locales,
+  wordCount,
+  type ContentBlock,
+  type Locale,
+} from "@nassican/shared";
 import type { LinkReference } from "@/lib/link-check";
+import { getTimezone } from "@/lib/site-config";
 
 export * from "@/lib/link-check";
 
@@ -266,11 +273,15 @@ export async function getStats(): Promise<StatsSummary> {
  *
  * One row per day, replaced if it already exists: the point is a trend, and a
  * day recorded twice would be a spike that never happened.
+ *
+ * Which day that is comes from the configured timezone, not from UTC. Bucketing
+ * an evening in Bogotá under the following UTC day put two runs of the same
+ * evening on different rows and left the real day empty.
  */
 export async function snapshotStats(): Promise<{ date: string }> {
-  const stats = await getStats();
-  const date = new Date();
-  date.setUTCHours(0, 0, 0, 0);
+  const [stats, timezone] = await Promise.all([getStats(), getTimezone()]);
+  const day = calendarDate(timezone);
+  const date = new Date(`${day}T00:00:00.000Z`);
 
   const media = await db.media.aggregate({ _sum: { sizeBytes: true } });
 
@@ -291,5 +302,5 @@ export async function snapshotStats(): Promise<{ date: string }> {
     create: { date, ...data },
   });
 
-  return { date: date.toISOString().slice(0, 10) };
+  return { date: day };
 }

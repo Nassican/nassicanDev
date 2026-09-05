@@ -190,6 +190,11 @@ export const es = {
   breadcrumb: {
     home: "Inicio",
   },
+
+  maintenance: {
+    title: "Volvemos enseguida",
+    body: "Estamos haciendo algunos ajustes en el sitio. Vuelve a intentarlo en unos minutos.",
+  },
 };
 
 /** Shape every other dictionary must satisfy. */

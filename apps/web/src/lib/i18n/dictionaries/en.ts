@@ -190,4 +190,9 @@ export const en: Dictionary = {
   breadcrumb: {
     home: "Home",
   },
+
+  maintenance: {
+    title: "Back in a moment",
+    body: "The site is being updated. Please check back in a few minutes.",
+  },
 };

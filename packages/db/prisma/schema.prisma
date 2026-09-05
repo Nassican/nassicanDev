@@ -69,6 +69,10 @@ enum MediaKind {
 
 enum NavLocation {
   header
+  /// The single call-to-action beside the header links. Its own location
+  /// rather than a flag, so "there is exactly one" is a query, not a rule
+  /// someone has to remember.
+  header_cta
   footer
 }
 
@@ -76,6 +80,10 @@ enum LinkKind {
   page
   route
   external
+  /// An anchor on the homepage. `href` holds the bare section key ("about"),
+  /// because whether it renders as "#about" or "/en/#about" depends on where
+  /// the visitor already is.
+  section
 }
 
 enum LogLevel {
@@ -988,16 +996,27 @@ model ContentStatsDaily {
 // Configuration
 // ---------------------------------------------------------------------------
 
+/// Site-wide knobs, one row. Everything here is wired to something the public
+/// site actually does - a setting nobody reads is worse than no setting.
+///
+/// The contact address is **not** here: `profile.email` owns it, and a second
+/// column holding the same address is a second answer waiting to disagree.
 model SiteSettings {
   id Int @id @default(1)
   /// The value themeInitScript applies when no cookie is set.
-  defaultTheme String  @default("dark") @map("default_theme")
-  contactEmail String? @map("contact_email")
-  /// Sets the daily cutoff for every rollup.
-  timezone        String   @default("America/Bogota")
-  maintenanceMode Boolean  @default(false) @map("maintenance_mode")
-  featureFlags    Json?    @map("feature_flags")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  defaultTheme String @default("dark") @map("default_theme")
+  /// Decides which calendar day a snapshot belongs to. Google's own rollups
+  /// use the property's timezone, not this one.
+  timezone        String  @default("America/Bogota")
+  maintenanceMode Boolean @default(false) @map("maintenance_mode")
+  /// Proper nouns, so they are not translated: the line under the name in the
+  /// footer, and the name in the copyright notice.
+  brandLine     String @default("Nassican Group") @map("brand_line")
+  copyrightName String @default("Nassican") @map("copyright_name")
+  /// How many articles the homepage teaser shows.
+  latestPostsCount     Int      @default(2) @map("latest_posts_count")
+  showSectionNavigator Boolean  @default(true) @map("show_section_navigator")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("site_settings")
 }

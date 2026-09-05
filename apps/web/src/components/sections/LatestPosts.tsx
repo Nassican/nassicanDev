@@ -10,11 +10,14 @@ import { localePath, type Locale } from "@/lib/i18n/config";
 export default async function LatestPosts({
   locale,
   t,
+  count,
 }: {
   locale: Locale;
   t: Dictionary;
+  /** How many to tease, from the panel. */
+  count: number;
 }) {
-  const latest = (await getPublishedPosts()).slice(0, 2);
+  const latest = (await getPublishedPosts()).slice(0, Math.max(count, 0));
   if (!latest.length) return null;
 
   return (

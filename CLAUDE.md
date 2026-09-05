@@ -25,6 +25,9 @@ Los comandos se ejecutan desde la raíz del repositorio, no desde `apps/web`.
 
 Dueño de `locales`, `Locale`, `Localized<T>` y del tipo `ContentBlock` con sus
 utilidades (`wordCount`, `readingMinutes`, `headingId`, `extractLinks`).
+También de lo que las dos aplicaciones tienen que entender igual y ninguna
+posee: los nombres de etiqueta de caché, las claves de las secciones de la
+portada y la forma del menú (`NavTree`).
 `src/lib/i18n/config.ts` y `src/lib/data/content.ts` los reexportan, así que
 dentro de `apps/web` se siguen importando desde donde siempre. Al tocar
 cualquiera de esos tipos, edítalos en `packages/shared`, no en el reexport.
@@ -110,6 +113,11 @@ optimista en el proxy solo ahorraría un viaje al servidor.
 
 `requireUser()` relee el usuario en cada petición en vez de fiarse de la sesión,
 para que desactivar una cuenta surta efecto de inmediato.
+
+`app/not-found.tsx` queda **fuera** del grupo `(panel)`, así que un 404 nunca
+ejecuta `requireUser()` ni dibuja el árbol de módulos alrededor. Una dirección
+equivocada responde igual haya sesión o no, y quien acierte una URL a ciegas no
+averigua de qué está hecho el panel.
 
 Better Auth define sus tablas en código, así que actualizarlo puede añadir una
 columna sin que nada falle hasta que alguien intenta entrar. **Tras cada
@@ -407,6 +415,91 @@ que interesa es la tendencia, y un día registrado dos veces sería un pico que
 nunca ocurrió. Por eso `runContentCheck()` revisa los enlaces *antes* de tomar
 la instantánea, que almacena cuántos había rotos.
 
+### Configuración: navegación, secciones y parámetros globales
+
+En `app.nassican.com/configuracion`. Tres cosas que tienen en común una sola
+propiedad: cambiarlas antes exigía tocar el código del sitio.
+
+**El menú dejó de estar en el código.** `NavigationItem` guarda cada entrada de
+la cabecera y del pie, con sus textos como filas. Las etiquetas salieron de
+`dictionaries/es.ts` y `en.ts` —se siembran desde ahí la primera vez que se
+abre el módulo, igual que las páginas del sistema—, y a partir de ese momento
+**el diccionario deja de ser la fuente del menú**. Sigue siéndolo de todo lo
+demás.
+
+Sembrar en la primera visita y no en una migración tiene la misma razón que en
+Páginas: el punto de partida vive junto al código que copia, y convertir el
+menú en datos no cambia nada el día que ocurre. Solo se siembra un menú
+*completamente* ausente, así que uno que alguien vació a propósito se queda
+vacío.
+
+Cuatro decisiones que el código no explica solo:
+
+- **Los dos idiomas son obligatorios en cada entrada.** No hay respaldo al
+  diccionario: una entrada que existe en español y no en inglés es un hueco por
+  el que se cae el visitante, no un detalle que se rellena luego. La regla
+  principal de este documento, aplicada al momento de guardar.
+- **El botón de contacto es una ubicación (`header_cta`), no una bandera.** Así
+  «hay exactamente uno» es una consulta y no una regla que alguien debe
+  recordar. Si aparecieran dos, gana el primero.
+- **Un enlace de sección guarda la clave desnuda** (`about`), no un href. Que
+  se dibuje como `#about` o como `/en/#about` depende de dónde esté ya el
+  visitante, y eso se decide al renderizar.
+- **Los CV bajaron a la columna de la marca**, junto al nombre y las redes. Son
+  descargas con `download` y `hrefLang` propios —algo que el editor de enlaces
+  no sabe expresar—, y dejarlos dentro de una columna editable obligaba a que
+  «la última columna es especial», que es justo la clase de regla que se rompe
+  la primera vez que alguien reordena.
+
+**El orden de las secciones es dato; las secciones no.** Cada una sigue siendo
+un componente con sus propias consultas y su propio layout; lo que decide el
+panel es dónde va y si aparece. El mapa de `[locale]/page.tsx` es exhaustivo
+sobre `HomeSectionKey`, así que añadir una sección al tipo sin añadirla ahí
+**no compila**, en vez de renderizar nada. La lista de claves vive en
+`packages/shared` porque las dos aplicaciones la necesitan y ninguna la posee.
+
+**La regla que une las dos mitades:** el panel se niega a ocultar una sección a
+la que apunta un enlace visible, y nombra los enlaces. Un `#about` hacia una
+sección que ya no se dibuja no falla; simplemente no hace nada, que es peor.
+Lo reporta en vez de corregirlo solo: cuál de los dos cede es decisión del
+operador.
+
+**Los parámetros globales están todos cableados a algo que el sitio hace.**
+
+| Parámetro | Qué decide de verdad |
+| --- | --- |
+| `defaultTheme` | lo que aplica `themeInitScript` cuando no hay cookie |
+| `timezone` | a qué día pertenece la instantánea de Estadísticas |
+| `maintenanceMode` | sustituye el sitio entero por un aviso |
+| `brandLine` | la línea bajo el nombre en el pie |
+| `copyrightName` | el nombre del aviso de copyright |
+| `latestPostsCount` | cuántos artículos adelanta la portada |
+| `showSectionNavigator` | las flechas flotantes entre secciones |
+
+Se borraron dos columnas que el esquema traía sin usar. `contactEmail`, porque
+`profile.email` ya es esa dirección y una segunda columna con lo mismo es una
+segunda respuesta esperando a discrepar. `featureFlags`, porque una bolsa JSON
+sin tipo invita exactamente a la deriva no documentada que el resto del
+repositorio evita: cada ajuste tiene su columna y su forma.
+
+`timezone` corrigió un error real: la instantánea diaria agrupaba por UTC, así
+que una revisión hecha por la tarde en Bogotá se archivaba bajo el día
+siguiente. Los informes de Google **no** usan esta zona sino la de su propia
+propiedad, y eso no se puede cambiar desde aquí.
+
+**El modo mantenimiento vive en el layout, no en el proxy**, porque el proxy
+corre en el edge y no alcanza a Prisma. Consecuencia: un layout no puede
+devolver un 503, así que lo que mantiene el aviso fuera del índice es
+`robots.index`, que se apaga con él. Y al apagarlo, el contenido puede tardar
+hasta cinco minutos en volver si falla el aviso de caché — el mismo respaldo de
+`CACHE_SECONDS` que protege a todo lo demás.
+
+**Cómo se verificó**, con el método de la migración de proyectos: capturar el
+sitio en producción —que todavía servía el menú cableado— y compararlo contra
+el build nuevo leyendo de la base. Portada, blog, proyectos y certificados, en
+los dos idiomas: **los 50 enlaces de cada página idénticos, en el mismo orden**,
+y la única diferencia de texto visible fue la de los CV cambiados de columna.
+
 ### Perfil y credenciales
 
 En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,
@@ -537,7 +630,10 @@ real del proyecto, déjalo en `comingSoon`.
 ## Tema claro / oscuro
 
 - **Por defecto oscuro.** Sin preferencia guardada, el sitio se ve en oscuro; no
-  se sigue la preferencia del sistema.
+  se sigue la preferencia del sistema. Ese valor lo decide ahora
+  `site_settings.default_theme`, así que `themeInitScript` es una función que
+  lo recibe y `DEFAULT_THEME` pasó a ser el respaldo — lo que usan el cliente
+  antes de hidratar y el `catch` del script.
 - La preferencia se guarda en la **cookie** `theme` (`dark` | `light`), no en
   `localStorage`. La cookie está disponible en cada carga de documento, que es
   lo que hace falta para aplicar el tema antes del primer pintado.
