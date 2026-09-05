@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Pager, usePage } from "@/components/Pager";
 import type { SystemSummary } from "@/lib/system";
 import type { ActionResult, ProjectList } from "@/app/(panel)/sistema/actions";
 
@@ -36,6 +37,8 @@ const entityWords: Record<string, string> = {
   redirect: "redirecciones",
   settings: "configuración",
   navigation: "navegación",
+  user: "usuario",
+  session: "sesión",
 };
 
 function Section({
@@ -137,6 +140,13 @@ export default function SystemModule({
   };
 
   const { audit, syncs, deployments, events, uptime, vercel } = summary;
+
+  // Ten rows each: enough to see a pattern, short enough that four lists on
+  // one page do not turn it into a scroll.
+  const auditPage = usePage(audit, 10);
+  const syncPage = usePage(syncs, 10);
+  const deployPage = usePage(deployments, 10);
+  const eventPage = usePage(events, 10);
 
   return (
     <div className="flex flex-col gap-6">
@@ -293,7 +303,7 @@ export default function SystemModule({
           <Empty>Sin despliegues sincronizados.</Empty>
         ) : (
           <ul className="flex flex-col divide-y divide-neutral-900 border-y border-neutral-900">
-            {deployments.map((d) => (
+            {deployPage.rows.map((d) => (
               <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-[12px]">
                 <Pill tone={d.state === "READY" ? "ok" : d.state === "ERROR" ? "bad" : "wait"}>
                   {d.state}
@@ -317,6 +327,13 @@ export default function SystemModule({
             ))}
           </ul>
         )}
+
+        <Pager
+          {...deployPage}
+          shown={deployPage.rows.length}
+          label="despliegues"
+          onPage={deployPage.setPage}
+        />
       </Section>
 
       {/* ------------------------- Sincronizaciones -------------------------- */}
@@ -328,32 +345,44 @@ export default function SystemModule({
           <Empty>Todavía no se ha sincronizado nada.</Empty>
         ) : (
           <ul className="flex flex-col divide-y divide-neutral-900 border-y border-neutral-900">
-            {syncs.map((s) => (
-              <li key={s.id} className="flex flex-col gap-1 py-2">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
-                  <Pill tone={s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "wait"}>
-                    {s.status}
-                  </Pill>
-                  <span className="w-32 shrink-0 font-mono text-[11px] text-neutral-400">
-                    {s.source}
-                  </span>
-                  <span className="flex-1 tabular-nums text-neutral-500">
-                    {num.format(s.rows)} filas
-                  </span>
-                  <span className="shrink-0 tabular-nums text-neutral-500">
-                    {ms(s.durationMs)}
-                  </span>
-                  <span className="shrink-0 font-mono text-[10px] text-neutral-600">
-                    {when(s.startedAt)}
-                  </span>
-                </div>
-                {s.error ? (
-                  <p className="pl-1 text-[11px] text-red-400">{s.error}</p>
-                ) : null}
+            {syncPage.rows.map((s) => (
+              <li
+                key={s.id}
+                className="flex items-center gap-3 py-2 text-[12px]"
+              >
+                <Pill tone={s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "wait"}>
+                  {s.status}
+                </Pill>
+                <span className="w-28 shrink-0 truncate font-mono text-[11px] text-neutral-400">
+                  {s.source}
+                </span>
+                {/* The error shares the row instead of adding a second line.
+                    Truncated with the full text on hover: these messages are
+                    long, and a wrapped one made every other row hard to scan
+                    for the sake of text nobody reads in full at a glance. */}
+                <span
+                  className={`min-w-0 flex-1 truncate ${s.error ? "text-red-400" : "text-neutral-600"}`}
+                  title={s.error ?? undefined}
+                >
+                  {s.error ?? `${num.format(s.rows)} filas`}
+                </span>
+                <span className="shrink-0 tabular-nums text-neutral-500">
+                  {ms(s.durationMs)}
+                </span>
+                <span className="hidden shrink-0 font-mono text-[10px] text-neutral-600 sm:inline">
+                  {when(s.startedAt)}
+                </span>
               </li>
             ))}
           </ul>
         )}
+
+        <Pager
+          {...syncPage}
+          shown={syncPage.rows.length}
+          label="ejecuciones"
+          onPage={syncPage.setPage}
+        />
       </Section>
 
       {/* ------------------------------ Avisos ------------------------------- */}
@@ -363,21 +392,33 @@ export default function SystemModule({
           note="Lo que falló por detrás. Aquí acaban los avisos al sitio público que no llegaron, que antes se colaban dentro de un mensaje de «guardado»."
         >
           <ul className="flex flex-col divide-y divide-neutral-900 border-y border-neutral-900">
-            {events.map((e) => (
-              <li key={e.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-[12px]">
+            {eventPage.rows.map((e) => (
+              <li key={e.id} className="flex items-center gap-3 py-2 text-[12px]">
                 <Pill tone={e.level === "error" ? "bad" : e.level === "warn" ? "wait" : "ok"}>
                   {e.level}
                 </Pill>
-                <span className="w-24 shrink-0 font-mono text-[10px] text-neutral-500">
+                <span className="w-24 shrink-0 truncate font-mono text-[10px] text-neutral-500">
                   {e.source}
                 </span>
-                <span className="min-w-0 flex-1 text-neutral-300">{e.message}</span>
-                <span className="shrink-0 font-mono text-[10px] text-neutral-600">
+                <span
+                  className="min-w-0 flex-1 truncate text-neutral-300"
+                  title={e.message}
+                >
+                  {e.message}
+                </span>
+                <span className="hidden shrink-0 font-mono text-[10px] text-neutral-600 sm:inline">
                   {when(e.at)}
                 </span>
               </li>
             ))}
           </ul>
+
+          <Pager
+            {...eventPage}
+            shown={eventPage.rows.length}
+            label="avisos"
+            onPage={eventPage.setPage}
+          />
         </Section>
       ) : null}
 
@@ -393,19 +434,21 @@ export default function SystemModule({
           </Empty>
         ) : (
           <ul className="flex flex-col divide-y divide-neutral-900 border-y border-neutral-900">
-            {audit.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 text-[12px]">
-                <span className="w-24 shrink-0 font-mono text-[10px] uppercase text-neutral-600">
+            {auditPage.rows.map((a) => (
+              <li key={a.id} className="flex items-center gap-3 py-2 text-[12px]">
+                <span className="w-20 shrink-0 font-mono text-[10px] uppercase text-neutral-600">
                   {actionWords[a.action] ?? a.action}
                 </span>
-                <span className="min-w-0 flex-1 text-neutral-300">
+                <span className="min-w-0 flex-1 truncate text-neutral-300">
                   {entityWords[a.entityType] ?? a.entityType}
                   {a.diff && typeof a.diff.label === "string" ? (
                     <span className="text-neutral-500"> · {a.diff.label}</span>
                   ) : null}
                 </span>
                 {a.user ? (
-                  <span className="shrink-0 text-[11px] text-neutral-500">{a.user}</span>
+                  <span className="hidden shrink-0 truncate text-[11px] text-neutral-500 sm:inline">
+                    {a.user}
+                  </span>
                 ) : null}
                 <span className="shrink-0 font-mono text-[10px] text-neutral-600">
                   {when(a.at)}
@@ -414,6 +457,13 @@ export default function SystemModule({
             ))}
           </ul>
         )}
+
+        <Pager
+          {...auditPage}
+          shown={auditPage.rows.length}
+          label="entradas"
+          onPage={auditPage.setPage}
+        />
       </Section>
     </div>
   );

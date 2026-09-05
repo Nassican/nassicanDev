@@ -654,6 +654,72 @@ Antes que nada, Web Analytics tiene que estar **activado en el proyecto de
 Vercel**: `@vercel/analytics` ya está en el sitio, pero con el interruptor
 apagado no se guarda nada y la API responde vacío.
 
+### Usuarios: sesiones, roles y revocación
+
+En `app.nassican.com/usuarios`. Muestra los tres cerrojos de la sección de
+autenticación desde el otro lado: quién está en la lista de permitidos, quién
+tiene fila, y desde qué navegadores está dentro ahora mismo.
+
+**Las reglas que impiden quedarse fuera son el módulo.** Todo lo demás es una
+lista. Viven en `user-draft.ts` como funciones puras, así que las comprueba la
+interfaz —deshabilitando la opción y explicando por qué en el `title`— y las
+vuelve a comprobar la acción, que es la única comprobación que cuenta:
+
+- No puedes quitarte a ti mismo el rol de propietario.
+- No puedes desactivar tu propia cuenta.
+- No se puede tocar al último propietario activo, sea quien sea.
+
+Existen porque romperlas cierra la única puerta y **no hay segundo canal para
+deshacerlo**: no hay recuperación de contraseña ni soporte, solo editar la base
+a mano. La acción vuelve a leer el estado en vez de fiarse de lo que mandó el
+navegador, porque las reglas hablan del mundo y la página pudo llevar una hora
+abierta.
+
+**La comprobación de rol se repite en cada acción**, no una vez en la página.
+Una acción de servidor es un endpoint público; un rol que solo decide si se
+dibuja un botón no protege nada.
+
+**Revocar el acceso hace dos cosas.** La bandera `isActive` corta los inicios
+futuros —y ya bastaría, porque `requireUser()` la relee en cada petición—, pero
+además se borran las sesiones abiertas. Sin eso la lista de sesiones mentiría
+sobre quién está dentro.
+
+Cerrar tu propia sesión está permitido a propósito: es como se echa de un
+navegador que ya no tienes delante. El panel marca cuál es antes, para que no
+sea un accidente.
+
+**Un estado que no se ve en ninguna otra parte:** una fila puede decir «activo»
+y su dirección haber salido de `ADMIN_ALLOWED_EMAILS`. Las dos cosas son
+ciertas y la persona no entra. El módulo lo señala en vez de dejar que se
+descubra en la pantalla de acceso.
+
+Invitar a alguien **no es un botón**: la lista es una variable de entorno, así
+que añadir a una persona es un despliegue. El módulo la enseña para que al
+menos sea visible qué dice.
+
+`describeUserAgent` es deliberadamente superficial —sirve para distinguir el
+portátil del móvil, no para construir una base de datos de dispositivos— y lo
+que no reconoce lo muestra en crudo, que es más honesto que «Desconocido». Ojo
+al orden de las comprobaciones: el user agent de un iPhone dice «like Mac OS X»
+y el de Android dice «Linux», así que lo específico va antes que lo general o
+todos los móviles se reportan como escritorio. Pasó.
+
+#### Paginación
+
+`components/Pager.tsx`. Las listas llegan acotadas del servidor —las últimas N
+ejecuciones, las últimas N entradas—, así que paginar es cortar, no volver a
+pedir: a esta distancia de la base, ir a por la página dos costaría un viaje
+para enseñar filas que ya estaban aquí.
+
+La página se recorta al renderizar y no en un efecto. Cuando la lista encoge
+por debajo —terminó una sincronización, se borró una fila— un efecto
+renderizaría la página vacía una vez antes de corregirse.
+
+En Sincronizaciones el error comparte fila con el resto en vez de añadir una
+segunda línea, truncado y con el texto completo en el `title`. Son mensajes
+largos, y uno envuelto hacía ilegible el resto de la tabla a cambio de un texto
+que nadie lee entero de un vistazo.
+
 ### Perfil y credenciales
 
 En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,
