@@ -215,7 +215,6 @@ model Post {
   translations PostTranslation[]
   revisions    PostRevision[]
   tags         PostTag[]
-  links        PostLink[]
 
   @@index([status, publishedAt])
   @@map("posts")
@@ -332,19 +331,32 @@ model PostTag {
 
 /// Outbound links extracted from bodies on save, so the SEO module can report
 /// broken ones without re-parsing every post.
-model PostLink {
-  id            String    @id @default(uuid())
-  postId        String    @map("post_id")
-  locale        Locale
-  url           String
-  isInternal    Boolean   @default(false) @map("is_internal")
-  lastStatus    Int?      @map("last_status")
-  lastCheckedAt DateTime? @map("last_checked_at")
+/// One row per distinct URL, not per place it appears.
+///
+/// The URL is what is or is not broken, so checking it once covers every
+/// reference to it - and a diploma linked from three certificates is one
+/// request, not three. `references` records where it was found on the last
+/// scan, so a report can say *which* content points at a dead address.
+///
+/// This replaces the per-post link table and the per-certificate status
+/// columns: outbound links rot the same way wherever they live, and one
+/// checker beats three.
+model OutboundLink {
+  id  String @id @default(uuid())
+  url String @unique
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  status    Int?
+  /// Null until checked. False means the last check failed.
+  ok        Boolean?
+  error     String?
+  checkedAt DateTime? @map("checked_at")
 
-  @@index([postId, locale])
-  @@map("post_links")
+  /// `{ entityType, entityId, locale, label }[]` - rebuilt on every scan.
+  references  Json
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+
+  @@index([ok])
+  @@map("outbound_links")
 }
 
 // ---------------------------------------------------------------------------
@@ -630,11 +642,8 @@ model Certificate {
   /// As written: often just a year, so it is a label rather than a date.
   dateLabel     String? @map("date_label")
   credentialUrl String  @map("credential_url")
-  fileMediaId   String?   @map("file_media_id")
-  position      Int       @default(0)
-  /// Linked diplomas rot; the link checker records what it found.
-  lastStatus    Int?      @map("last_status")
-  lastCheckedAt DateTime? @map("last_checked_at")
+  fileMediaId String? @map("file_media_id")
+  position    Int     @default(0)
 
   file         Media?                   @relation("CertificateFile", fields: [fileMediaId], references: [id], onDelete: SetNull)
   translations CertificateTranslation[]

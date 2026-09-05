@@ -362,6 +362,51 @@ Ni el id de propiedad de GA4 ni la propiedad de Search Console se adivinan,
 así que ambos módulos ofrecen un botón que se los pregunta a Google y
 muestra los reales.
 
+### Estadísticas: salud del contenido, traducción y enlaces
+
+En `app.nassican.com/estadisticas`. A diferencia de Analítica y SEO, aquí no
+hay ninguna API externa: todo sale de la propia base, y el único tráfico hacia
+fuera son las peticiones que comprueban los enlaces.
+
+**La cobertura de traducción cuenta entidades, no campos.** Un artículo a
+medias en inglés es *una* falta, no cuatro; contar campos produce un porcentaje
+que se mueve al añadir columnas al esquema y que nadie sabe interpretar. Cada
+hueco lleva su enlace al sitio donde se arregla, porque un porcentaje sobre el
+que no se puede actuar es decoración. El umbral de cada tipo es el mismo que
+usa su regla de publicación: un artículo necesita título, descripción y cuerpo;
+un proyecto solo el `tagline`.
+
+**Los enlaces se guardan por URL, no por sitio donde aparecen.** Lo que está
+roto es la dirección, así que comprobarla una vez cubre todas sus apariciones
+—tres certificados que apuntan al mismo diploma son una petición, no tres— y
+`references` registra dónde se encontró en el último barrido. Las URLs que ya
+no aparecen en ningún sitio se borran: la tabla responde «a qué enlaza el
+sitio», no «a qué enlazó alguna vez».
+
+Hay **tres respuestas, no dos**, y esa es la decisión que sostiene el módulo:
+
+| `ok` | Qué significa |
+| --- | --- |
+| `true` | respondió correctamente |
+| `false` | roto de verdad |
+| `null` | contestó rechazando al robot (429, 999) |
+
+LinkedIn devuelve 999 a cualquier cosa que no sea un navegador. Reportarlo como
+roto sería un falso positivo, y **un solo falso positivo basta para que nadie
+vuelva a mirar el informe**. Por eso `REFUSES_ROBOTS` los aparta a «sin
+comprobar», que se muestra en gris y aparte de los rotos, y no entra en el
+contador que guarda la instantánea diaria.
+
+Se prueba `HEAD` y se cae a `GET`: GitHub y Platzi responden 403 o 405 a `HEAD`
+mientras sirven la página perfectamente, justo las direcciones que más importan
+aquí. Las peticiones van en serie a propósito —son una decena, y machacar un
+host en paralelo es la forma de acabar con un 429 que no significa nada.
+
+`content_stats_daily` guarda **una fila por día**, reemplazada si ya existe: lo
+que interesa es la tendencia, y un día registrado dos veces sería un pico que
+nunca ocurrió. Por eso `runContentCheck()` revisa los enlaces *antes* de tomar
+la instantánea, que almacena cuántos había rotos.
+
 ### Perfil y credenciales
 
 En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,
