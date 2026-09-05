@@ -15,13 +15,14 @@ export type { ExperienceItem } from "./experience";
 export { education } from "./education";
 export type { EducationItem } from "./education";
 
-export {
-  projects,
-  projectsByDate,
-  featuredProjects,
-  getProject,
-} from "./projects";
-export type { ProjectItem, ProjectMeta, ProjectTranslation } from "./projects";
+// Project queries are NOT re-exported here: this barrel is imported by
+// client components and the query module reaches Prisma. Import them from
+// "@/lib/data/projects" in server code instead.
+export type {
+  ProjectItem,
+  ProjectMeta,
+  ProjectTranslation,
+} from "./projects/types";
 
 // Post queries are NOT re-exported here on purpose: this barrel is imported
 // by client components, and the query module reaches Prisma. Import them from

@@ -3,10 +3,10 @@ import {
   education,
   experience,
   profile,
-  projectsByDate,
   skills,
 } from "@/lib/data";
 import { getPublishedPosts } from "@/lib/data/posts";
+import { getProjectsByDate } from "@/lib/data/projects";
 import { absoluteUrl, localeUrl } from "@/lib/seo";
 import { getDictionary } from "@/lib/i18n";
 import {
@@ -111,7 +111,7 @@ async function build(locale: Locale): Promise<string> {
       })`,
   );
 
-  const projectLines = projectsByDate.map((p) => {
+  const projectLines = (await getProjectsByDate()).map((p) => {
     const pc = p.content[locale];
     return `- [${p.title}](${url(`/projects/${p.slug}`)}): ${pc.tagline} ${c.stack}: ${p.stack.join(", ")}.${
       p.repo ? ` ${c.code}: ${p.repo}` : ""

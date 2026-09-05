@@ -10,6 +10,7 @@ import LatestPosts from "@/components/sections/LatestPosts";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales } from "@/lib/i18n/config";
 import { homeJsonLd } from "@/lib/seo";
+import { getProjectsByDate } from "@/lib/data/projects";
 
 type PageParams = { params: Promise<{ locale: string }> };
 
@@ -27,7 +28,9 @@ export default async function Home({ params }: PageParams) {
       {/* ProfilePage + project list; the Person/WebSite graph lives in the layout */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd(locale)) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(homeJsonLd(locale, await getProjectsByDate())),
+        }}
       />
       <Hero locale={locale} t={t} />
       <About t={t} />

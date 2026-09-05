@@ -2,17 +2,19 @@ import Link from "next/link";
 import { BsArrowRight } from "react-icons/bs";
 import SectionTitle from "@/components/ui/SectionTitle";
 import ProjectCard from "@/components/ProjectCard";
-import { featuredProjects } from "@/lib/data";
+import { getFeaturedProjects } from "@/lib/data/projects";
 import type { Dictionary } from "@/lib/i18n";
 import { localePath, type Locale } from "@/lib/i18n/config";
 
-export default function Projects({
+export default async function Projects({
   locale,
   t,
 }: {
   locale: Locale;
   t: Dictionary;
 }) {
+  const featuredProjects = await getFeaturedProjects();
+
   return (
     <section
       id="projects"

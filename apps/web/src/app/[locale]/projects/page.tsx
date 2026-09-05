@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ProjectCard from "@/components/ProjectCard";
-import { projectsByDate } from "@/lib/data";
+import { getProjectsByDate } from "@/lib/data/projects";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales } from "@/lib/i18n/config";
 import { pageMetadata, projectsJsonLd } from "@/lib/seo";
@@ -31,13 +31,14 @@ export default async function ProjectsPage({ params }: PageParams) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
+  const projectsByDate = await getProjectsByDate();
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-24">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(projectsJsonLd(locale)),
+          __html: JSON.stringify(projectsJsonLd(locale, projectsByDate)),
         }}
       />
 

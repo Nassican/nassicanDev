@@ -194,19 +194,47 @@ Al agregar una ruta nueva:
 
 ## Contenido
 
-El contenido está a medio migrar a la base de datos. **Los artículos ya vienen
-de Postgres**; el resto sigue en módulos tipados bajo `src/lib/data/`.
+El contenido está a medio migrar a la base de datos.
 
 | Archivo | Qué contiene | Fuente |
 | --- | --- | --- |
-| `posts/index.ts` | Consultas de artículos publicados | **base de datos** |
+| `posts/index.ts` | Artículos publicados | **base de datos** |
+| `projects/index.ts` | Proyectos y casos de estudio | **base de datos** |
+| `skills.ts` | Registro de tecnologías y agrupación | módulo *(ya importado)* |
 | `profile.ts` | Nombre, correo, ubicación, redes, CVs | módulo |
-| `skills.ts` | Registro de tecnologías (colores e iconos) y agrupación | módulo |
 | `experience.ts` | Historial laboral | módulo |
 | `education.ts` | Formación académica | módulo |
 | `certificates.ts` | Certificados y cursos | módulo |
-| `projects/` | Proyectos y casos de estudio, una carpeta por proyecto | módulo |
 | `content.ts` | Reexporta `ContentBlock` y utilidades de `@nassican/shared` | — |
+
+`skills.ts` está en un estado intermedio: sus datos ya viven en las tablas
+`technologies` y `skill_groups` —los proyectos referencian tecnologías por
+clave foránea—, pero la sección de Habilidades del sitio público sigue leyendo
+el módulo. Se cerrará cuando exista su módulo en el panel.
+
+Las carpetas `projects/<slug>/` con los archivos `es.ts` y `en.ts` **siguen en
+el repositorio a propósito**: son la copia de seguridad de la migración y la
+fuente que lee `scripts/import-content.ts`. Ya no las lee el sitio. Bórralas
+solo cuando la migración esté confirmada en producción.
+
+### El script de importación
+
+```bash
+npm run content:import -- --dry   # informa sin escribir
+npm run content:import            # escribe
+```
+
+Es idempotente: cada escritura es un upsert por la clave que identifica la cosa
+(la clave de registro de una tecnología, el slug de un proyecto), así que
+ejecutarlo dos veces no cambia nada. Eso es lo que permite verificarlo:
+ejecutar, comparar el sitio renderizado contra una instantánea previa,
+corregir, volver a ejecutar.
+
+**Cómo se verificó la migración de proyectos**, que es el método a repetir con
+el resto: capturar el HTML de las páginas afectadas antes del cambio, migrar,
+y comparar el texto visible y los enlaces —no el HTML crudo, que cambia en cada
+build por los hashes de los chunks. Las 11 páginas resultaron idénticas salvo
+el `lastModified` del sitemap, que es `new Date()` por diseño.
 
 Consecuencia de la migración: **`apps/web` necesita `DATABASE_URL`**, también
 en tiempo de build. `generateStaticParams` consulta la base para saber qué
@@ -254,7 +282,21 @@ Si la llamada de revalidación falla, el panel lo dice pero **no revierte la
 publicación**: el contenido ya está guardado, y una caché que tarda es mejor
 que un botón que parece haber fallado.
 
-### Agregar un proyecto
+### Proyectos: se gestionan en el panel
+
+En `app.nassican.com/contenido/proyectos`. La regla de publicación es más
+laxa que la de los artículos porque siempre lo fue: **solo la descripción de
+una línea es obligatoria en cada idioma**. Un proyecto se lista con
+`comingSoon` mientras su caso de estudio no exista, y la ficha lo dice
+explícitamente en lugar de mostrar relleno. Sigue vigente: **no inventes el
+contenido de un caso de estudio.**
+
+El stack dejó de ser un arreglo de cadenas comparadas contra `skills.ts` y pasó
+a ser clave foránea contra `technologies`. El editor ofrece las tecnologías
+registradas; una que no exista se descarta al guardar y el panel lo dice, en
+vez de almacenarla en silencio y romper el icono.
+
+### La estructura antigua, para referencia
 
 Misma estructura que el blog, una carpeta por proyecto:
 

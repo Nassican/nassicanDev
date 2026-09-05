@@ -109,25 +109,25 @@ aplicación correspondiente.
 
 ## Gestión de contenido
 
-El contenido editable vive en `src/lib/data/`. Los datos alimentan las páginas, el sitemap, los datos estructurados y `llms.txt` desde una única fuente.
+El contenido está a medio migrar del código a la base de datos. Sea cual sea su
+origen, alimenta las páginas, el sitemap, los datos estructurados y `llms.txt`
+desde una única fuente.
 
-- `profile.ts`: perfil, redes sociales y CV.
-- `skills.ts`: tecnologías y categorías.
-- `experience.ts`: experiencia profesional.
-- `education.ts`: formación académica.
-- `certificates.ts`: cursos y certificados.
-- `projects/`: proyectos y casos de estudio.
-- `posts/`: artículos del blog.
+| Contenido | Dónde se edita |
+| --- | --- |
+| Artículos | Panel → Contenido → Blogs |
+| Proyectos y casos de estudio | Panel → Contenido → Proyectos |
+| Perfil, experiencia, formación, certificados | `apps/web/src/lib/data/`, por ahora |
 
-Cada cambio de contenido visible debe implementarse tanto en español como en inglés. Los tipos `Localized<T>` y los diccionarios ayudan a detectar traducciones faltantes durante la compilación.
+Cada cambio de contenido visible debe existir en español y en inglés. En los
+módulos TypeScript lo garantiza el tipo `Localized<T>` durante la compilación;
+en el panel, una comprobación que impide publicar con un idioma incompleto.
 
 ### Agregar un proyecto
 
-1. Crea una carpeta en `src/lib/data/projects/<slug>/`.
-2. Añade `index.ts`, `es.ts` y `en.ts`, tomando un proyecto existente como referencia.
-3. Registra el proyecto en `src/lib/data/projects/index.ts`.
-4. Guarda su imagen en `public/projects/`.
-5. Usa `comingSoon: true` mientras el caso de estudio no esté terminado.
+Los proyectos se gestionan en `app.nassican.com/contenido/proyectos`. Solo la
+descripción de una línea es obligatoria en cada idioma; usa «caso de estudio
+pendiente» mientras no esté escrito.
 
 ### Publicar un artículo
 

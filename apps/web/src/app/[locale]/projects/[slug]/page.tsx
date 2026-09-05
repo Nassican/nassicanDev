@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { BsArrowLeft, BsArrowUpRight, BsGithub } from "react-icons/bs";
 import Prose from "@/components/Prose";
 import SkillIcon from "@/components/ui/SkillIcon";
-import { getProject, projects } from "@/lib/data";
+import { getProject, getProjectsByDate } from "@/lib/data/projects";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales, localePath } from "@/lib/i18n/config";
 import { pageMetadata, projectJsonLd } from "@/lib/seo";
@@ -13,7 +13,8 @@ import { pageMetadata, projectJsonLd } from "@/lib/seo";
 type PageParams = { params: Promise<{ locale: string; slug: string }> };
 
 /** Every project exists in every language, so the matrix is a full product. */
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const projects = await getProjectsByDate();
   return locales.flatMap((locale) =>
     projects.map((project) => ({ locale, slug: project.slug })),
   );
@@ -24,7 +25,7 @@ export async function generateMetadata({
 }: PageParams): Promise<Metadata> {
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
-  const project = getProject(slug);
+  const project = await getProject(slug);
   if (!project) return {};
   const c = project.content[locale];
 
@@ -43,7 +44,7 @@ export default async function ProjectPage({ params }: PageParams) {
   const { locale, slug } = await params;
   if (!isLocale(locale)) notFound();
 
-  const project = getProject(slug);
+  const project = await getProject(slug);
   if (!project) notFound();
 
   const t = getDictionary(locale);

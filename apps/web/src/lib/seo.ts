@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import {
   profile,
-  projects,
   certificates,
   education,
   experience,
@@ -252,7 +251,7 @@ function projectNode(locale: Locale, p: ProjectItem) {
   };
 }
 
-function projectList(locale: Locale) {
+function projectList(locale: Locale, projects: ProjectItem[]) {
   return {
     "@type": "ItemList",
     "@id": localeUrl(locale, "/projects") + "#list",
@@ -276,13 +275,13 @@ export function siteJsonLd(locale: Locale) {
 }
 
 /** Homepage-only graph: the ProfilePage itself plus the project list. */
-export function homeJsonLd(locale: Locale) {
+export function homeJsonLd(locale: Locale, projects: ProjectItem[]) {
   const t = getDictionary(locale);
 
   return {
     "@context": "https://schema.org",
     "@graph": [
-      projectList(locale),
+      projectList(locale, projects),
       {
         "@type": "ProfilePage",
         "@id": localeUrl(locale, "/"),
@@ -339,7 +338,7 @@ export function certificatesJsonLd(locale: Locale) {
   };
 }
 
-export function projectsJsonLd(locale: Locale) {
+export function projectsJsonLd(locale: Locale, projects: ProjectItem[]) {
   const t = getDictionary(locale);
 
   return {
@@ -356,7 +355,7 @@ export function projectsJsonLd(locale: Locale) {
         about: { "@id": personId },
       },
       breadcrumb(locale, [{ name: t.projects.listTitle, path: "/projects" }]),
-      projectList(locale),
+      projectList(locale, projects),
     ],
   };
 }
