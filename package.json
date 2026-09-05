@@ -17,12 +17,14 @@
     "db:generate": "npm run generate --workspace @nassican/db",
     "db:migrate": "npm run migrate --workspace @nassican/db",
     "db:studio": "npm run studio --workspace @nassican/db",
-    "content:import": "tsx --conditions=react-server scripts/import-content.ts"
+    "content:import": "tsx --conditions=react-server scripts/import-content.ts",
+    "media:optimise": "tsx --conditions=react-server scripts/optimise-media.ts"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
+    "sharp": "^0.35.4",
     "tsx": "^4.23.13"
   }
 }

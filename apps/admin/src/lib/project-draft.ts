@@ -28,6 +28,7 @@ export type ProjectDraft = {
   featured: boolean;
   demoUrl: string;
   repoUrl: string;
+  coverMediaId: string | null;
   coverUrl: string | null;
   stack: string[];
   translations: ProjectTranslationDraft[];

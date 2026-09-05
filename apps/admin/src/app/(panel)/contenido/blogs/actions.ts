@@ -94,6 +94,7 @@ export async function savePost(draft: PostDraft): Promise<ActionResult> {
     data: {
       slug,
       featured: draft.featured,
+      coverMediaId: draft.coverMediaId,
       readingMinutes: estimateReadingMinutes(draft.translations),
       publishedAt: draft.publishedAt ? new Date(draft.publishedAt) : null,
     },

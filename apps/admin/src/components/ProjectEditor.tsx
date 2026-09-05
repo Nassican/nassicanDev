@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { localeNames, type ContentBlock, type Locale } from "@nassican/shared";
 import BlockEditor from "@/components/BlockEditor";
+import CoverPicker from "@/components/CoverPicker";
 import {
   isLocaleComplete,
   type ProjectDraft,
@@ -235,15 +236,20 @@ export default function ProjectEditor({
           />
           Caso de estudio pendiente
         </label>
-        {draft.coverUrl ? (
-          <span className="font-mono text-[11px] text-neutral-600">
-            portada: {draft.coverUrl}
-          </span>
-        ) : (
-          <span className="font-mono text-[11px] text-neutral-600">
-            sin portada · pendiente de Multimedia
-          </span>
-        )}
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <span className={label}>Portada</span>
+        <CoverPicker
+          url={draft.coverUrl}
+          onChange={(media) =>
+            setDraft({
+              ...draft,
+              coverMediaId: media?.id ?? null,
+              coverUrl: media?.url ?? null,
+            })
+          }
+        />
       </section>
 
       <section className="flex flex-col gap-2">

@@ -68,6 +68,7 @@ export async function saveProject(
       featured: draft.featured,
       demoUrl: draft.demoUrl.trim() || null,
       repoUrl: draft.repoUrl.trim() || null,
+      coverMediaId: draft.coverMediaId,
     },
   });
 

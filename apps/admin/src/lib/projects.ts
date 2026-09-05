@@ -26,6 +26,7 @@ type Row = {
   featured: boolean;
   demoUrl: string | null;
   repoUrl: string | null;
+  coverMediaId: string | null;
   coverMedia: { url: string } | null;
   translations: {
     locale: Locale;
@@ -56,6 +57,7 @@ function toDraft(row: Row): ProjectDraft {
     featured: row.featured,
     demoUrl: row.demoUrl ?? "",
     repoUrl: row.repoUrl ?? "",
+    coverMediaId: row.coverMediaId,
     coverUrl: row.coverMedia?.url ?? null,
     stack: row.technologies.map((t) => t.technology.key),
     translations: locales.map((locale) => {

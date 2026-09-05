@@ -18,6 +18,8 @@ type Row = Awaited<ReturnType<typeof db.post.findMany>>[number] & {
     body: unknown;
   }[];
   tags: { tag: { label: string } }[];
+  coverMediaId: string | null;
+  coverMedia: { url: string } | null;
 };
 
 function toDraft(row: Row): PostDraft {
@@ -29,6 +31,8 @@ function toDraft(row: Row): PostDraft {
     status: row.status,
     publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
     featured: row.featured,
+    coverMediaId: row.coverMediaId,
+    coverUrl: row.coverMedia?.url ?? null,
     readingMinutes: row.readingMinutes,
     tags: row.tags.map((t) => t.tag.label),
     translations: locales.map((locale) => {
@@ -46,6 +50,7 @@ function toDraft(row: Row): PostDraft {
 
 const include = {
   translations: true,
+  coverMedia: true,
   tags: { include: { tag: true }, orderBy: { position: "asc" } },
 } as const;
 

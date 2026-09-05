@@ -201,6 +201,7 @@ El contenido está a medio migrar a la base de datos.
 | `posts/index.ts` | Artículos publicados | **base de datos** |
 | `projects/index.ts` | Proyectos y casos de estudio | **base de datos** |
 | `skills.ts` | Registro de tecnologías y agrupación | módulo *(ya importado)* |
+| Imágenes | Bytes en `media_blobs`, servidas desde `/media/` | **base de datos** |
 | `profile.ts` | Nombre, correo, ubicación, redes, CVs | módulo |
 | `experience.ts` | Historial laboral | módulo |
 | `education.ts` | Formación académica | módulo |
@@ -216,6 +217,34 @@ Las carpetas `projects/<slug>/` con los archivos `es.ts` y `en.ts` **siguen en
 el repositorio a propósito**: son la copia de seguridad de la migración y la
 fuente que lee `scripts/import-content.ts`. Ya no las lee el sitio. Bórralas
 solo cuando la migración esté confirmada en producción.
+
+### Multimedia: las imágenes viven en Postgres
+
+Los bytes se guardan en `media_blobs`, en su propia tabla para que listar la
+biblioteca no arrastre binarios. Es una decisión deliberada y con un límite
+conocido: **funciona a esta escala —una docena de capturas, unos pocos MB— y
+sería la elección equivocada para una galería.** Si algún día el catálogo
+crece, se sustituye `readImageByChecksum` por una URL de almacén de objetos y
+el resto del código no se entera.
+
+Lo que la hace viable es que **la URL es el checksum de los bytes**:
+`/media/<sha256>.webp`. Como esa respuesta no puede cambiar nunca, se sirve con
+`max-age=31536000, immutable` y la base se consulta una vez por imagen y por
+nodo del CDN, no una vez por visitante. Reemplazar una portada produce otro
+checksum, y por tanto otra URL: nunca hay caché rancia que purgar.
+
+Ese camino contiene un punto, así que el matcher del proxy de idiomas ya lo
+excluye y `/media/...` nunca se reescribe al segmento `[locale]`.
+
+Toda imagen se convierte a **WebP** al entrar (calidad 82, ancho máximo 1920) y
+se le calcula un `blurDataUrl` de 16 px para el placeholder de `next/image`. La
+conversión vive en `apps/admin/src/lib/media.ts`; el sitio público solo sirve
+bytes y nunca carga `sharp`.
+
+```bash
+npm run media:optimise -- --dry   # informa sin escribir
+npm run media:optimise            # mueve a la base lo que quede en /public
+```
 
 ### El script de importación
 

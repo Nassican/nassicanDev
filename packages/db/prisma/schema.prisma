@@ -672,7 +672,9 @@ model Media {
   width       Int?
   height      Int?
   blurDataUrl String?   @map("blur_data_url")
-  /// SHA-256, so the same file is not uploaded twice.
+  /// SHA-256 of the stored bytes. Doubles as the public filename, which is
+  /// what makes the URL immutable: replacing an image changes the checksum, so
+  /// the old URL is never served stale and the new one can be cached forever.
   checksum   String?  @unique
   folderId   String?  @map("folder_id")
   uploadedBy String?  @map("uploaded_by")
@@ -681,6 +683,7 @@ model Media {
   folder   MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   uploader User?        @relation("MediaUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
 
+  blob         MediaBlob?
   translations MediaTranslation[]
   usages       MediaUsage[]
 
@@ -695,6 +698,20 @@ model Media {
 
   @@index([folderId])
   @@map("media")
+}
+
+/// The bytes themselves, in their own table on purpose: listing the media
+/// library must never drag megabytes of binary along with it. Postgres keeps
+/// values this large out of line in TOAST storage anyway, so the only cost of
+/// splitting them is the join, and the only way to pay for the bytes is to ask
+/// for them explicitly.
+model MediaBlob {
+  mediaId String @id @map("media_id")
+  data    Bytes
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@map("media_blobs")
 }
 
 model MediaTranslation {

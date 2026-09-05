@@ -28,6 +28,8 @@ export type PostDraft = {
   status: PostStatus;
   publishedAt: string | null;
   featured: boolean;
+  coverMediaId: string | null;
+  coverUrl: string | null;
   readingMinutes: number | null;
   tags: string[];
   translations: PostTranslationDraft[];

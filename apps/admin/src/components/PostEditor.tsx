@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { localeNames, type ContentBlock, type Locale } from "@nassican/shared";
 import BlockEditor from "@/components/BlockEditor";
+import CoverPicker from "@/components/CoverPicker";
 import {
   isLocaleComplete,
   type PostDraft,
@@ -186,19 +187,30 @@ export default function PostEditor({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className={label}>Portada</span>
+          <span className={label}>Destacado</span>
           <label className="flex items-center gap-2 py-2 text-sm text-neutral-300">
             <input
               type="checkbox"
               checked={draft.featured}
               onChange={(e) => setDraft({ ...draft, featured: e.target.checked })}
             />
-            Destacado
+            Fijado en la portada
           </label>
-          <span className="text-[11px] text-neutral-600">
-            Imagen de portada: pendiente de Multimedia
-          </span>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <span className={label}>Portada</span>
+        <CoverPicker
+          url={draft.coverUrl}
+          onChange={(media) =>
+            setDraft({
+              ...draft,
+              coverMediaId: media?.id ?? null,
+              coverUrl: media?.url ?? null,
+            })
+          }
+        />
       </section>
 
       <section className="flex flex-col gap-4">

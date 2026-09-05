@@ -15,6 +15,12 @@ import {
 
 export * from "../generated/prisma";
 export { prismaJson } from "./json";
+export {
+  readImageByChecksum,
+  mediaPath,
+  checksumFromFilename,
+  type StoredImage,
+} from "./media";
 
 /**
  * Fails to compile if the Postgres `Locale` enum and the `locales` list in
