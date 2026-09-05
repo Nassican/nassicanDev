@@ -338,6 +338,30 @@ termina ahí y no en ayer.
 La posición media se pondera por impresiones, que es la única forma en que
 promediarla significa algo.
 
+### Analitica: GA4
+
+En `app.nassican.com/analitica`. Mismo patrón que Search Console: se
+sincroniza a las tablas `analytics_daily_*` y el panel lee de ahí.
+
+Cinco informes estrechos en un solo `batchRunReports` en vez de uno ancho:
+cruzar todas las dimensiones a la vez multiplica las filas sin que nadie
+lea nunca la combinación. GA4 admite justo cinco por lote.
+
+El idioma de cada ruta se deduce del prefijo, no se le pide a GA4, que no
+sabe que nuestro `/en` significa algo. La duración media y la tasa de
+interacción se ponderan por sesiones al sumarlas entre días, que es la
+única forma en que promediar promedios significa algo.
+
+**El token de Google es compartido.** `apps/admin/src/lib/google.ts` lo
+resuelve para los dos módulos. Al pedirlo, `accountId` significa el id de
+fila de Better Auth, **no** el `sub` del proveedor — que se llama
+`accountId` en la misma tabla. Pasar el segundo produce «Account not
+found», un error que no nombra ninguno de los dos ids.
+
+Ni el id de propiedad de GA4 ni la propiedad de Search Console se adivinan,
+así que ambos módulos ofrecen un botón que se los pregunta a Google y
+muestra los reales.
+
 ### Perfil y credenciales
 
 En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,

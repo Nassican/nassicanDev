@@ -1,8 +1,7 @@
 import "server-only";
 
-import { headers } from "next/headers";
 import { db } from "@nassican/db";
-import { auth } from "@/lib/auth";
+import { googleToken, SCOPES } from "@/lib/google";
 
 const API = "https://searchconsole.googleapis.com/webmasters/v3/sites";
 
@@ -29,54 +28,6 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/**
- * Fetches a valid access token for the signed-in user's Google account.
- *
- * Better Auth refreshes it when it has expired, which is the whole reason the
- * login asks for offline access: without a refresh token this would work for
- * an hour and then stop.
- */
-async function googleToken(): Promise<
-  { ok: true; token: string } | { ok: false; reason: string }
-> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return { ok: false, reason: "sin sesión" };
-
-  const account = await db.account.findFirst({
-    where: { userId: session.user.id, providerId: "google" },
-    select: { accountId: true, scope: true },
-  });
-
-  if (!account) return { ok: false, reason: "no hay cuenta de Google vinculada" };
-
-  if (!account.scope?.includes("webmasters.readonly")) {
-    return {
-      ok: false,
-      reason:
-        "la sesión no tiene permiso de Search Console; vuelve a entrar para concederlo",
-    };
-  }
-
-  try {
-    // The account id alone identifies the grant; passing `providerId` too is
-    // rejected, because that variant of the request is for the default account.
-    const result = await auth.api.getAccessToken({
-      body: { accountId: account.accountId },
-      headers: await headers(),
-    });
-
-    const token = (result as { accessToken?: string })?.accessToken;
-    if (!token) return { ok: false, reason: "Google no devolvió un token" };
-
-    return { ok: true, token };
-  } catch (error) {
-    return {
-      ok: false,
-      reason: error instanceof Error ? error.message : "fallo al refrescar el token",
-    };
-  }
-}
-
 export type SearchConsoleSite = {
   siteUrl: string;
   permission: string;
@@ -93,7 +44,7 @@ export type SearchConsoleSite = {
 export async function listSearchConsoleSites(): Promise<
   { ok: true; sites: SearchConsoleSite[] } | { ok: false; reason: string }
 > {
-  const token = await googleToken();
+  const token = await googleToken(SCOPES.searchConsole);
   if (!token.ok) return { ok: false, reason: token.reason };
 
   try {
@@ -147,7 +98,7 @@ export async function syncSearchConsole(days = 28): Promise<SyncOutcome> {
     return { ok: false, reason: "falta la propiedad de Search Console en Ajustes" };
   }
 
-  const token = await googleToken();
+  const token = await googleToken(SCOPES.searchConsole);
   if (!token.ok) return { ok: false, reason: token.reason };
 
   const end = new Date();
