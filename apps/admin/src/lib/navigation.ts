@@ -24,7 +24,7 @@ export const navigation: NavEntry[] = [
     ],
   },
   { label: "Perfil", href: "/perfil", ready: true },
-  { label: "SEO", href: "/seo", ready: false },
+  { label: "SEO", href: "/seo", ready: true },
   { label: "Analítica", href: "/analitica", ready: false },
   { label: "Estadísticas", href: "/estadisticas", ready: false },
   { label: "Configuración", href: "/configuracion", ready: false },

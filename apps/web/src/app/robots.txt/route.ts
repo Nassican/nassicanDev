@@ -1,5 +1,12 @@
-import type { MetadataRoute } from "next";
+import { getSeoSettings } from "@/lib/data/seo-settings";
 import { absoluteUrl, siteUrl } from "@/lib/seo";
+
+/**
+ * A route handler rather than the `robots.ts` metadata convention, because
+ * `MetadataRoute.Robots` has no way to emit arbitrary lines and the panel needs
+ * to append its own. The output below reproduces what the convention generated,
+ * line for line, plus whatever `robotsExtra` holds.
+ */
 
 /**
  * Preview and development deployments must never be indexed: they serve the
@@ -51,33 +58,35 @@ const aiTrainingBots = [
   "CCBot",
 ];
 
-export default function robots(): MetadataRoute.Robots {
+function group(agents: string[], rules: string[]): string {
+  return [...agents.map((a) => `User-Agent: ${a}`), ...rules].join("\n");
+}
+
+export async function GET() {
   if (!isProduction) {
-    return {
-      rules: [{ userAgent: "*", disallow: "/" }],
-    };
+    return new Response(group(["*"], ["Disallow: /"]) + "\n", {
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 
-  return {
-    rules: [
-      {
-        userAgent: "*",
-        allow: "/",
-        // No API routes exist today; the rule keeps future ones out of the
-        // index by default. `/_next/` stays crawlable so Google can render
-        // the page with its real CSS and JS.
-        disallow: ["/api/"],
-      },
-      {
-        userAgent: aiSearchBots,
-        allow: "/",
-      },
-      {
-        userAgent: aiTrainingBots,
-        allow: "/",
-      },
-    ],
-    sitemap: absoluteUrl("/sitemap.xml"),
-    host: siteUrl,
-  };
+  const settings = await getSeoSettings();
+
+  const blocks = [
+    // No API routes are meant to be indexed; `/_next/` stays crawlable so
+    // Google can render the page with its real CSS and JS.
+    group(["*"], ["Allow: /", "Disallow: /api/"]),
+    group(aiSearchBots, ["Allow: /"]),
+    group(aiTrainingBots, ["Allow: /"]),
+    [`Host: ${siteUrl}`, `Sitemap: ${absoluteUrl("/sitemap.xml")}`].join("\n"),
+  ];
+
+  const extra = settings?.robotsExtra?.trim();
+  if (extra) blocks.push(extra);
+
+  return new Response(blocks.join("\n\n") + "\n", {
+    headers: {
+      "Content-Type": "text/plain",
+      "Cache-Control": "public, max-age=0, must-revalidate",
+    },
+  });
 }

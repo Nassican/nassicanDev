@@ -15,6 +15,8 @@ export const cacheTags = {
   certificates: "certificates",
   pages: "pages",
   page: (route: string) => `page:${route}`,
+  seoSettings: "seo-settings",
+  redirects: "redirects",
 } as const;
 
 /**

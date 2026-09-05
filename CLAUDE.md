@@ -302,6 +302,42 @@ Los overrides de SEO se pasan a `pageMetadata({ override })` en lugar de que
 `seo.ts` los consulte, para que ese módulo siga siendo puro y síncrono — la
 misma razón por la que recibe posts y proyectos como argumentos.
 
+### SEO: metadatos, redirecciones y Search Console
+
+En `app.nassican.com/seo`.
+
+**Metadatos globales.** El diccionario es el respaldo, no la fuente: lo que
+escribe el panel gana, y un campo vacío deja lo que ya decía el sitio en vez de
+borrar la etiqueta. **El origen no se edita ahí**: una vista previa y producción
+comparten estas filas, y un canonical apuntando a producción desde una vista
+previa es justo el problema de contenido duplicado contra el que ya protege
+`robots.txt`. Se queda en `NEXT_PUBLIC_SITE_URL`.
+
+`robots.txt` dejó de ser el archivo de convención `robots.ts` y pasó a ser un
+manejador de ruta, porque `MetadataRoute.Robots` no admite líneas arbitrarias y
+`robotsExtra` las necesita. La salida se comprobó byte a byte contra la anterior
+antes de cambiarla.
+
+**Redirecciones.** Se resuelven en el catch-all, no en el proxy. El proxy corre
+en el edge y no alcanza a Prisma, y consultar una tabla en cada petición para
+pagar por la URL vieja ocasional sería el intercambio equivocado. Una
+redirección solo importa para un camino que ya no existe, y ese camino acaba en
+el catch-all de todos modos. Un destino interno conserva el idioma que el
+visitante estaba leyendo; `hits` se cuenta sin bloquear la respuesta.
+
+El panel rechaza una redirección cuyo origen sea una página que existe: nunca se
+aplicaría, porque el catch-all solo se alcanza cuando nada más coincidió.
+
+**Search Console.** `syncSearchConsole` trae el rendimiento a
+`search_console_daily` y el panel lee de ahí: un tablero que depende de una API
+de terceros es un tablero lento y a veces roto. El token sale de
+`auth.api.getAccessToken`, que lo refresca solo — por eso el login pide acceso
+sin conexión. Google publica con dos o tres días de retraso, así que el rango
+termina ahí y no en ayer.
+
+La posición media se pondera por impresiones, que es la única forma en que
+promediarla significa algo.
+
 ### Perfil y credenciales
 
 En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,

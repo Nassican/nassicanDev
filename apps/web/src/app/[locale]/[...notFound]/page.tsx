@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import Prose from "@/components/Prose";
 import { getCustomPage, getCustomPageRoutes } from "@/lib/data/pages";
-import { isLocale, locales } from "@/lib/i18n/config";
+import { findRedirect, recordRedirectHit } from "@/lib/data/redirects";
+import { isLocale, localePath, locales } from "@/lib/i18n/config";
 import { pageMetadata } from "@/lib/seo";
 
 type PageParams = { params: Promise<{ locale: string; notFound: string[] }> };
@@ -52,8 +53,28 @@ export default async function CatchAllPage({ params }: PageParams) {
   const { locale, notFound: segments } = await params;
   if (!isLocale(locale)) notFound();
 
-  const page = await getCustomPage(routeFrom(segments), locale);
-  if (!page) notFound();
+  const route = routeFrom(segments);
+  const page = await getCustomPage(route, locale);
+
+  if (!page) {
+    // Before giving up: this may be an address that used to work.
+    const moved = await findRedirect(route);
+    if (moved) {
+      recordRedirectHit(moved.id);
+      // An external destination is taken verbatim; an internal one keeps the
+      // visitor in the language they were reading.
+      const target = /^https?:\/\//.test(moved.destination)
+        ? moved.destination
+        : localePath(locale, moved.destination);
+
+      if (moved.statusCode === 301 || moved.statusCode === 308) {
+        permanentRedirect(target);
+      }
+      redirect(target);
+    }
+
+    notFound();
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-24">

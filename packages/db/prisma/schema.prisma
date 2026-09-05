@@ -814,7 +814,9 @@ model MediaUsage {
 
 model SeoSettings {
   id Int @id @default(1)
-  /// Replaces NEXT_PUBLIC_SITE_URL.
+  /// Informational only: the public site reads NEXT_PUBLIC_SITE_URL instead.
+  /// The origin is deployment configuration, not content - a preview and
+  /// production share these rows and must not share a canonical.
   siteUrl       String  @map("site_url")
   titleTemplate String? @map("title_template")
 

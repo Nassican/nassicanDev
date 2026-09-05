@@ -10,6 +10,7 @@ import { getCertificates } from "@/lib/data/certificates";
 import { getEducation } from "@/lib/data/education";
 import { getExperience } from "@/lib/data/experience";
 import { getProfile } from "@/lib/data/profile";
+import { getSeoSettings } from "@/lib/data/seo-settings";
 import { getDictionary } from "@/lib/i18n";
 import {
   htmlLang,
@@ -43,17 +44,32 @@ export async function generateMetadata({
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
-  const profile = await getProfile();
+  const [profile, seo] = await Promise.all([getProfile(), getSeoSettings()]);
+
+  /**
+   * The dictionary is the fallback, not the source: what the panel writes wins,
+   * and an empty field there means "keep what the site already said" rather
+   * than blanking the tag.
+   */
+  const title = seo?.defaultTitle[locale]?.trim() || t.meta.title;
+  const description =
+    seo?.defaultDescription[locale]?.trim() || t.meta.description;
+  const keywords = seo?.keywords[locale]?.length
+    ? seo.keywords[locale]
+    : t.meta.keywords;
 
   return {
     // Makes every relative URL below (canonical, OG image) resolve to an absolute one
     metadataBase: new URL(siteUrl),
     title: {
-      default: t.meta.title,
-      template: `%s | ${profile.name}`,
+      default: title,
+      template: seo?.titleTemplate?.trim() || `%s | ${profile.name}`,
     },
-    description: t.meta.description,
-    keywords: t.meta.keywords,
+    description,
+    keywords,
+    ...(seo?.googleSiteVerification
+      ? { verification: { google: seo.googleSiteVerification } }
+      : {}),
     authors: [{ name: profile.name, url: siteUrl }],
     creator: profile.name,
     publisher: profile.name,
@@ -65,16 +81,16 @@ export async function generateMetadata({
       url: siteUrl,
       siteName,
       locale: openGraphLocale[locale],
-      title: t.meta.title,
-      description: t.meta.description,
+      title,
+      description,
       firstName: "Jesús David",
       lastName: "Benavides Chicaiza",
       username: "Nassican",
     },
     twitter: {
       card: "summary_large_image",
-      title: t.meta.title,
-      description: t.meta.description,
+      title,
+      description,
       creator: "@Nassican",
     },
     robots: {
