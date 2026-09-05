@@ -75,6 +75,84 @@ no aparece en los bundles de cliente:
 grep -rl "PrismaClient" apps/web/.next/static apps/admin/.next/static
 ```
 
+### Latencia: por qué el panel iba lento y qué se hizo
+
+El panel se sentía congelado al navegar. La causa no era el código: era **el
+pooler de Neon**. Medido desde Bogotá contra `us-east-1`, con el ida y vuelta
+TCP en 75 ms:
+
+| camino | consulta suelta (mediana) |
+| --- | --- |
+| endpoint agrupado (`-pooler`), protocolo de cable | **560 ms** |
+| endpoint directo, protocolo de cable | 86 ms |
+| endpoint agrupado, adaptador de Neon | **102 ms** |
+
+Es decir, el pooler cobraba ~460 ms por consulta, y cada página del panel son
+entre tres y diez consultas. Eso, y no el render, era el segundo y medio de
+espera.
+
+**El endpoint directo no es la respuesta**, aunque sea igual de rápido: en un
+despliegue serverless las funciones son efímeras y agotarían el límite de
+conexiones de Postgres. Por eso `packages/db/src/index.ts` usa
+`@prisma/adapter-neon`, que conserva el endpoint agrupado y evita el peaje. De
+paso desaparece el `Error in PostgreSQL connection: Closed` intermitente: ya no
+hay un socket TCP de larga vida que se pueda cerrar por debajo.
+
+Las migraciones no pasan por ahí: la CLI lee `url` y `directUrl` del esquema.
+
+**Cuidado al leer estos números.** Están medidos desde Colombia. En Vercel las
+funciones corren en la misma región que la base, así que allí la diferencia
+será menor — lo que no cambia es que el adaptador es el camino correcto para
+serverless, y que las dos mejoras de abajo valen en cualquier sitio.
+
+#### Un viaje de ida y vuelta es el coste de una consulta
+
+A esta distancia da igual lo que pese la consulta: lo que se paga es el viaje.
+De ahí dos reglas que ya costaron tiempo por no seguirse:
+
+- **Todo lo que no dependa de nada va en el mismo `Promise.all`.** `getStats`
+  hacía tres consultas sueltas después del suyo, y dos de ellas pedían columnas
+  (`coverMediaId`) que ya venían en las filas leídas.
+- **Sembrar no se comprueba en cada render.** `getConfigDraft` hacía tres
+  consultas para confirmar algo que solo es cierto la primera vez. Ahora lee
+  primero y siembra únicamente si faltaba algo. Bajó de 1800 ms a 204 ms.
+
+Resultado, con las tres cosas juntas:
+
+| módulo | antes | ahora |
+| --- | --- | --- |
+| `getStats` | 2031 ms | 430 ms |
+| `getConfigDraft` | 1800 ms | 204 ms |
+| `listProjects` | 1438 ms | 405 ms |
+| `listPages` | 1256 ms | 241 ms |
+| `listPosts` | 1114 ms | 229 ms |
+| `getProfileDraft` | 1125 ms | 306 ms |
+
+#### Esqueletos: la espera se ve, no se adivina
+
+Sin un `loading.tsx`, Next deja la página anterior en pantalla mientras el
+componente de servidor espera a Postgres, y el panel se lee como colgado. Cada
+módulo tiene ahora el suyo, construido con las piezas de
+`components/Skeleton.tsx`, y `(panel)/loading.tsx` cubre cualquier ruta que no
+traiga uno propio.
+
+No hacen nada más rápido: ponen la espera donde van a caer los datos. Por eso
+las formas imitan el módulo —fichas donde habrá fichas, filas donde habrá
+filas— y por eso el bloque del gráfico de Analítica reserva su altura: sin ella
+la página pega un salto cuando llegan los datos.
+
+`(panel)/error.tsx` es la otra mitad. Los fallos que este panel ve de verdad
+son transitorios, así que merecen un botón de reintentar —que vuelve a ejecutar
+el componente de servidor— y no una traza.
+
+#### Lo que todavía se espera al guardar
+
+Guardar avisa al sitio público antes de responder, y esa llamada tarda entre
+150 ms y 1,5 s según si la función de Vercel está caliente. Es a propósito: es
+lo que permite decir «guardado, pero no se pudo avisar al sitio» en vez de
+dejar el contenido rancio en silencio. Si algún día molesta, la salida es
+`after()`, a cambio de perder ese aviso.
+
 #### Windows: el motor de Prisma se queda bloqueado
 
 `prisma generate` renombra `query_engine-windows.dll.node`, y un servidor de

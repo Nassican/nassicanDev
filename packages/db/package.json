@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@nassican/shared": "*",
+    "@neondatabase/serverless": "^1.1.0",
+    "@prisma/adapter-neon": "^6.19.3",
     "@prisma/client": "^6.16.2",
     "server-only": "^0.0.1"
   },

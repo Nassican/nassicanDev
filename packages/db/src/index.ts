@@ -6,6 +6,7 @@
  */
 import "server-only";
 
+import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient, type Locale as DbLocale } from "../generated/prisma";
 import {
   isContentBody,
@@ -67,10 +68,43 @@ function parseStringArray(value: unknown): string[] | null {
  * the one sanctioned place where those columns are given back the types they
  * were written with, so no cast is needed at any call site.
  */
+/**
+ * Talks to Neon through its own driver instead of the Postgres wire protocol.
+ *
+ * This is not a micro-optimisation. Measured from Bogotá against
+ * `us-east-1`, with the TCP round trip at 75 ms:
+ *
+ * | camino                        | consulta (mediana) |
+ * | ----------------------------- | ------------------ |
+ * | endpoint agrupado, wire       | 560 ms             |
+ * | endpoint directo, wire        |  86 ms             |
+ * | endpoint agrupado, adaptador  | 102 ms             |
+ *
+ * The pooler was charging ~460 ms a query, and every page in the panel is
+ * several queries deep. The direct endpoint is just as fast but is the wrong
+ * answer for a serverless deployment, where short-lived functions would
+ * exhaust the connection limit. The adapter keeps the pooled endpoint and
+ * skips the toll, which is why it wins on both counts.
+ *
+ * It also ends the intermittent `Error in PostgreSQL connection: Closed`:
+ * there is no long-lived TCP socket left to be closed under us.
+ *
+ * Migrations are unaffected - the CLI reads `url` and `directUrl` from the
+ * schema and never goes through this file.
+ */
 function createBaseClient() {
+  const connectionString = process.env.DATABASE_URL;
+  const log = (
+    process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
+  ) as ("warn" | "error")[];
+
+  // Without a URL there is nothing to adapt; let Prisma raise its own error,
+  // which names the missing variable, rather than failing inside the driver.
+  if (!connectionString) return new PrismaClient({ log });
+
   return new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    adapter: new PrismaNeon({ connectionString }),
+    log,
   });
 }
 

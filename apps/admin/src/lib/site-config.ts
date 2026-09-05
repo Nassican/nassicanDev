@@ -82,26 +82,36 @@ const seed: {
 ];
 
 /**
- * Creates the rows the site needs the first time the module is opened.
+ * Creates whatever of the three the database does not have yet.
  *
- * Safe to call on every render: it writes only what is missing. An empty menu
- * is what a fresh database has, not what an operator asked for, so seeding is
- * the correct reading of it - but a menu someone emptied on purpose stays
- * empty, because only a completely absent menu is seeded.
+ * Takes what was already read rather than counting rows itself: seeding is a
+ * first-visit event, and three extra round trips on every render afterwards to
+ * re-confirm it is the kind of cost that hides in plain sight. Only a
+ * *completely* absent menu is seeded, so one that someone emptied on purpose
+ * stays empty.
+ *
+ * Returns whether it wrote anything, which is what tells the caller to read
+ * again.
  */
-export async function ensureConfig(): Promise<void> {
-  await db.siteSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+async function seedMissing(has: {
+  settings: boolean;
+  sections: boolean;
+  items: boolean;
+}): Promise<boolean> {
+  if (has.settings && has.sections && has.items) return false;
 
-  const sections = await db.homeSection.count();
-  if (sections === 0) {
+  if (!has.settings) {
+    await db.siteSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  }
+
+  if (!has.sections) {
     await db.homeSection.createMany({
       data: homeSectionKeys.map((key, position) => ({ key, position })),
       skipDuplicates: true,
     });
   }
 
-  const items = await db.navigationItem.count();
-  if (items > 0) return;
+  if (has.items) return true;
 
   for (const [position, entry] of seed.entries()) {
     const created = await db.navigationItem.create({
@@ -137,6 +147,8 @@ export async function ensureConfig(): Promise<void> {
       });
     }
   }
+
+  return true;
 }
 
 type ItemRow = {
@@ -178,21 +190,31 @@ function toDraft(row: ItemRow): NavItemDraft {
 }
 
 export async function getConfigDraft(): Promise<ConfigDraft> {
-  await ensureConfig();
+  const read = () =>
+    Promise.all([
+      db.siteSettings.findUnique({ where: { id: 1 } }),
+      db.navigationItem.findMany({
+        orderBy: { position: "asc" },
+        include: { translations: true },
+      }),
+      db.homeSection.findMany({ orderBy: { position: "asc" } }),
+      db.page.findMany({
+        where: { kind: "custom" },
+        include: { translations: true },
+        orderBy: { route: "asc" },
+      }),
+    ]);
 
-  const [row, items, sectionRows, pages] = await Promise.all([
-    db.siteSettings.findUnique({ where: { id: 1 } }),
-    db.navigationItem.findMany({
-      orderBy: { position: "asc" },
-      include: { translations: true },
-    }),
-    db.homeSection.findMany({ orderBy: { position: "asc" } }),
-    db.page.findMany({
-      where: { kind: "custom" },
-      include: { translations: true },
-      orderBy: { route: "asc" },
-    }),
-  ]);
+  let [row, items, sectionRows, pages] = await read();
+
+  // Read first, seed only if something was missing. After the first visit this
+  // costs nothing at all.
+  const seeded = await seedMissing({
+    settings: row !== null,
+    sections: sectionRows.length > 0,
+    items: items.length > 0,
+  });
+  if (seeded) [row, items, sectionRows, pages] = await read();
 
   const drafts = items.map(toDraft);
 

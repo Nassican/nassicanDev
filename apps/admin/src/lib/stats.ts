@@ -60,8 +60,19 @@ const empty = (value: string | null | undefined) => !value?.trim();
  * percentage nobody can act on is decoration.
  */
 export async function getStats(): Promise<StatsSummary> {
-  const [posts, projects, pages, media, certificates, experience, education, links, history, lastCheck] =
-    await Promise.all([
+  const [
+    posts,
+    projects,
+    pages,
+    media,
+    certificates,
+    experience,
+    education,
+    links,
+    history,
+    lastCheck,
+    mediaUsages,
+  ] = await Promise.all([
       db.post.findMany({ include: { translations: true } }),
       db.project.findMany({ include: { translations: true } }),
       db.page.findMany({ include: { translations: true } }),
@@ -72,16 +83,15 @@ export async function getStats(): Promise<StatsSummary> {
       db.outboundLink.findMany({ orderBy: { url: "asc" } }),
       db.contentStatsDaily.findMany({ orderBy: { date: "asc" }, take: 90 }),
       db.syncRun.findFirst({ where: { source: "link_check" }, orderBy: { startedAt: "desc" } }),
+      db.mediaUsage.findMany({ select: { mediaId: true } }),
     ]);
 
+  // The covers come off the rows already fetched above. Asking for them again
+  // was two more round trips for columns that were already in hand - and at
+  // this distance a round trip is the whole cost of a query.
   const usedMediaIds = new Set<string>();
-  for (const row of await db.mediaUsage.findMany({ select: { mediaId: true } })) {
-    usedMediaIds.add(row.mediaId);
-  }
-  for (const row of await db.project.findMany({ select: { coverMediaId: true } })) {
-    if (row.coverMediaId) usedMediaIds.add(row.coverMediaId);
-  }
-  for (const row of await db.post.findMany({ select: { coverMediaId: true } })) {
+  for (const row of mediaUsages) usedMediaIds.add(row.mediaId);
+  for (const row of [...projects, ...posts]) {
     if (row.coverMediaId) usedMediaIds.add(row.coverMediaId);
   }
 
