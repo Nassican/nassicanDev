@@ -1,10 +1,8 @@
-import {
-  certificates,
-  education,
-  experience,
-  profile,
-  skills,
-} from "@/lib/data";
+import { skills } from "@/lib/data";
+import { getCertificates } from "@/lib/data/certificates";
+import { getEducation } from "@/lib/data/education";
+import { getExperience } from "@/lib/data/experience";
+import { getProfile } from "@/lib/data/profile";
 import { getPublishedPosts } from "@/lib/data/posts";
 import { getProjectsByDate } from "@/lib/data/projects";
 import { absoluteUrl, localeUrl } from "@/lib/seo";
@@ -90,6 +88,12 @@ const copy: Record<Locale, Record<string, string>> = {
 };
 
 async function build(locale: Locale): Promise<string> {
+  const [profile, experience, education, certificates] = await Promise.all([
+    getProfile(),
+    getExperience(),
+    getEducation(),
+    getCertificates(),
+  ]);
   const t = getDictionary(locale);
   const c = copy[locale];
   const url = (path: string) => localeUrl(locale, path);

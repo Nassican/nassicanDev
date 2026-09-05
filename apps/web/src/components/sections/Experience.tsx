@@ -1,16 +1,17 @@
 import SectionTitle from "@/components/ui/SectionTitle";
 import SkillIcon from "@/components/ui/SkillIcon";
-import { experience } from "@/lib/data";
+import { getExperience } from "@/lib/data/experience";
 import type { Dictionary } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/config";
 
-export default function Experience({
+export default async function Experience({
   locale,
   t,
 }: {
   locale: Locale;
   t: Dictionary;
 }) {
+  const experience = await getExperience();
   return (
     <section
       id="experience"

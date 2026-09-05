@@ -6,7 +6,10 @@ import "../globals.css";
 import Navigation from "@/components/Navigation";
 import SectionNavigator from "@/components/SectionNavigator";
 import Footer from "@/components/Footer";
-import { profile } from "@/lib/data";
+import { getCertificates } from "@/lib/data/certificates";
+import { getEducation } from "@/lib/data/education";
+import { getExperience } from "@/lib/data/experience";
+import { getProfile } from "@/lib/data/profile";
 import { getDictionary } from "@/lib/i18n";
 import {
   htmlLang,
@@ -40,6 +43,7 @@ export async function generateMetadata({
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
+  const profile = await getProfile();
 
   return {
     // Makes every relative URL below (canonical, OG image) resolve to an absolute one
@@ -109,6 +113,13 @@ export default async function RootLayout({
   const locale = raw as Locale;
   const t = getDictionary(locale);
 
+  const [profile, experience, education, certificates] = await Promise.all([
+    getProfile(),
+    getExperience(),
+    getEducation(),
+    getCertificates(),
+  ]);
+
   return (
     // `scroll-behavior: smooth` on <html> breaks the router's own scroll
     // handling: hash links from another route land at the top instead of on
@@ -126,12 +137,19 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(siteJsonLd(locale)),
+            __html: JSON.stringify(
+              siteJsonLd(locale, {
+                profile,
+                experience,
+                education,
+                certificates,
+              }),
+            ),
           }}
         />
       </head>
       <body className="antialiased">
-        <Navigation locale={locale} t={t} />
+        <Navigation locale={locale} t={t} profile={profile} />
         {children}
         <Footer locale={locale} t={t} />
         <SectionNavigator

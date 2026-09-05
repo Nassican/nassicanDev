@@ -18,7 +18,8 @@
     "db:migrate": "npm run migrate --workspace @nassican/db",
     "db:studio": "npm run studio --workspace @nassican/db",
     "content:import": "tsx --conditions=react-server scripts/import-content.ts",
-    "media:optimise": "tsx --conditions=react-server scripts/optimise-media.ts"
+    "media:optimise": "tsx --conditions=react-server scripts/optimise-media.ts",
+    "profile:import": "tsx --conditions=react-server scripts/import-profile.ts"
   },
   "engines": {
     "node": ">=20"

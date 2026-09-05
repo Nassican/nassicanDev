@@ -1,17 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BsEnvelope, BsGithub, BsLinkedin } from "react-icons/bs";
-import { profile } from "@/lib/data";
+import { getProfile } from "@/lib/data/profile";
 import type { Dictionary } from "@/lib/i18n";
 import { localePath, type Locale } from "@/lib/i18n/config";
 
-export default function Footer({
+export default async function Footer({
   locale,
   t,
 }: {
   locale: Locale;
   t: Dictionary;
 }) {
+  const profile = await getProfile();
   const year = new Date().getFullYear();
   const home = localePath(locale, "/");
   const path = (p: string) => localePath(locale, p);

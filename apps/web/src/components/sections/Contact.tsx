@@ -10,7 +10,7 @@ import {
   BsLinkedin,
 } from "react-icons/bs";
 import SectionTitle from "@/components/ui/SectionTitle";
-import { profile } from "@/lib/data";
+import { getProfile } from "@/lib/data/profile";
 import type { Dictionary } from "@/lib/i18n";
 import { localeNames, type Locale } from "@/lib/i18n/config";
 
@@ -35,15 +35,17 @@ function fileSize(href: string) {
   }
 }
 
-const cvFiles = profile.cv.map((c) => ({ ...c, size: fileSize(c.href) }));
 
-export default function Contact({
+
+export default async function Contact({
   locale,
   t,
 }: {
   locale: Locale;
   t: Dictionary;
 }) {
+  const profile = await getProfile();
+  const cvFiles = profile.cv.map((c) => ({ ...c, size: fileSize(c.href) }));
   const channels = [
     {
       icon: BsEnvelope,

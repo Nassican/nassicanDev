@@ -1,12 +1,25 @@
 import type { Metadata } from "next";
-import {
-  profile,
-  certificates,
-  education,
-  experience,
-  skills,
+import { skills } from "./data";
+import type {
+  Certificate,
+  EducationItem,
+  ExperienceItem,
+  Post,
+  Profile,
+  ProjectItem,
 } from "./data";
-import type { Post, ProjectItem } from "./data";
+
+/**
+ * Everything the Person graph needs. Bundled rather than passed as four
+ * arguments, and passed in rather than imported, so this module stays pure and
+ * synchronous now that the content lives in the database.
+ */
+export type SiteData = {
+  profile: Profile;
+  experience: ExperienceItem[];
+  education: EducationItem[];
+  certificates: Certificate[];
+};
 import { getDictionary } from "./i18n";
 import {
   defaultLocale,
@@ -122,7 +135,10 @@ const personId = absoluteUrl("/#person");
 const websiteId = absoluteUrl("/#website");
 const blogId = absoluteUrl("/#blog");
 
-function person(locale: Locale) {
+function person(
+  locale: Locale,
+  { profile, experience, education, certificates }: SiteData,
+) {
   const t = getDictionary(locale);
 
   return {
@@ -267,10 +283,10 @@ function projectList(locale: Locale, projects: ProjectItem[]) {
 }
 
 /** Site-wide entities. Emitted once from the root layout on every page. */
-export function siteJsonLd(locale: Locale) {
+export function siteJsonLd(locale: Locale, data: SiteData) {
   return {
     "@context": "https://schema.org",
-    "@graph": [person(locale), website(locale)],
+    "@graph": [person(locale, data), website(locale)],
   };
 }
 
@@ -297,7 +313,10 @@ export function homeJsonLd(locale: Locale, projects: ProjectItem[]) {
   };
 }
 
-export function certificatesJsonLd(locale: Locale) {
+export function certificatesJsonLd(
+  locale: Locale,
+  certificates: Certificate[],
+) {
   const t = getDictionary(locale);
 
   return {
@@ -375,7 +394,11 @@ export function projectJsonLd(locale: Locale, p: ProjectItem) {
   };
 }
 
-export function blogJsonLd(locale: Locale, publishedPosts: Post[]) {
+export function blogJsonLd(
+  locale: Locale,
+  publishedPosts: Post[],
+  profile: Profile,
+) {
   const t = getDictionary(locale);
 
   return {

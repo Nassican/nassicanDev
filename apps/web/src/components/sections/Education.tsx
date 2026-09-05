@@ -1,19 +1,20 @@
 import Link from "next/link";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Card from "@/components/ui/Card";
-import { education } from "@/lib/data";
+import { getEducation } from "@/lib/data/education";
 import type { EducationItem } from "@/lib/data";
 import type { Dictionary } from "@/lib/i18n";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { BsArrowRight, BsArrowUpRight, BsMortarboard } from "react-icons/bs";
 
-export default function Education({
+export default async function Education({
   locale,
   t,
 }: {
   locale: Locale;
   t: Dictionary;
 }) {
+  const education = await getEducation();
   return (
     <section
       id="education"

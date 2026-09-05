@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import Card from "@/components/ui/Card";
 import type { Certificate } from "@/lib/data";
-import { certificates } from "@/lib/data";
+
 import Link from "next/link";
 import { BsArrowLeft } from "react-icons/bs";
 import type { Dictionary } from "@/lib/i18n";
@@ -11,9 +11,13 @@ import { localePath, type Locale } from "@/lib/i18n/config";
 export default function CertificatesClient({
   locale,
   t,
+  certificates,
 }: {
   locale: Locale;
   t: Dictionary;
+  /** Passed down rather than imported: this is a client component and the
+   *  certificates now come from the database. */
+  certificates: Certificate[];
 }) {
   const [q, setQ] = useState("");
   const [provider, setProvider] = useState("all");
@@ -21,7 +25,7 @@ export default function CertificatesClient({
 
   const providers = useMemo(() => {
     return Array.from(new Set(certificates.map((c) => c.provider))).sort();
-  }, []);
+  }, [certificates]);
 
   // Categories are translated, so the option values are the localised strings
   // and the list re-derives when the language changes.
@@ -29,7 +33,7 @@ export default function CertificatesClient({
     return Array.from(
       new Set(certificates.map((c) => c.category[locale])),
     ).sort();
-  }, [locale]);
+  }, [certificates, locale]);
 
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
@@ -43,7 +47,7 @@ export default function CertificatesClient({
         c.category[locale].toLowerCase().includes(ql);
       return okProvider && okCategory && okQuery;
     });
-  }, [q, provider, category, locale]);
+  }, [certificates, q, provider, category, locale]);
 
   const clear = () => {
     setQ("");

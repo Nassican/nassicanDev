@@ -55,6 +55,11 @@ enum PageKind {
   custom
 }
 
+enum EducationStatus {
+  completed
+  in_progress @map("in-progress")
+}
+
 enum MediaKind {
   image
   document
@@ -478,9 +483,10 @@ model SkillGroupItem {
 /// it is added in the migration and enforced by the accessor in src/index.ts.
 model Profile {
   id       Int     @id @default(1)
-  fullName String  @map("full_name")
+  fullName String @map("full_name")
   email    String
-  location String?
+  /// { city, region, country }
+  location Json?
   /// { platform, url, label }[]
   socials        Json?
   avatarMediaId  String? @map("avatar_media_id")
@@ -490,6 +496,7 @@ model Profile {
 
   avatar       Media?               @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: SetNull)
   translations ProfileTranslation[]
+  cvs          ProfileCv[]
 
   @@map("profile")
 }
@@ -497,10 +504,12 @@ model Profile {
 model ProfileTranslation {
   profileId Int    @map("profile_id")
   locale    Locale
-  /// "Estudiante de Ingeniería de Sistemas"
+  /// "Ingeniero de Sistemas"
   headline String
-  /// string[] - the paragraphs of the About section.
-  bio Json
+  /// string[] - optional. The About section reads its paragraphs from the
+  /// interface dictionary, not from here, so this stays empty unless the
+  /// biography ever becomes editable content in its own right.
+  bio Json?
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -508,14 +517,48 @@ model ProfileTranslation {
   @@map("profile_translations")
 }
 
+/// One downloadable CV per language. A table rather than a field on `profile`
+/// because its label is translated, and translations are rows.
+model ProfileCv {
+  id        String @id @default(uuid())
+  profileId Int    @map("profile_id")
+  /// ISO 639-1, for hrefLang and the schema's inLanguage. Not necessarily one
+  /// of the site's own locales: a CV could exist in a language the site is not
+  /// published in.
+  lang     String
+  href     String
+  position Int    @default(0)
+
+  profile      Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  translations ProfileCvTranslation[]
+
+  @@unique([profileId, lang])
+  @@map("profile_cvs")
+}
+
+model ProfileCvTranslation {
+  cvId   String @map("cv_id")
+  locale Locale
+  /// "CV en español" / "Resume in Spanish"
+  label String
+
+  cv ProfileCv @relation(fields: [cvId], references: [id], onDelete: Cascade)
+
+  @@id([cvId, locale])
+  @@map("profile_cv_translations")
+}
+
 model Experience {
-  id        String    @id @default(uuid())
+  id String @id @default(uuid())
   /// Organisation name, kept as written in both languages.
-  org       String
-  startDate DateTime  @map("start_date") @db.Date
+  org String
+  /// Partial ISO dates as authored - "2024", "2024-08", "2024-08-15" - because
+  /// that precision is what reaches the <time datetime> attribute. Parsing them
+  /// into a Date would silently change the rendered markup.
+  startDate String  @map("start_date")
   /// Null while ongoing.
-  endDate  DateTime? @map("end_date") @db.Date
-  position Int       @default(0)
+  endDate  String? @map("end_date")
+  position Int     @default(0)
 
   translations ExperienceTranslation[]
   technologies ExperienceTechnology[]
@@ -551,11 +594,16 @@ model ExperienceTechnology {
 }
 
 model Education {
-  id          String    @id @default(uuid())
+  id          String @id @default(uuid())
   institution String
-  startDate   DateTime  @map("start_date") @db.Date
-  endDate     DateTime? @map("end_date") @db.Date
-  position    Int       @default(0)
+  /// Partial ISO dates as authored; see Experience.
+  startDate String  @map("start_date")
+  endDate   String? @map("end_date")
+  /// Stated rather than derived from endDate: the site is statically built, so
+  /// it cannot re-evaluate "has this finished yet" as time passes.
+  status   EducationStatus @default(in_progress)
+  link     String?
+  position Int             @default(0)
 
   translations EducationTranslation[]
 
@@ -578,9 +626,10 @@ model EducationTranslation {
 model Certificate {
   id String @id @default(uuid())
   /// "Platzi" - a proper name, kept as written in both languages.
-  provider      String
-  issuedOn      DateTime? @map("issued_on") @db.Date
-  credentialUrl String    @map("credential_url")
+  provider String
+  /// As written: often just a year, so it is a label rather than a date.
+  dateLabel     String? @map("date_label")
+  credentialUrl String  @map("credential_url")
   fileMediaId   String?   @map("file_media_id")
   position      Int       @default(0)
   /// Linked diplomas rot; the link checker records what it found.

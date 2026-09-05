@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import PostCard from "@/components/PostCard";
 import { getPublishedPosts } from "@/lib/data/posts";
+import { getProfile } from "@/lib/data/profile";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales } from "@/lib/i18n/config";
 import { blogJsonLd, pageMetadata } from "@/lib/seo";
@@ -32,13 +33,14 @@ export default async function BlogPage({ params }: PageParams) {
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
   const posts = await getPublishedPosts();
+  const profile = await getProfile();
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-24">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(blogJsonLd(locale, posts)),
+          __html: JSON.stringify(blogJsonLd(locale, posts, profile)),
         }}
       />
 

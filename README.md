@@ -117,7 +117,8 @@ desde una única fuente.
 | --- | --- |
 | Artículos | Panel → Contenido → Blogs |
 | Proyectos y casos de estudio | Panel → Contenido → Proyectos |
-| Perfil, experiencia, formación, certificados | `apps/web/src/lib/data/`, por ahora |
+| Perfil, experiencia, formación, certificados | Panel → Perfil |
+| Colores e iconos de tecnologías | `apps/web/src/lib/data/skills.ts` |
 
 Cada cambio de contenido visible debe existir en español y en inglés. En los
 módulos TypeScript lo garantiza el tipo `Localized<T>` durante la compilación;

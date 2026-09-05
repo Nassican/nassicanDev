@@ -9,6 +9,10 @@ export const cacheTags = {
   post: (slug: string) => `post:${slug}`,
   projects: "projects",
   project: (slug: string) => `project:${slug}`,
+  profile: "profile",
+  experience: "experience",
+  education: "education",
+  certificates: "certificates",
 } as const;
 
 /** Every tag affected by a change to one post. */

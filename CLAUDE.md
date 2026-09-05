@@ -200,13 +200,24 @@ El contenido está a medio migrar a la base de datos.
 | --- | --- | --- |
 | `posts/index.ts` | Artículos publicados | **base de datos** |
 | `projects/index.ts` | Proyectos y casos de estudio | **base de datos** |
-| `skills.ts` | Registro de tecnologías y agrupación | módulo *(ya importado)* |
+| `profile.ts` | Nombre, correo, ubicación, redes, CVs | **base de datos** |
+| `experience.ts` | Historial laboral | **base de datos** |
+| `education.ts` | Formación académica | **base de datos** |
+| `certificates.ts` | Certificados y cursos | **base de datos** |
 | Imágenes | Bytes en `media_blobs`, servidas desde `/media/` | **base de datos** |
-| `profile.ts` | Nombre, correo, ubicación, redes, CVs | módulo |
-| `experience.ts` | Historial laboral | módulo |
-| `education.ts` | Formación académica | módulo |
-| `certificates.ts` | Certificados y cursos | módulo |
+| `skills.ts` | Colores, iconos y agrupación de tecnologías | **módulo, a propósito** |
 | `content.ts` | Reexporta `ContentBlock` y utilidades de `@nassican/shared` | — |
+
+`skills.ts` se queda en el código y no es un pendiente: son colores, nombres de
+icono y agrupación —tokens de presentación, no contenido editable— y los
+títulos de grupo salen del diccionario (`t.skills.groups`), no de los datos.
+`scripts/import-content.ts` mantiene la tabla `technologies` en sincronía para
+que proyectos y experiencia puedan referenciarlas por clave foránea.
+
+Las fechas de experiencia y formación se guardan **como texto**, no como
+`Date`: `"2020"`, `"2024-08"` y `"2026-09-25"` son fechas parciales tal como se
+escribieron, y esa precisión llega al atributo `datetime` del HTML. Parsearlas
+cambiaría el marcado.
 
 `skills.ts` está en un estado intermedio: sus datos ya viven en las tablas
 `technologies` y `skill_groups` —los proyectos referencian tecnologías por
@@ -244,6 +255,20 @@ bytes y nunca carga `sharp`.
 ```bash
 npm run media:optimise -- --dry   # informa sin escribir
 npm run media:optimise            # mueve a la base lo que quede en /public
+```
+
+### Perfil y credenciales
+
+En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,
+formación y certificados. Cada sección se guarda entera —las listas son cortas
+y curadas a mano, así que reemplazar el conjunto es más simple de razonar que
+un protocolo por fila— e invalida su propia etiqueta de caché.
+
+Migración inicial:
+
+```bash
+npm run profile:import -- --dry
+npm run profile:import
 ```
 
 ### El script de importación
@@ -306,6 +331,17 @@ panel no alcanza a la caché del sitio. La cadena es:
 Entre publicaciones las páginas siguen siendo estáticas. Un artículo publicado
 después del último build no tiene entrada en `generateStaticParams` y se
 renderiza bajo demanda, que es lo que da `dynamicParams` por defecto.
+
+**Desplegar no refresca el contenido por sí solo.** `unstable_cache` guarda sus
+entradas en `.next/cache`, que sobrevive a un rebuild —y que Vercel restaura
+entre despliegues—, así que un build nuevo puede seguir sirviendo lo que había.
+Se comprobó: con `.next` intacto el sitio mostraba el nombre viejo de un
+proyecto que ya estaba renombrado en la base; borrando `.next` lo recogía.
+
+La consecuencia práctica: **el camino por el que un cambio llega al sitio es la
+invalidación de etiquetas, no el despliegue.** Si el panel avisa de que no pudo
+contactar con el sitio, el contenido puede quedarse atrás indefinidamente. Al
+depurar «¿por qué no se ve mi cambio?», empieza por ahí y no por el build.
 
 Si la llamada de revalidación falla, el panel lo dice pero **no revierte la
 publicación**: el contenido ya está guardado, y una caché que tarda es mejor

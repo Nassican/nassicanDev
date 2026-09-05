@@ -1,36 +1,37 @@
 /**
- * Single entry point for every editable content file in this folder.
- * Components keep importing from `@/lib/data`, so a file can be split
- * further without touching call sites.
+ * Types and presentation config for the content layer.
+ *
+ * **This barrel is imported by client components, so it must never re-export
+ * anything that reaches Prisma.** Every query lives in its own module and is
+ * imported directly from server code:
+ *
+ *   getProfile      -> "@/lib/data/profile"
+ *   getExperience   -> "@/lib/data/experience"
+ *   getEducation    -> "@/lib/data/education"
+ *   getCertificates -> "@/lib/data/certificates"
+ *   getPublishedPosts, getPost      -> "@/lib/data/posts"
+ *   getProjectsByDate, getProject   -> "@/lib/data/projects"
+ *
+ * What stays here is what a client component may safely hold: types, pure
+ * helpers, and the skill registry - colours and icon names, which are design
+ * tokens rather than editable content.
  */
-export { profile } from "./profile";
-export type { CvFile, SocialLink } from "./profile";
+export type { CvFile, SocialLink, Profile } from "./profile";
 
 export { skills, skillsRegistry } from "./skills";
 export type { SkillConfig } from "./skills";
 
-export { experience } from "./experience";
 export type { ExperienceItem } from "./experience";
-
-export { education } from "./education";
 export type { EducationItem } from "./education";
+export type { Certificate } from "./certificates";
 
-// Project queries are NOT re-exported here: this barrel is imported by
-// client components and the query module reaches Prisma. Import them from
-// "@/lib/data/projects" in server code instead.
 export type {
   ProjectItem,
   ProjectMeta,
   ProjectTranslation,
 } from "./projects/types";
 
-// Post queries are NOT re-exported here on purpose: this barrel is imported
-// by client components, and the query module reaches Prisma. Import them from
-// "@/lib/data/posts" in server code instead.
 export type { Post, PostMeta, PostTranslation } from "./posts/types";
-
-export { certificates } from "./certificates";
-export type { Certificate } from "./certificates";
 
 export { readingMinutes, wordCount, headingId } from "./content";
 export type { ContentBlock } from "./content";

@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { profile } from "@/lib/data";
+import { getProfile } from "@/lib/data/profile";
 import { getDictionary } from "@/lib/i18n";
 import { defaultLocale, isLocale, locales } from "@/lib/i18n/config";
 
@@ -23,6 +23,7 @@ export default async function OpengraphImage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const profile = await getProfile();
   const t = getDictionary(isLocale(locale) ? locale : defaultLocale);
 
   return new ImageResponse(

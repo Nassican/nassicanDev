@@ -1,4 +1,6 @@
-import type { Localized } from "@/lib/i18n/config";
+import { unstable_cache } from "next/cache";
+import { db } from "@nassican/db";
+import { cacheTags, locales, type Locale, type Localized } from "@nassican/shared";
 
 export type Certificate = {
   title: Localized<string>;
@@ -9,35 +11,28 @@ export type Certificate = {
   url: string;
 };
 
-export const certificates: Certificate[] = [
-  {
-    title: {
-      es: "Curso de Desarrollo Frontend",
-      en: "Frontend Development Course",
-    },
-    provider: "Platzi",
-    category: { es: "Programación", en: "Programming" },
-    date: "2024",
-    url: "https://platzi.com/p/nassican/curso/2467-frontend-developer/diploma/detalle/",
-  },
-  {
-    title: {
-      es: "Curso Profesional de Git y GitHub",
-      en: "Professional Git and GitHub Course",
-    },
-    provider: "Platzi",
-    category: { es: "Programación", en: "Programming" },
-    date: "2024",
-    url: "https://platzi.com/p/nassican/curso/1557-git-github/diploma/detalle/",
-  },
-  {
-    title: {
-      es: "Curso de Inglés A1 para principiantes",
-      en: "English A1 Course for Beginners",
-    },
-    provider: "Platzi",
-    category: { es: "Idiomas", en: "Languages" },
-    date: "2025",
-    url: "https://platzi.com/p/nassican/curso/10629-ingles-a1-principiantes/diploma/detalle/",
-  },
-];
+async function readCertificates(): Promise<Certificate[]> {
+  const rows = await db.certificate.findMany({
+    include: { translations: true },
+    orderBy: { position: "asc" },
+  });
+
+  const localized = <T,>(pick: (locale: Locale) => T): Localized<T> =>
+    Object.fromEntries(locales.map((l) => [l, pick(l)])) as Localized<T>;
+
+  return rows.map((row) => {
+    const t = (locale: Locale) => row.translations.find((x) => x.locale === locale);
+
+    return {
+      provider: row.provider,
+      date: row.dateLabel ?? undefined,
+      url: row.credentialUrl,
+      title: localized((l) => t(l)?.title ?? ""),
+      category: localized((l) => t(l)?.category ?? ""),
+    };
+  });
+}
+
+export const getCertificates = unstable_cache(readCertificates, ["certificates"], {
+  tags: [cacheTags.certificates],
+});

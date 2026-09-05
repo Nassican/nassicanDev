@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { buttonClassName } from "@/components/ui/Button";
-import { profile } from "@/lib/data";
+import { getProfile } from "@/lib/data/profile";
 import type { Dictionary } from "@/lib/i18n";
 import { localePath, type Locale } from "@/lib/i18n/config";
 
-export default function Hero({ locale, t }: { locale: Locale; t: Dictionary }) {
+export default async function Hero({
+  locale,
+  t,
+}: {
+  locale: Locale;
+  t: Dictionary;
+}) {
+  const profile = await getProfile();
   return (
     <section className="relative mx-auto flex min-h-dvh max-w-5xl flex-col items-start justify-center gap-6 border-b border-black/10 px-4 pt-24 dark:border-white/10">
       <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">

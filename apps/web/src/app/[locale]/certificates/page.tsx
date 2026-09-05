@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import CertificatesClient from "./CertificatesClient";
+import { getCertificates } from "@/lib/data/certificates";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales } from "@/lib/i18n/config";
 import { certificatesJsonLd, pageMetadata } from "@/lib/seo";
@@ -36,10 +37,14 @@ export default async function CertificatesPage({ params }: PageParams) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(certificatesJsonLd(locale)),
+          __html: JSON.stringify(certificatesJsonLd(locale, await getCertificates())),
         }}
       />
-      <CertificatesClient locale={locale} t={t} />
+      <CertificatesClient
+        locale={locale}
+        t={t}
+        certificates={await getCertificates()}
+      />
     </main>
   );
 }

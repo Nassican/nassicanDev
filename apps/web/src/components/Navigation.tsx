@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { BsEnvelope, BsGithub, BsLinkedin } from "react-icons/bs";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import { profile } from "@/lib/data";
+import type { Profile } from "@/lib/data";
 import type { Dictionary } from "@/lib/i18n";
 import { localePath, stripLocale, type Locale } from "@/lib/i18n/config";
 
@@ -17,9 +17,13 @@ type NavItem =
 export default function Navigation({
   locale,
   t,
+  profile,
 }: {
   locale: Locale;
   t: Dictionary;
+  /** Passed down rather than imported: this is a client component and the
+   *  profile now comes from the database. */
+  profile: Profile;
 }) {
   const github = profile.socials.find((social) => social.label === "GitHub");
   const linkedin = profile.socials.find((social) => social.label === "LinkedIn");
