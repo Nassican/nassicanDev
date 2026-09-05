@@ -1,6 +1,11 @@
 import { unstable_cache } from "next/cache";
 import { db } from "@nassican/db";
-import { cacheTags, locales, type Locale } from "@nassican/shared";
+import {
+  CACHE_SECONDS,
+  cacheTags,
+  locales,
+  type Locale,
+} from "@nassican/shared";
 import type { ProjectItem, ProjectTranslation } from "./types";
 
 /**
@@ -90,6 +95,7 @@ async function readProjects(): Promise<ProjectItem[]> {
 /** Newest first, which is the order both the grid and the sitemap use. */
 export const getProjectsByDate = unstable_cache(readProjects, ["projects"], {
   tags: [cacheTags.projects],
+  revalidate: CACHE_SECONDS,
 });
 
 export async function getFeaturedProjects(): Promise<ProjectItem[]> {
@@ -108,7 +114,10 @@ export async function getProject(
       return row ? toProject(row as unknown as Row) : null;
     },
     ["project", slug],
-    { tags: [cacheTags.projects, cacheTags.project(slug)] },
+    {
+      tags: [cacheTags.projects, cacheTags.project(slug)],
+      revalidate: CACHE_SECONDS,
+    },
   );
 
   return (await read()) ?? undefined;

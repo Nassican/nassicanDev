@@ -1,6 +1,12 @@
 import { unstable_cache } from "next/cache";
 import { db } from "@nassican/db";
-import { cacheTags, locales, type Locale, type Localized } from "@nassican/shared";
+import {
+  CACHE_SECONDS,
+  cacheTags,
+  locales,
+  type Locale,
+  type Localized,
+} from "@nassican/shared";
 
 export type ExperienceItem = {
   /** Human-readable range shown in the UI, per language. */
@@ -53,4 +59,5 @@ async function readExperience(): Promise<ExperienceItem[]> {
 
 export const getExperience = unstable_cache(readExperience, ["experience"], {
   tags: [cacheTags.experience],
+  revalidate: CACHE_SECONDS,
 });

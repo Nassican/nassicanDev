@@ -1,6 +1,12 @@
 import { unstable_cache } from "next/cache";
 import { db } from "@nassican/db";
-import { cacheTags, locales, type Locale, type Localized } from "@nassican/shared";
+import {
+  CACHE_SECONDS,
+  cacheTags,
+  locales,
+  type Locale,
+  type Localized,
+} from "@nassican/shared";
 
 export type Certificate = {
   title: Localized<string>;
@@ -35,4 +41,5 @@ async function readCertificates(): Promise<Certificate[]> {
 
 export const getCertificates = unstable_cache(readCertificates, ["certificates"], {
   tags: [cacheTags.certificates],
+  revalidate: CACHE_SECONDS,
 });

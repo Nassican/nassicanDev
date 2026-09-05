@@ -30,7 +30,27 @@ export async function revalidatePublicSite(
       },
       body: JSON.stringify({ tags }),
       cache: "no-store",
+      /**
+       * Never follow the redirect. `fetch` strips `Authorization` when a
+       * redirect crosses origins, so pointing this at an apex domain that
+       * redirects to `www` produces a 401 that looks like a wrong secret and
+       * is anything but. Catching the redirect here turns a confusing failure
+       * into a message that names the fix.
+       */
+      redirect: "manual",
     });
+
+    if (response.status >= 300 && response.status < 400) {
+      const target = response.headers.get("location") ?? "otro dominio";
+      return {
+        ok: false,
+        reason: `PUBLIC_SITE_URL redirige a ${target}; apúntalo ahí directamente`,
+      };
+    }
+
+    if (response.status === 401) {
+      return { ok: false, reason: "REVALIDATE_SECRET no coincide con el del sitio" };
+    }
 
     if (!response.ok) {
       return { ok: false, reason: `el sitio respondió ${response.status}` };

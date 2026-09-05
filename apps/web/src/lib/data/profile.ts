@@ -1,6 +1,12 @@
 import { unstable_cache } from "next/cache";
 import { db } from "@nassican/db";
-import { cacheTags, locales, type Locale, type Localized } from "@nassican/shared";
+import {
+  CACHE_SECONDS,
+  cacheTags,
+  locales,
+  type Locale,
+  type Localized,
+} from "@nassican/shared";
 
 export type CvFile = {
   /** ISO 639-1 code, used for hrefLang and the schema's inLanguage. */
@@ -70,4 +76,5 @@ async function readProfile(): Promise<Profile> {
 
 export const getProfile = unstable_cache(readProfile, ["profile"], {
   tags: [cacheTags.profile],
+  revalidate: CACHE_SECONDS,
 });

@@ -1,6 +1,11 @@
 import { unstable_cache } from "next/cache";
 import { db } from "@nassican/db";
-import { cacheTags, locales, type Locale } from "@nassican/shared";
+import {
+  CACHE_SECONDS,
+  cacheTags,
+  locales,
+  type Locale,
+} from "@nassican/shared";
 import type { Post, PostTranslation } from "./types";
 
 /**
@@ -75,7 +80,7 @@ async function readPublishedPosts(): Promise<Post[]> {
 export const getPublishedPosts = unstable_cache(
   readPublishedPosts,
   ["published-posts"],
-  { tags: [cacheTags.posts] },
+  { tags: [cacheTags.posts], revalidate: CACHE_SECONDS },
 );
 
 export async function getPost(slug: string): Promise<Post | undefined> {
@@ -88,7 +93,10 @@ export async function getPost(slug: string): Promise<Post | undefined> {
       return row ? toPost(row as PostRow) : null;
     },
     ["post", slug],
-    { tags: [cacheTags.posts, cacheTags.post(slug)] },
+    {
+      tags: [cacheTags.posts, cacheTags.post(slug)],
+      revalidate: CACHE_SECONDS,
+    },
   );
 
   return (await read()) ?? undefined;

@@ -1,6 +1,12 @@
 import { unstable_cache } from "next/cache";
 import { db } from "@nassican/db";
-import { cacheTags, locales, type Locale, type Localized } from "@nassican/shared";
+import {
+  CACHE_SECONDS,
+  cacheTags,
+  locales,
+  type Locale,
+  type Localized,
+} from "@nassican/shared";
 
 export type EducationItem = {
   /** Human-readable range shown in the UI, per language. */
@@ -52,4 +58,5 @@ async function readEducation(): Promise<EducationItem[]> {
 
 export const getEducation = unstable_cache(readEducation, ["education"], {
   tags: [cacheTags.education],
+  revalidate: CACHE_SECONDS,
 });
