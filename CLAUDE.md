@@ -197,6 +197,30 @@ optimista en el proxy solo ahorraría un viaje al servidor.
 `requireUser()` relee el usuario en cada petición en vez de fiarse de la sesión,
 para que desactivar una cuenta surta efecto de inmediato.
 
+#### El armazón
+
+`components/PanelShell.tsx` dibuja el marco —menú, cabecera, cajón móvil— y es
+un componente de **cliente**, porque el menú tiene que saber qué ruta está
+abierta. El layout sigue siendo de servidor: llama a `requireUser()` y le pasa
+solo los cuatro campos que se muestran, no el usuario entero. `children` llega
+ya renderizado en el servidor, así que envolver el layout no arrastra ninguna
+página al bundle del navegador.
+
+El menú vive en `lib/navigation.ts` como datos puros, con el icono en forma de
+clave y no de componente: así el módulo lo puede importar el servidor y es
+`PanelShell` quien mapea la clave al dibujo. `activeHref()` decide qué entrada
+se ilumina — coincidencia exacta solo para el dashboard, y por subárbol para el
+resto, de modo que el editor de un artículo mantiene «Blogs» encendido. Gana la
+coincidencia más larga, que es lo que evita que una ruta anidada active a un
+hermano más corto.
+
+El cajón móvil **deriva** su apertura en vez de sincronizarla: guarda en qué
+ruta se abrió y está abierto mientras la ruta no cambie. Cerrarlo desde un
+efecto que vigila el pathname renderizaría el cajón encima de la página nueva
+antes de cerrarlo, y ese es justo el renderizado en cascada del que avisa el
+compilador de React. Como efecto secundario gratis, también se cierra con el
+botón de atrás, que ningún manejador de clic llega a ver.
+
 `app/not-found.tsx` queda **fuera** del grupo `(panel)`, así que un 404 nunca
 ejecuta `requireUser()` ni dibuja el árbol de módulos alrededor. Una dirección
 equivocada responde igual haya sesión o no, y quien acierte una URL a ciegas no
@@ -759,11 +783,52 @@ artículos prerenderizar, así que sin base no hay build.
 
 ### Cuerpo de artículos y casos de estudio
 
-No se usa Markdown ni MDX: el cuerpo es un arreglo de `ContentBlock`
-(`paragraph`, `heading`, `list`, `code`, `quote`) que renderiza
+No se **guarda** Markdown ni MDX: el cuerpo es un arreglo de `ContentBlock`
+(`paragraph`, `heading`, `list`, `code`, `quote`, `image`) que renderiza
 `src/components/Prose.tsx`. Es a propósito — un bloque mal formado o una
 traducción faltante falla en `tsc` en lugar de renderizarse mal en producción.
 Si algún día se migra a MDX, el cambio debería quedar contenido en `Prose`.
+
+#### Markdown es un teclado, no un formato
+
+`BlockEditor` ofrece dos vistas del mismo cuerpo, y el interruptor está en el
+componente compartido, así que lo tienen blogs, proyectos y páginas a la vez.
+Lo que **no** cambia es dónde acaba el texto: sigue siendo `ContentBlock[]` en
+todo momento, incluido mientras el textarea está abierto. Escribir parsea
+directo a bloques, de modo que las dos vistas no pueden discrepar y guardar en
+«la vista equivocada» no existe como forma de perder trabajo. El sitio público
+no se entera: no hay parser de Markdown en el bundle de nadie.
+
+La conversión **no es simétrica**, y esa es la parte que hay que entender:
+
+    normaliseBody(b) -> markdown -> bloques   devuelve normaliseBody(b) exacto
+    markdown -> bloques                       conserva solo lo que cabe
+
+Un bloque guarda texto plano sin marcas en línea, así que `**negrita**`, los
+enlaces `[texto](url)`, las tablas y las listas anidadas no tienen dónde ir. No
+se tiran en silencio **ni se guardan como asteriscos literales**: el parser
+quita la sintaxis, conserva las palabras, y **reporta cada línea que tuvo que
+simplificar** mientras se escribe. La decisión se queda con quien redacta.
+
+Las imágenes son el caso interesante. Un bloque necesita `mediaId`, y ninguna
+URL escrita a mano lo puede aportar, así que el parser solo reconstruye las que
+ya estaban en el cuerpo —guarda un índice al abrir la vista— y una escrita a
+mano se reporta en vez de inventarse. Subirla desde el botón sí funciona en las
+dos vistas.
+
+`normaliseBody()` existe por un descubrimiento real: en la base conviven
+`ordered: false` y la ausencia de `ordered`, porque el tipo dice
+`ordered?: boolean` y tanto el script de importación como el editor estaban en
+su derecho. Se dibujan igual y Markdown no sabe deletrear la diferencia, así
+que la ida y vuelta tiene que elegir una. Elige la ausencia, y esa función lo
+deja escrito en vez de que aparezca como un diff sorpresa en una fila.
+
+**Esto tiene prueba, y es la primera del repositorio.** `npm test` — el runner
+de Node, sin dependencias nuevas. Cubre la ida y vuelta, cada tipo de bloque
+por separado, la convergencia de las dos formas de lista, y que todo lo que no
+cabe se reporte. Se comprobó además contra **los cuerpos reales de la base**,
+que es donde apareció lo de `ordered`: un ejemplo inventado nunca lo habría
+enseñado.
 
 ### Artículos: se escriben en el panel, no en el repositorio
 
@@ -906,6 +971,7 @@ npm run dev:admin    # plataforma de gestión en :3001
 npm run build        # build de producción de todos los workspaces
 npm run lint         # ESLint en las dos aplicaciones
 npm run typecheck    # tsc --noEmit en todos los workspaces
+npm test             # runner de Node sobre packages/shared/src/*.test.ts
 npm run db:generate  # regenera el cliente de Prisma
 npm run db:migrate   # crea y aplica una migración
 npm run db:studio    # Prisma Studio
