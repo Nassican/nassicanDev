@@ -1,3 +1,4 @@
+import { serializeJsonLd } from "@nassican/shared";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import PostCard from "@/components/PostCard";
@@ -44,7 +45,7 @@ export default async function BlogPage({ params }: PageParams) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(blogJsonLd(locale, posts, profile)),
+          __html: serializeJsonLd(blogJsonLd(locale, posts, profile)),
         }}
       />
 

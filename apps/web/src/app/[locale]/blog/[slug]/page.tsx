@@ -1,5 +1,8 @@
+import { serializeJsonLd } from "@nassican/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
+import { getProfile } from "@/lib/data/profile";
 import { notFound } from "next/navigation";
 import { BsArrowLeft } from "react-icons/bs";
 import Prose from "@/components/Prose";
@@ -8,7 +11,8 @@ import { getPost, getPublishedPosts } from "@/lib/data/posts";
 import { formatDate } from "@/lib/format";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales, localePath } from "@/lib/i18n/config";
-import { pageMetadata, postJsonLd } from "@/lib/seo";
+import { postJsonLd } from "@/lib/seo";
+import { pageMetadata } from "@/lib/page-metadata";
 
 type PageParams = { params: Promise<{ locale: string; slug: string }> };
 
@@ -39,6 +43,9 @@ export async function generateMetadata({
     title: c.title,
     description: c.description,
     type: "article",
+    override: c.seo,
+    image: post.image,
+    availableLocales: locales.filter((l) => !post.content[l].seo.noindex),
     publishedTime: post.date,
     modifiedTime: post.updated ?? post.date,
     tags: post.tags,
@@ -52,6 +59,7 @@ export default async function PostPage({ params }: PageParams) {
   const post = await getPost(slug);
   if (!post) notFound();
 
+  const profile = await getProfile();
   const t = getDictionary(locale);
   const c = post.content[locale];
 
@@ -60,7 +68,7 @@ export default async function PostPage({ params }: PageParams) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(postJsonLd(locale, post)),
+          __html: serializeJsonLd(postJsonLd(locale, post)),
         }}
       />
 
@@ -106,6 +114,10 @@ export default async function PostPage({ params }: PageParams) {
         </div>
       </header>
 
+      <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
+        {locale === "es" ? "Por " : "By "}<Link href={localePath(locale, "/")} rel="author" className="underline">{profile.name}</Link>
+      </p>
+      {post.image ? <Image src={post.image} alt={c.title} width={1200} height={630} sizes="(min-width: 768px) 48rem, 100vw" className="mb-8 h-auto w-full rounded-xl" /> : null}
       <article>
         <Prose blocks={c.body} />
       </article>

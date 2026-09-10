@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { canonicalOrigin } from "@nassican/shared";
 import { skills } from "./data";
 import type { PageSeoOverride } from "./data/pages";
 import type {
@@ -17,6 +18,7 @@ import type {
  */
 export type SiteData = {
   profile: Profile;
+  description?: string;
   experience: ExperienceItem[];
   education: EducationItem[];
   certificates: Certificate[];
@@ -34,15 +36,13 @@ import {
  * Canonical origin of the site. Override with NEXT_PUBLIC_SITE_URL when the
  * deployment lives on a preview domain so canonicals/OG URLs stay absolute.
  */
-export const siteUrl = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://nassican.com"
-).replace(/\/$/, "");
+export const siteUrl = canonicalOrigin(process.env.NEXT_PUBLIC_SITE_URL);
 
 export const siteName = "Nassican";
 
 /** Absolute URL helper: every SEO surface needs fully-qualified URLs. */
 export const absoluteUrl = (path = "/") =>
-  `${siteUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  new URL(path, `${siteUrl}/`).href;
 
 /** Absolute URL of `path` in a given language. */
 export const localeUrl = (locale: Locale, path = "/") =>
@@ -56,10 +56,11 @@ export const localeUrl = (locale: Locale, path = "/") =>
 export function alternatesFor(
   locale: Locale,
   path = "/",
+  availableLocales: readonly Locale[] = locales,
 ): NonNullable<Metadata["alternates"]> {
   const languages: Record<string, string> = {};
-  for (const l of locales) languages[l] = localeUrl(l, path);
-  languages["x-default"] = localeUrl(defaultLocale, path);
+  for (const l of availableLocales) languages[l] = localeUrl(l, path);
+  if (availableLocales.includes(defaultLocale)) languages["x-default"] = localeUrl(defaultLocale, path);
 
   return {
     canonical: localeUrl(locale, path),
@@ -80,6 +81,9 @@ type PageMetaInput = {
   tags?: string[];
   /** Editable in the panel; wins over the values above when set. */
   override?: PageSeoOverride | null;
+  image?: string;
+  indexable?: boolean;
+  availableLocales?: readonly Locale[];
 };
 
 /**
@@ -100,18 +104,26 @@ export function pageMetadata({
   modifiedTime,
   tags,
   override,
+  image,
+  indexable = true,
+  availableLocales = locales,
 }: PageMetaInput): Metadata {
   const url = localeUrl(locale, path);
 
   if (override?.title) title = override.title;
   if (override?.description) description = override.description;
+  const images = [{ url: image ? absoluteUrl(image) : localeUrl(locale, "/social-image"), alt: title }];
+  const canIndex = indexable && !override?.noindex;
 
   return {
     title,
     description,
     ...(override?.keywords?.length ? { keywords: override.keywords } : {}),
-    ...(override?.noindex ? { robots: { index: false, follow: true } } : {}),
-    alternates: alternatesFor(locale, path),
+    robots: {
+      index: canIndex, follow: true,
+      googleBot: { index: canIndex, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+    },
+    alternates: alternatesFor(locale, path, availableLocales),
     openGraph: {
       type: type === "profile" ? "profile" : type,
       url,
@@ -119,6 +131,7 @@ export function pageMetadata({
       locale: openGraphLocale[locale],
       title,
       description,
+      images,
       ...(type === "article"
         ? { publishedTime, modifiedTime, authors: [siteUrl], tags }
         : null),
@@ -128,6 +141,7 @@ export function pageMetadata({
       title,
       description,
       creator: "@Nassican",
+      images,
     },
   };
 }
@@ -150,7 +164,7 @@ const blogId = absoluteUrl("/#blog");
 
 function person(
   locale: Locale,
-  { profile, experience, education, certificates }: SiteData,
+  { profile, experience, education, certificates, description }: SiteData,
 ) {
   const t = getDictionary(locale);
 
@@ -161,8 +175,8 @@ function person(
     alternateName: ["Nassican", "Jesús Benavides"],
     url: siteUrl,
     email: `mailto:${profile.email}`,
-    jobTitle: t.meta.jobTitle,
-    description: t.meta.description,
+    jobTitle: profile.title[locale] || t.meta.jobTitle,
+    description: description || t.meta.description,
     image: absoluteUrl("/brand/LogoNassican.png"),
     knowsAbout: skillNames,
     knowsLanguage: [...locales],
@@ -182,7 +196,7 @@ function person(
         name: profile.location.city,
       },
     })),
-    worksFor: experience.map((e) => ({
+    worksFor: experience.filter((e) => !e.end).map((e) => ({
       "@type": "Organization",
       name: e.org,
     })),
@@ -223,7 +237,7 @@ function person(
   };
 }
 
-function website(locale: Locale) {
+function website(locale: Locale, description?: string) {
   const t = getDictionary(locale);
 
   return {
@@ -231,7 +245,7 @@ function website(locale: Locale) {
     "@id": websiteId,
     url: siteUrl,
     name: siteName,
-    description: t.meta.description,
+    description: description || t.meta.description,
     inLanguage: [...locales],
     publisher: { "@id": personId },
   };
@@ -299,7 +313,7 @@ function projectList(locale: Locale, projects: ProjectItem[]) {
 export function siteJsonLd(locale: Locale, data: SiteData) {
   return {
     "@context": "https://schema.org",
-    "@graph": [person(locale, data), website(locale)],
+    "@graph": [person(locale, data), website(locale, data.description)],
   };
 }
 
@@ -460,6 +474,7 @@ export function postJsonLd(locale: Locale, post: Post) {
         headline: c.title,
         description: c.description,
         inLanguage: locale,
+        ...(post.image ? { image: absoluteUrl(post.image) } : {}),
         datePublished: post.date,
         dateModified: post.updated ?? post.date,
         keywords: post.tags.join(", "),

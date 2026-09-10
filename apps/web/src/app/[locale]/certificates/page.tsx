@@ -1,3 +1,4 @@
+import { serializeJsonLd } from "@nassican/shared";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import CertificatesClient from "./CertificatesClient";
@@ -41,7 +42,7 @@ export default async function CertificatesPage({ params }: PageParams) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(certificatesJsonLd(locale, await getCertificates())),
+          __html: serializeJsonLd(certificatesJsonLd(locale, await getCertificates())),
         }}
       />
       <CertificatesClient

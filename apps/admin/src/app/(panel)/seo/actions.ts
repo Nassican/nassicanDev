@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db, prismaJson } from "@nassican/db";
-import { cacheTags, locales } from "@nassican/shared";
+import { cacheTags, locales, robotsExtraProblem } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
 import { notifyPublicSite } from "@/lib/revalidate";
@@ -24,6 +24,18 @@ export async function saveSeoSettings(
 ): Promise<ActionResult> {
   const actor = await requireUser();
 
+  const problem = robotsExtraProblem(draft.robotsExtra);
+  if (problem) return { ok: false, message: problem };
+  if (draft.titleTemplate.trim() && !draft.titleTemplate.includes("%s")) {
+    return { ok: false, message: "La plantilla debe incluir %s para conservar el título de cada página." };
+  }
+  if (draft.ga4MeasurementId.trim() && !/^G-[A-Z0-9]+$/.test(draft.ga4MeasurementId.trim())) {
+    return { ok: false, message: "El identificador de medición GA4 debe tener formato G-XXXXXXXXXX." };
+  }
+  if ([draft.allowAiSearch, draft.allowAiTraining, draft.llmsEnabled].some((value) => typeof value !== "boolean")) {
+    return { ok: false, message: "Los controles de rastreo deben ser activados o desactivados." };
+  }
+
   const fields = {
     // `siteUrl` is not editable here: the public site reads the origin from its
     // own environment, so a value stored here would be misleading.
@@ -35,6 +47,9 @@ export async function saveSeoSettings(
     gscSiteUrl: draft.gscSiteUrl.trim() || null,
     robotsExtra: draft.robotsExtra.trim() || null,
     defaultOgImageId: draft.defaultOgMediaId,
+    allowAiSearch: draft.allowAiSearch,
+    allowAiTraining: draft.allowAiTraining,
+    llmsEnabled: draft.llmsEnabled,
   };
 
   await db.seoSettings.upsert({

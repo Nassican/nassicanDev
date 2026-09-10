@@ -9,6 +9,10 @@ import {
 } from "@nassican/shared";
 
 export type SeoSettings = {
+  allowAiSearch: boolean;
+  allowAiTraining: boolean;
+  llmsEnabled: boolean;
+  ga4MeasurementId: string | null;
   /** `%s · Nassican`; the `%s` is the page's own title. */
   titleTemplate: string | null;
   googleSiteVerification: string | null;
@@ -43,6 +47,10 @@ async function readSeoSettings(): Promise<SeoSettings | null> {
 
   return {
     titleTemplate: row.titleTemplate,
+    allowAiSearch: row.allowAiSearch,
+    allowAiTraining: row.allowAiTraining,
+    llmsEnabled: row.llmsEnabled,
+    ga4MeasurementId: row.ga4MeasurementId,
     googleSiteVerification: row.googleSiteVerification,
     robotsExtra: row.robotsExtra,
     defaultOgImageUrl: row.defaultOgImage?.url ?? null,

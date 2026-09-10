@@ -1,3 +1,8 @@
+import { isIndexableDeployment } from "@nassican/shared";
+import { getDiscoveryEntries } from "@/lib/data/discovery";
+import { getSeoSettings } from "@/lib/data/seo-settings";
+import { getSiteSettings } from "@/lib/data/site-config";
+import { getPageSeo } from "@/lib/data/pages";
 import { skills } from "@/lib/data";
 import { getCertificates } from "@/lib/data/certificates";
 import { getEducation } from "@/lib/data/education";
@@ -8,7 +13,6 @@ import { getProjectsByDate } from "@/lib/data/projects";
 import { absoluteUrl, localeUrl } from "@/lib/seo";
 import { getDictionary } from "@/lib/i18n";
 import {
-  defaultLocale,
   isLocale,
   locales,
   localeNames,
@@ -16,10 +20,8 @@ import {
 } from "@/lib/i18n/config";
 
 /**
- * /llms.txt - the llmstxt.org convention: a plain-text brief that AI assistants
- * (ChatGPT, Claude, Perplexity) read to get a clean summary of the site without
- * parsing the rendered HTML. Built from the same data as the pages so it can
- * never drift out of date, and emitted once per language.
+ * Optional llmstxt.org brief, generated from published content. Support varies
+ * by consumer; it is not a search-engine indexing requirement.
  */
 export const dynamic = "force-static";
 
@@ -88,15 +90,23 @@ const copy: Record<Locale, Record<string, string>> = {
 };
 
 async function build(locale: Locale): Promise<string> {
-  const [profile, experience, education, certificates] = await Promise.all([
+  const [profile, experience, education, certificates, entries, seo, projects, posts] = await Promise.all([
     getProfile(),
     getExperience(),
     getEducation(),
     getCertificates(),
+    getDiscoveryEntries(),
+    getSeoSettings(),
+    getProjectsByDate(),
+    getPublishedPosts(),
   ]);
   const t = getDictionary(locale);
   const c = copy[locale];
   const url = (path: string) => localeUrl(locale, path);
+
+  const visible = new Set(entries.filter((e) => e.locale === locale).map((e) => e.path));
+  const customLines = entries.filter((e) => e.locale === locale && e.title && !["/", "/blog", "/projects", "/certificates"].includes(e.path))
+    .map((e) => `- [${e.title}](${url(e.path)}): ${e.description ?? ""}`);
 
   const skillLines = Object.entries(skills).map(
     ([group, names]) =>
@@ -115,14 +125,14 @@ async function build(locale: Locale): Promise<string> {
       })`,
   );
 
-  const projectLines = (await getProjectsByDate()).map((p) => {
+  const projectLines = projects.filter((p) => visible.has(`/projects/${p.slug}`)).map((p) => {
     const pc = p.content[locale];
     return `- [${p.title}](${url(`/projects/${p.slug}`)}): ${pc.tagline} ${c.stack}: ${p.stack.join(", ")}.${
       p.repo ? ` ${c.code}: ${p.repo}` : ""
     }`;
   });
 
-  const postLines = (await getPublishedPosts()).map((p) => {
+  const postLines = posts.filter((p) => visible.has(`/blog/${p.slug}`)).map((p) => {
     const pc = p.content[locale];
     return `- [${pc.title}](${url(`/blog/${p.slug}`)}) (${p.date}): ${pc.description}`;
   });
@@ -150,17 +160,18 @@ async function build(locale: Locale): Promise<string> {
   return list([
     `# ${profile.name}`,
     "",
-    `> ${t.meta.description}`,
+    `> ${seo?.defaultDescription[locale] || t.meta.description}`,
     "",
-    `${c.alsoKnown}. ${t.meta.title}. ${c.locatedIn} ${profile.location.city}, ${profile.location.region}, Colombia. ${c.speaks}. ${c.contact}: ${profile.email}.`,
+    `${c.alsoKnown}. ${profile.title[locale]}. ${c.locatedIn} ${profile.location.city}, ${profile.location.region}, ${profile.location.country}. ${c.speaks}. ${c.contact}: ${profile.email}.`,
     "",
     `## ${c.pages}`,
     "",
-    `- [${c.portfolio}](${url("/")}): ${c.portfolioDesc}`,
-    `- [${c.projects}](${url("/projects")}): ${c.projectsDesc}`,
-    `- [${c.blog}](${url("/blog")}): ${c.blogDesc}`,
-    `- [${c.certificates}](${url("/certificates")}): ${c.certificatesDesc}`,
+    ...(visible.has("/") ? [`- [${c.portfolio}](${url("/")}): ${c.portfolioDesc}`] : []),
+    ...(visible.has("/projects") ? [`- [${c.projects}](${url("/projects")}): ${c.projectsDesc}`] : []),
+    ...(visible.has("/blog") ? [`- [${c.blog}](${url("/blog")}): ${c.blogDesc}`] : []),
+    ...(visible.has("/certificates") ? [`- [${c.certificates}](${url("/certificates")}): ${c.certificatesDesc}`] : []),
     "",
+    ...customLines,
     `## ${c.experience}`,
     "",
     list(experienceLines),
@@ -183,7 +194,7 @@ async function build(locale: Locale): Promise<string> {
     "",
     `## ${c.certificates}`,
     "",
-    list(certificateLines),
+    visible.has("/certificates") ? list(certificateLines) : "",
     "",
     `## ${c.resume}`,
     "",
@@ -205,12 +216,18 @@ export async function GET(
   { params }: { params: Promise<{ locale: string }> },
 ) {
   const { locale } = await params;
-  const body = await build(isLocale(locale) ? locale : defaultLocale);
+  if (!isLocale(locale)) return new Response("Not found", { status: 404 });
+  const [seo, settings, homeSeo] = await Promise.all([getSeoSettings(), getSiteSettings(), getPageSeo("/", locale)]);
+  if (seo?.llmsEnabled === false || homeSeo?.noindex || settings.maintenanceMode || !isIndexableDeployment(process.env)) {
+    return new Response("Not found", { status: 404, headers: { "X-Robots-Tag": "noindex", "Cache-Control": "no-store" } });
+  }
+  const body = await build(locale);
 
   return new Response(body, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "public, max-age=0, s-maxage=86400, stale-while-revalidate",
+      "Cache-Control": "public, max-age=0, must-revalidate",
+      "X-Robots-Tag": "noindex",
     },
   });
 }

@@ -27,6 +27,7 @@ type Row = {
   title: string;
   yearLabel: string;
   date: Date;
+  updatedAt: Date;
   comingSoon: boolean;
   featured: boolean;
   demoUrl: string | null;
@@ -34,6 +35,9 @@ type Row = {
   coverMedia: { url: string } | null;
   translations: {
     locale: Locale;
+    seoTitle: string | null;
+    seoDescription: string | null;
+    noindex: boolean;
     tagline: string;
     summary: string | null;
     role: string | null;
@@ -57,6 +61,7 @@ function toProject(row: Row): ProjectItem | null {
     if (!t) return null;
 
     content[locale] = {
+      seo: { title: t.seoTitle ?? undefined, description: t.seoDescription ?? undefined, noindex: t.noindex },
       tagline: t.tagline,
       summary: t.summary ?? undefined,
       role: t.role ?? undefined,
@@ -70,6 +75,7 @@ function toProject(row: Row): ProjectItem | null {
     title: row.title,
     year: row.yearLabel,
     date: row.date.toISOString().slice(0, 10),
+    updated: row.updatedAt.toISOString(),
     stack: row.technologies.map((t) => t.technology.key),
     demo: row.demoUrl ?? "",
     repo: row.repoUrl ?? undefined,

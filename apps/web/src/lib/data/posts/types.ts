@@ -1,4 +1,5 @@
 import type { Localized } from "@/lib/i18n/config";
+import type { PageSeoOverride } from "../pages";
 import type { ContentBlock } from "../content";
 
 /**
@@ -7,6 +8,7 @@ import type { ContentBlock } from "../content";
  */
 export type PostTranslation = {
   title: string;
+  seo: PageSeoOverride;
   /** Meta description and card excerpt. Keep it under ~160 characters. */
   description: string;
   body: ContentBlock[];
@@ -16,6 +18,7 @@ export type PostTranslation = {
 export type PostMeta = {
   /** URL segment: `/blog/<slug>` and `/en/blog/<slug>`. Matches the folder name. */
   slug: string;
+  image?: string;
   /** ISO date, used for `datePublished` and the sitemap. */
   date: string;
   /** ISO date of the last meaningful edit. */

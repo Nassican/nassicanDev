@@ -1,3 +1,4 @@
+import { isIndexableDeployment } from "@nassican/shared";
 import { NextResponse, type NextRequest } from "next/server";
 import { defaultLocale, locales } from "@/lib/i18n/config";
 
@@ -22,20 +23,24 @@ function hasPrefix(pathname: string, locale: string) {
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const protect = (response: NextResponse) => {
+    if (!isIndexableDeployment(process.env)) response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
+  };
 
   if (hasPrefix(pathname, defaultLocale)) {
     const url = request.nextUrl.clone();
     url.pathname = pathname.slice(defaultLocale.length + 1) || "/";
-    return NextResponse.redirect(url, 308);
+    return protect(NextResponse.redirect(url, 308));
   }
 
   if (prefixedLocales.some((locale) => hasPrefix(pathname, locale))) {
-    return NextResponse.next();
+    return protect(NextResponse.next());
   }
 
   const url = request.nextUrl.clone();
   url.pathname = `/${defaultLocale}${pathname === "/" ? "" : pathname}`;
-  return NextResponse.rewrite(url);
+  return protect(NextResponse.rewrite(url));
 }
 
 export const config = {

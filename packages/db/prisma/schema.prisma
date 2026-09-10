@@ -848,6 +848,9 @@ model SeoSettings {
   gscSiteUrl String? @map("gsc_site_url")
   /// Appended to the generated robots.txt.
   robotsExtra String?  @map("robots_extra")
+  allowAiSearch Boolean @default(true) @map("allow_ai_search")
+  allowAiTraining Boolean @default(true) @map("allow_ai_training")
+  llmsEnabled Boolean @default(true) @map("llms_enabled")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   defaultOgImage Media?                    @relation("SeoDefaultOgImage", fields: [defaultOgImageId], references: [id], onDelete: SetNull)

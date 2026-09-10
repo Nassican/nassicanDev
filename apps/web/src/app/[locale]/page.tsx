@@ -1,3 +1,6 @@
+import { serializeJsonLd } from "@nassican/shared";
+import { pageMetadata } from "@/lib/page-metadata";
+import { getSeoSettings } from "@/lib/data/seo-settings";
 import { notFound } from "next/navigation";
 import type { HomeSectionKey } from "@nassican/shared";
 import Hero from "@/components/sections/Hero";
@@ -18,6 +21,15 @@ type PageParams = { params: Promise<{ locale: string }> };
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
+}
+
+export async function generateMetadata({ params }: PageParams) {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  const seo = await getSeoSettings();
+  const t = getDictionary(locale);
+  const metadata = await pageMetadata({ locale, path: "/", title: seo?.defaultTitle[locale] || t.meta.title, description: seo?.defaultDescription[locale] || t.meta.description, type: "profile" });
+  return { ...metadata, title: { absolute: String(metadata.title) } };
 }
 
 export default async function Home({ params }: PageParams) {
@@ -63,7 +75,7 @@ export default async function Home({ params }: PageParams) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(homeJsonLd(locale, projects)),
+          __html: serializeJsonLd(homeJsonLd(locale, sections.some((s) => s.key === "projects" && s.isVisible) ? projects.filter((p) => p.featured !== false) : [])),
         }}
       />
       {sections

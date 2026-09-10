@@ -15,6 +15,9 @@ import {
  */
 export type PostTranslationDraft = {
   locale: Locale;
+  seoTitle: string;
+  seoDescription: string;
+  noindex: boolean;
   title: string;
   description: string;
   body: ContentBlock[];

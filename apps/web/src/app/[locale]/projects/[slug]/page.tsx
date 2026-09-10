@@ -1,3 +1,4 @@
+import { serializeJsonLd } from "@nassican/shared";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,7 +9,8 @@ import SkillIcon from "@/components/ui/SkillIcon";
 import { getProject, getProjectsByDate } from "@/lib/data/projects";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales, localePath } from "@/lib/i18n/config";
-import { pageMetadata, projectJsonLd } from "@/lib/seo";
+import { projectJsonLd } from "@/lib/seo";
+import { pageMetadata } from "@/lib/page-metadata";
 
 type PageParams = { params: Promise<{ locale: string; slug: string }> };
 
@@ -35,6 +37,9 @@ export async function generateMetadata({
     title: project.title,
     description: c.tagline,
     type: "article",
+    override: c.seo,
+    image: project.image,
+    availableLocales: locales.filter((l) => !project.content[l].seo.noindex),
     publishedTime: project.date,
     tags: project.stack,
   });
@@ -55,7 +60,7 @@ export default async function ProjectPage({ params }: PageParams) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(projectJsonLd(locale, project)),
+          __html: serializeJsonLd(projectJsonLd(locale, project)),
         }}
       />
 

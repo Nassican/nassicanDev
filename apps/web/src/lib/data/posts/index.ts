@@ -20,14 +20,16 @@ import type { Post, PostTranslation } from "./types";
  */
 const postWithContent = {
   translations: true,
+  coverMedia: true,
   tags: { include: { tag: true }, orderBy: { position: "asc" } },
 } as const;
 
 type PostRow = {
   slug: string;
+  coverMedia: { url: string } | null;
   publishedAt: Date | null;
   updatedAt: Date;
-  translations: { locale: Locale; title: string; description: string; body: unknown }[];
+  translations: { locale: Locale; title: string; description: string; body: unknown; seoTitle: string | null; seoDescription: string | null; noindex: boolean }[];
   tags: { tag: { label: string } }[];
 };
 
@@ -48,6 +50,7 @@ function toPost(row: PostRow): Post | null {
     if (!translation) return null;
 
     content[locale] = {
+      seo: { title: translation.seoTitle ?? undefined, description: translation.seoDescription ?? undefined, noindex: translation.noindex },
       title: translation.title,
       description: translation.description,
       body: translation.body as PostTranslation["body"],
@@ -58,6 +61,7 @@ function toPost(row: PostRow): Post | null {
 
   return {
     slug: row.slug,
+    image: row.coverMedia?.url,
     date: isoDate(published),
     updated:
       row.updatedAt > published ? isoDate(row.updatedAt) : undefined,

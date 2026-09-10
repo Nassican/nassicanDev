@@ -1,3 +1,4 @@
+import { serializeJsonLd } from "@nassican/shared";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ProjectCard from "@/components/ProjectCard";
@@ -5,7 +6,8 @@ import { getProjectsByDate } from "@/lib/data/projects";
 import { getPageSeo } from "@/lib/data/pages";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales } from "@/lib/i18n/config";
-import { pageMetadata, projectsJsonLd } from "@/lib/seo";
+import { projectsJsonLd } from "@/lib/seo";
+import { pageMetadata } from "@/lib/page-metadata";
 
 type PageParams = { params: Promise<{ locale: string }> };
 
@@ -42,7 +44,7 @@ export default async function ProjectsPage({ params }: PageParams) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(projectsJsonLd(locale, projectsByDate)),
+          __html: serializeJsonLd(projectsJsonLd(locale, projectsByDate)),
         }}
       />
 

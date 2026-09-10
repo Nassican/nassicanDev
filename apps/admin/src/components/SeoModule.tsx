@@ -103,9 +103,9 @@ export default function SeoModule({
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight">SEO</h1>
+        <h1 className="text-xl font-semibold tracking-tight">SEO y GEO</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Metadatos globales, redirecciones y rendimiento en búsqueda.
+          Metadatos, visibilidad en buscadores con IA y rendimiento en búsqueda.
         </p>
       </header>
 
@@ -297,6 +297,30 @@ export default function SeoModule({
           completa con su barra final. Pulsa «Detectar propiedades» y elige.
         </p>
 
+        <fieldset className="flex flex-col gap-3 rounded border border-neutral-800 p-4">
+          <legend className="px-2 text-sm">Rastreo y asistentes de IA</legend>
+          {([
+            ["allowAiSearch", "Permitir bots de búsqueda y consulta con IA"],
+            ["allowAiTraining", "Permitir bots de recopilación para entrenamiento"],
+            ["llmsEnabled", "Publicar llms.txt en español e inglés"],
+          ] as const).map(([key, label]) => (
+            <label key={key} className="flex items-center gap-2 text-sm text-neutral-300">
+              <input type="checkbox" checked={settings[key]} onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })} />
+              {label}
+            </label>
+          ))}
+          <p className="text-xs text-neutral-400">
+            Estos permisos no garantizan citas ni posicionamiento. Google y Bing mantienen el rastreo general.
+            llms.txt resume el contenido público indexable; no es un requisito de Google.
+            robots.txt expresa preferencias; algunos accesos solicitados por usuarios pueden no seguirlo.
+            Guarda con el botón de Metadatos globales.
+          </p>
+          <p className="text-xs text-neutral-400">
+            Para mejorar las respuestas sobre tu trabajo, publica casos de estudio con problema,
+            solución y resultados comprobables; mantén el perfil y las fuentes de los artículos actualizados.
+          </p>
+        </fieldset>
+
         <div className="flex flex-col gap-1.5">
           <span className={labelStyle}>Añadido a robots.txt</span>
           <textarea
@@ -308,7 +332,7 @@ export default function SeoModule({
             }
           />
           <span className="text-[11px] text-neutral-600">
-            Se pega tal cual al final del archivo, después del sitemap
+            Para otros bots: empieza cada grupo con User-agent. Los bots de los controles anteriores y el grupo * no se pueden duplicar.
           </span>
         </div>
 

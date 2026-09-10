@@ -7,12 +7,15 @@ import type { PostDraft, PostTranslationDraft } from "@/lib/post-draft";
 export * from "@/lib/post-draft";
 
 function emptyTranslation(locale: Locale): PostTranslationDraft {
-  return { locale, title: "", description: "", body: [] };
+  return { locale, seoTitle: "", seoDescription: "", noindex: false, title: "", description: "", body: [] };
 }
 
 type Row = Awaited<ReturnType<typeof db.post.findMany>>[number] & {
   translations: {
     locale: Locale;
+    seoTitle: string | null;
+    seoDescription: string | null;
+    noindex: boolean;
     title: string;
     description: string;
     body: unknown;
@@ -40,6 +43,9 @@ function toDraft(row: Row): PostDraft {
       if (!t) return emptyTranslation(locale);
       return {
         locale,
+        seoTitle: t.seoTitle ?? "",
+        seoDescription: t.seoDescription ?? "",
+        noindex: t.noindex,
         title: t.title,
         description: t.description,
         body: (t.body ?? []) as ContentBlock[],

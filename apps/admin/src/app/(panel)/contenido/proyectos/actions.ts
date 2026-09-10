@@ -76,6 +76,9 @@ export async function saveProject(
 
   for (const t of draft.translations) {
     const data = {
+      seoTitle: t.seoTitle.trim() || null,
+      seoDescription: t.seoDescription.trim() || null,
+      noindex: t.noindex === true,
       tagline: t.tagline.trim(),
       summary: t.summary.trim() || null,
       role: t.role.trim() || null,

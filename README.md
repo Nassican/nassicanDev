@@ -15,6 +15,10 @@ Monorepo de [nassican.com](https://nassican.com). Contiene dos aplicaciones:
 
 ## Sitio público (`apps/web`)
 
+La auditoría y los cambios de SEO/GEO, controles disponibles en admin, validación y pasos de migración están en [SEO-GEO-HALLAZGOS.md](SEO-GEO-HALLAZGOS.md).
+
+La estrategia de posicionamiento como ingeniero de sistemas y AI Engineer, con ejemplos, listas de publicación y plan de 90 días, está en [GUIA-SEO-GEO-PERSONAL.md](GUIA-SEO-GEO-PERSONAL.md).
+
 Portafolio bilingüe construido con Next.js. Presenta el perfil profesional, experiencia, formación, habilidades, certificados, proyectos y artículos en español e inglés.
 
 ## Características

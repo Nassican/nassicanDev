@@ -3,10 +3,8 @@ import { getProfile } from "@/lib/data/profile";
 import { getDictionary } from "@/lib/i18n";
 import { defaultLocale, isLocale, locales } from "@/lib/i18n/config";
 
-export const alt =
-  "Jesús David Benavides Chicaiza - Full Stack Web Developer";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+const size = { width: 1200, height: 630 };
+
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -17,7 +15,7 @@ export function generateStaticParams() {
  * the site's palette; uses only system-safe fonts so no remote font fetch is
  * needed.
  */
-export default async function OpengraphImage({
+export async function GET(_request: Request, {
   params,
 }: {
   params: Promise<{ locale: string }>;

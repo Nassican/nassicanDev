@@ -50,6 +50,9 @@ async function writeTranslations(
 ) {
   for (const t of translations) {
     const data = {
+      seoTitle: t.seoTitle.trim() || null,
+      seoDescription: t.seoDescription.trim() || null,
+      noindex: t.noindex === true,
       title: t.title.trim(),
       description: t.description.trim(),
       body: prismaJson.body(t.body as ContentBlock[]),

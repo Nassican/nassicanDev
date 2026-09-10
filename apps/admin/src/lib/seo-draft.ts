@@ -2,6 +2,9 @@ import type { Locale } from "@nassican/shared";
 
 /** Shapes for the SEO module, free of database imports for the client editor. */
 export type SeoSettingsDraft = {
+  allowAiSearch: boolean;
+  allowAiTraining: boolean;
+  llmsEnabled: boolean;
   titleTemplate: string;
   googleSiteVerification: string;
   ga4MeasurementId: string;

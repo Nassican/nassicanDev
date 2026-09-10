@@ -107,3 +107,17 @@ export const getCustomPageRoutes = unstable_cache(
   ["custom-page-routes"],
   { tags: [cacheTags.pages], revalidate: CACHE_SECONDS },
 );
+
+/** One lightweight read for discovery and language availability. */
+export const getPageDirectory = unstable_cache(
+  () => db.page.findMany({
+    where: { status: "published" },
+    select: {
+      route: true, kind: true,
+      translations: { select: { locale: true, title: true, seoDescription: true, noindex: true, updatedAt: true } },
+    },
+    orderBy: { position: "asc" },
+  }),
+  ["page-directory"],
+  { tags: [cacheTags.pages], revalidate: CACHE_SECONDS },
+);

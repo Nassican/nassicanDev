@@ -10,6 +10,9 @@ import {
  */
 export type ProjectTranslationDraft = {
   locale: Locale;
+  seoTitle: string;
+  seoDescription: string;
+  noindex: boolean;
   tagline: string;
   summary: string;
   role: string;

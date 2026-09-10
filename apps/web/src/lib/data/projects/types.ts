@@ -1,4 +1,5 @@
 import type { Localized } from "@/lib/i18n/config";
+import type { PageSeoOverride } from "../pages";
 import type { ContentBlock } from "../content";
 
 /**
@@ -11,6 +12,7 @@ import type { ContentBlock } from "../content";
 export type ProjectTranslation = {
   /** One line, used on cards, meta descriptions and the OG image. */
   tagline: string;
+  seo: PageSeoOverride;
   /** What the project is, in two or three sentences. Opens the case study. */
   summary?: string;
   role?: string;
@@ -30,6 +32,7 @@ export type ProjectMeta = {
   year: string;
   /** Machine-readable date for `datePublished` and the sitemap. */
   date: string;
+  updated?: string;
   /** Names must match the keys in `skills.ts` so the icons resolve. */
   stack: string[];
   demo: string;

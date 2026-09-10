@@ -30,6 +30,9 @@ type Row = {
   coverMedia: { url: string } | null;
   translations: {
     locale: Locale;
+    seoTitle: string | null;
+    seoDescription: string | null;
+    noindex: boolean;
     tagline: string;
     summary: string | null;
     role: string | null;
@@ -40,7 +43,7 @@ type Row = {
 };
 
 function emptyTranslation(locale: Locale): ProjectTranslationDraft {
-  return { locale, tagline: "", summary: "", role: "", highlights: [], body: [] };
+  return { locale, seoTitle: "", seoDescription: "", noindex: false, tagline: "", summary: "", role: "", highlights: [], body: [] };
 }
 
 function toDraft(row: Row): ProjectDraft {
@@ -65,6 +68,9 @@ function toDraft(row: Row): ProjectDraft {
       if (!t) return emptyTranslation(locale);
       return {
         locale,
+        seoTitle: t.seoTitle ?? "",
+        seoDescription: t.seoDescription ?? "",
+        noindex: t.noindex,
         tagline: t.tagline,
         summary: t.summary ?? "",
         role: t.role ?? "",

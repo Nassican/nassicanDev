@@ -4,7 +4,7 @@ import Prose from "@/components/Prose";
 import { getCustomPage, getCustomPageRoutes } from "@/lib/data/pages";
 import { findRedirect, recordRedirectHit } from "@/lib/data/redirects";
 import { isLocale, localePath, locales } from "@/lib/i18n/config";
-import { pageMetadata } from "@/lib/seo";
+import { pageMetadata } from "@/lib/page-metadata";
 
 type PageParams = { params: Promise<{ locale: string; notFound: string[] }> };
 

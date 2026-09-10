@@ -1,3 +1,4 @@
+import { isIndexableDeployment, serializeJsonLd } from "@nassican/shared";
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { GoogleAnalytics } from "@next/third-parties/google";
@@ -21,7 +22,7 @@ import {
   openGraphLocale,
   type Locale,
 } from "@/lib/i18n/config";
-import { alternatesFor, siteJsonLd, siteName, siteUrl } from "@/lib/seo";
+import { absoluteUrl, alternatesFor, localeUrl, siteJsonLd, siteName, siteUrl } from "@/lib/seo";
 import { themeInitScript } from "@/lib/theme";
 
 type LayoutParams = { params: Promise<{ locale: string }> };
@@ -29,9 +30,7 @@ type LayoutParams = { params: Promise<{ locale: string }> };
 /**
  * GA4 measurement id: identifies the data stream the browser sends events to,
  * not the property the admin reads. It is public by design - it ships in the
- * page source - so it belongs in a `NEXT_PUBLIC_` variable rather than a
- * secret. Moves to `seo_settings.ga4_measurement_id` when this app starts
- * reading its configuration from the database.
+ * page source. Admin settings take precedence; the environment is a fallback.
  */
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
@@ -60,6 +59,9 @@ export async function generateMetadata({
     ? seo.keywords[locale]
     : t.meta.keywords;
 
+  const canIndex = isIndexableDeployment(process.env) && !(await getSiteSettings()).maintenanceMode;
+  const images = [{ url: seo?.defaultOgImageUrl ? absoluteUrl(seo.defaultOgImageUrl) : localeUrl(locale, "/social-image"), alt: title }];
+
   return {
     // Makes every relative URL below (canonical, OG image) resolve to an absolute one
     metadataBase: new URL(siteUrl),
@@ -80,7 +82,8 @@ export async function generateMetadata({
     alternates: alternatesFor(locale, "/"),
     openGraph: {
       type: "profile",
-      url: siteUrl,
+      url: localeUrl(locale),
+      images,
       siteName,
       locale: openGraphLocale[locale],
       title,
@@ -94,14 +97,15 @@ export async function generateMetadata({
       title,
       description,
       creator: "@Nassican",
+      images,
     },
     robots: {
       // While the site is down for maintenance the only page that exists is
       // the notice, and a notice in the index outlives the maintenance.
-      index: !(await getSiteSettings()).maintenanceMode,
+      index: canIndex,
       follow: true,
       googleBot: {
-        index: true,
+        index: canIndex,
         follow: true,
         "max-video-preview": -1,
         "max-image-preview": "large",
@@ -133,7 +137,7 @@ export default async function RootLayout({
   const locale = raw as Locale;
   const t = getDictionary(locale);
 
-  const [profile, experience, education, certificates, settings, nav] =
+  const [profile, experience, education, certificates, settings, nav, seo] =
     await Promise.all([
       getProfile(),
       getExperience(),
@@ -141,6 +145,7 @@ export default async function RootLayout({
       getCertificates(),
       getSiteSettings(),
       getNavigation(locale),
+      getSeoSettings(),
     ]);
 
   return (
@@ -164,9 +169,10 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
+            __html: serializeJsonLd(
               siteJsonLd(locale, {
                 profile,
+                description: seo?.defaultDescription[locale],
                 experience,
                 education,
                 certificates,
@@ -209,8 +215,8 @@ export default async function RootLayout({
           backstop that keeps a local `.env.local` from sending development
           sessions into the same property the dashboard reads.
         */}
-        {gaMeasurementId && process.env.NODE_ENV === "production" ? (
-          <GoogleAnalytics gaId={gaMeasurementId} />
+        {(seo?.ga4MeasurementId || gaMeasurementId) && isIndexableDeployment(process.env) ? (
+          <GoogleAnalytics gaId={(seo?.ga4MeasurementId || gaMeasurementId)!} />
         ) : null}
         {/*
           Vercel Web Analytics measures something GA4 does not: it counts every

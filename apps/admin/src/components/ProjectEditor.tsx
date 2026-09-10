@@ -351,6 +351,23 @@ export default function ProjectEditor({
           </span>
         </div>
 
+        <fieldset className="flex flex-col gap-3 rounded border border-neutral-800 p-4">
+          <legend className="px-2 text-sm">SEO · {localeNames[active]}</legend>
+          <label className="flex flex-col gap-1 text-xs text-neutral-400">
+            Título SEO (vacío: usar el título del contenido)
+            <input className={field} value={current.seoTitle} onChange={(e) => patch(active, { seoTitle: e.target.value })} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-400">
+            Descripción SEO (vacía: usar la descripción del contenido)
+            <textarea className={field} value={current.seoDescription} onChange={(e) => patch(active, { seoDescription: e.target.value })} />
+          </label>
+          <label className="flex items-center gap-2 text-xs text-neutral-400">
+            <input type="checkbox" checked={current.noindex} onChange={(e) => patch(active, { noindex: e.target.checked })} />
+            Excluir este idioma de buscadores, sitemap y llms.txt (noindex)
+          </label>
+          <p className="text-xs text-neutral-500">Noindex no hace privado el contenido. La portada se usa como imagen al compartir.</p>
+        </fieldset>
+
         <div className="flex flex-col gap-1.5">
           <span className={label}>Caso de estudio</span>
           <BlockEditor

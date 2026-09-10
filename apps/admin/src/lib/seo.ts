@@ -32,6 +32,9 @@ export async function getSeoSettingsDraft(): Promise<SeoSettingsDraft> {
 
   return {
     titleTemplate: row?.titleTemplate ?? "",
+    allowAiSearch: row?.allowAiSearch ?? true,
+    allowAiTraining: row?.allowAiTraining ?? true,
+    llmsEnabled: row?.llmsEnabled ?? true,
     googleSiteVerification: row?.googleSiteVerification ?? "",
     ga4MeasurementId: row?.ga4MeasurementId ?? "",
     ga4PropertyId: row?.ga4PropertyId ?? "",
