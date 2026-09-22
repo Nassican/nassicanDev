@@ -39,6 +39,22 @@ Los permisos de búsqueda y entrenamiento son distintos: [OpenAI: crawlers](http
 
 ## Evidencia de producción
 
+### Seguimiento del error de sitemap en Search Console · 10/09/2026, 22:12 UTC
+
+El propietario reportó «No se ha podido leer el sitemap». Comprobaciones públicas posteriores al despliegue observado:
+
+- `https://www.nassican.com/sitemap.xml` devuelve **200 OK** directamente, `Content-Type: application/xml`, 4540 bytes y **14 URLs**. El XML se pudo analizar correctamente y usa el espacio de nombres de sitemaps.
+- Una petición con identificador de Googlebot devuelve **200** y exactamente el mismo cuerpo (SHA-256 coincidente). Esto no verifica el acceso desde las IP reales de Google ni descarta reglas de firewall específicas para ellas.
+- Robots devuelve **200**, permite el rastreo general y declara `Sitemap: https://www.nassican.com/sitemap.xml`.
+- `https://nassican.com/sitemap.xml` sigue devolviendo **307** hacia www. Enviar directamente la URL con www; no depender de esa redirección.
+- No se encontró un fallo reproducible del archivo en estas comprobaciones. La causa del mensaje de Search Console continúa sin confirmar: falta la propiedad seleccionada, URL exacta registrada, detalle del error y fecha de última lectura. No se modificó el generador del sitemap por este aviso.
+
+Siguiente comprobación: usar una propiedad de dominio `nassican.com` o el prefijo `https://www.nassican.com/`; abrir el sitemap del informe y desplegar el error. En Inspección de URL, probar la URL pública exacta con «Probar URL publicada» y revisar disponibilidad/obtención. Corregir la causa indicada y reenviar el sitemap cuando corresponda. [Procedimiento oficial de Google](https://support.google.com/webmasters/answer/7451001).
+
+Las comprobaciones de compilación y migración documentadas más abajo describen el estado de la auditoría inicial; este seguimiento observa producción, pero no verifica el historial de migraciones ni todos los controles de admin.
+
+### Auditoría inicial
+
 Consulta HTTP pública realizada el 10/09/2026 alrededor de las 21:22 UTC, sin autenticación ni cambios remotos:
 
 - `https://nassican.com/`: **307** hacia `https://www.nassican.com/`.
