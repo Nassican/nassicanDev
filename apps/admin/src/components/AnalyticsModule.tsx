@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Toast from "@/components/Toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import VisitsChart from "@/components/VisitsChart";
@@ -140,20 +141,7 @@ export default function AnalyticsModule({
         </div>
       </header>
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {!summary.configured ? (
+            {!summary.configured ? (
         <section className="flex flex-col gap-3 rounded-lg border border-neutral-900 p-5">
           <h2 className="text-sm font-semibold">Falta la propiedad de GA4</h2>
           <p className="max-w-prose text-sm text-neutral-500">
@@ -300,6 +288,8 @@ export default function AnalyticsModule({
           </section>
         </>
       )}
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

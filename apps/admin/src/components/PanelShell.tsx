@@ -21,6 +21,7 @@ import {
   BsGraphUp,
   BsX,
 } from "react-icons/bs";
+import CommandPalette, { type Command } from "@/components/CommandPalette";
 import SignOutButton from "@/components/SignOutButton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { activeHref, navigation, type NavEntry, type NavIcon } from "@/lib/navigation";
@@ -163,9 +164,12 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
  */
 export default function PanelShell({
   user,
+  commands,
   children,
 }: {
   user: PanelUser;
+  /** Resolved on the server so the palette opens with everything already in it. */
+  commands: Command[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -199,6 +203,8 @@ export default function PanelShell({
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
+      <CommandPalette content={commands} />
+
       {/* ----------------------------- escritorio ------------------------- */}
       <aside className="hidden shrink-0 border-r border-neutral-900 lg:block lg:w-60">
         <div className="sticky top-0 flex max-h-dvh flex-col gap-6 overflow-y-auto p-4">

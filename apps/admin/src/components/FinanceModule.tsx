@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Toast from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -107,20 +108,7 @@ export default function FinanceModule({
         </div>
       </header>
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {!summary.configured ? (
+            {!summary.configured ? (
         <p className="rounded border border-amber-900/50 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">
           Falta <span className="font-mono">WALLET_API_TOKEN</span>. Se genera en
           los ajustes de la app web de Wallet y necesita plan Premium.
@@ -435,6 +423,8 @@ export default function FinanceModule({
           </p>
         </section>
       ) : null}
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

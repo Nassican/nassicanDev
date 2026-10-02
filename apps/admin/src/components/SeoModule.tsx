@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Toast from "@/components/Toast";
+import Unsaved from "@/components/Unsaved";
+import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import { useRouter } from "next/navigation";
 import { locales, localeNames, type Locale } from "@nassican/shared";
 import CoverPicker from "@/components/CoverPicker";
@@ -79,12 +82,23 @@ export default function SeoModule({
   const [detecting, setDetecting] = useState(false);
   const [detectError, setDetectError] = useState<string | null>(null);
 
-  function run(action: () => Promise<ActionResult>) {
+  const [savedSettings, setSavedSettings] = useState(initialSettings);
+  const [savedRedirects, setSavedRedirects] = useState(initialRedirects);
+
+  const settingsDirty = isDirty(savedSettings, settings);
+  const redirectsDirty = isDirty(savedRedirects, redirects);
+  useUnsavedChanges(settingsDirty || redirectsDirty);
+
+  /** `commit` moves the baseline, and only on a save the action confirmed. */
+  function run(action: () => Promise<ActionResult>, commit?: () => void) {
     setResult(null);
     startTransition(async () => {
       const outcome = await action();
       setResult(outcome);
-      if (outcome.ok) router.refresh();
+      if (outcome.ok) {
+        commit?.();
+        router.refresh();
+      }
     });
   }
 
@@ -109,32 +123,27 @@ export default function SeoModule({
         </p>
       </header>
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {/* ------------------------- Metadatos globales ------------------------ */}
+            {/* ------------------------- Metadatos globales ------------------------ */}
       <Section
         title="Metadatos globales"
         note="Lo que se aplica a todo el sitio. Un campo vacío deja lo que ya decía el sitio en vez de borrarlo."
         action={
-          <button
-            type="button"
-            className={primary}
-            disabled={pending}
-            onClick={() => run(() => actions.saveSettings(settings))}
-          >
-            {pending ? "Guardando…" : "Guardar"}
-          </button>
+          <div className="flex items-center gap-2">
+            {settingsDirty ? <Unsaved /> : null}
+            <button
+              type="button"
+              className={primary}
+              disabled={pending}
+              onClick={() =>
+                run(
+                  () => actions.saveSettings(settings),
+                  () => setSavedSettings(settings),
+                )
+              }
+            >
+              {pending ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
         }
       >
         <div className="grid gap-3 sm:grid-cols-2">
@@ -340,15 +349,23 @@ export default function SeoModule({
         title="Redirecciones"
         note="Se aplican solo a direcciones que si no darían 404, así que una página que existe siempre gana."
         action={
-          <button
-            type="button"
-            className={primary}
-            disabled={pending || Boolean(badRedirect)}
-            title={badRedirect ?? undefined}
-            onClick={() => run(() => actions.saveRedirects(redirects))}
-          >
-            {pending ? "Guardando…" : "Guardar"}
-          </button>
+          <div className="flex items-center gap-2">
+            {redirectsDirty ? <Unsaved /> : null}
+            <button
+              type="button"
+              className={primary}
+              disabled={pending || Boolean(badRedirect)}
+              title={badRedirect ?? undefined}
+              onClick={() =>
+                run(
+                  () => actions.saveRedirects(redirects),
+                  () => setSavedRedirects(redirects),
+                )
+              }
+            >
+              {pending ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
         }
       >
         {redirects.length === 0 ? (
@@ -582,6 +599,8 @@ export default function SeoModule({
           </>
         )}
       </Section>
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

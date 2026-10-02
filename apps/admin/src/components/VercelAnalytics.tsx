@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Toast from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import type { VercelSummary } from "@/lib/vercel";
 import type { ActionResult } from "@/app/(panel)/analitica/actions";
@@ -103,20 +104,7 @@ export default function VercelAnalytics({
         </button>
       </header>
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-3 py-2 text-[12px] ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {!summary.configured ? (
+            {!summary.configured ? (
         <div className="rounded border border-amber-900/50 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">
           <p>
             Falta <span className="font-mono">{summary.missing.join(" y ")}</span>{" "}
@@ -190,6 +178,8 @@ export default function VercelAnalytics({
           </div>
         </>
       )}
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </section>
   );
 }

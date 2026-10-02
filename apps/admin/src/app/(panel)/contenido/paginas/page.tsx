@@ -1,15 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { locales } from "@nassican/shared";
+import ListFilters from "@/components/ListFilters";
+import { filterList, listFiltersFromParams } from "@/lib/list-filters";
 import { incompleteLocales, listPages } from "@/lib/pages";
 import { createPage } from "./actions";
 
 export const metadata: Metadata = { title: "Páginas" };
 
-export default async function PaginasPage() {
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function PaginasPage({ searchParams }: PageProps) {
+  const filters = listFiltersFromParams(await searchParams);
   const pages = await listPages();
-  const system = pages.filter((p) => p.kind === "system");
-  const custom = pages.filter((p) => p.kind === "custom");
+
+  /**
+   * Filtering runs over the whole list and the two groups are split after, so
+   * a search finds a system route and a custom page in one go rather than
+   * making you guess which half it was in.
+   */
+  const matching = filterList(pages, filters, (page) => ({
+    title: page.translations.find((t) => t.title.trim())?.title ?? page.route,
+    handle: page.route,
+    status: page.kind,
+    date: null,
+  }));
+
+  const system = matching.filter((p) => p.kind === "system");
+  const custom = matching.filter((p) => p.kind === "custom");
 
   function row(page: (typeof pages)[number]) {
     const missing = incompleteLocales(page, locales);
@@ -74,6 +94,17 @@ export default async function PaginasPage() {
           </button>
         </form>
       </header>
+
+      <ListFilters
+        base="/contenido/paginas"
+        filters={filters}
+        statuses={[
+          { value: "system", label: "Rutas del sitio" },
+          { value: "custom", label: "Páginas propias" },
+        ]}
+        total={pages.length}
+        shown={matching.length}
+      />
 
       <section className="flex flex-col gap-2">
         <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">

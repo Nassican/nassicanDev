@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Toast from "@/components/Toast";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -274,20 +275,7 @@ export default function UsersModule({
         </p>
       </header>
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {!canAdminister ? (
+            {!canAdminister ? (
         <p className="rounded border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm text-neutral-400">
           Puedes ver esta pantalla y cerrar tus propias sesiones, pero cambiar
           roles o revocar accesos es cosa de un propietario.
@@ -345,6 +333,8 @@ export default function UsersModule({
           revocarle el acceso no depende de que Google coopere.
         </p>
       </Section>
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Toast from "@/components/Toast";
+import Unsaved from "@/components/Unsaved";
+import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import { useRouter } from "next/navigation";
 import { locales, localeNames, type ContentBlock, type Locale } from "@nassican/shared";
 import BlockEditor from "@/components/BlockEditor";
@@ -32,6 +35,16 @@ export default function PageEditor({
   const [pending, startTransition] = useTransition();
   const [active, setActive] = useState<Locale>(draft.translations[0].locale);
 
+  /**
+   * What the row says, as far as this tab knows. `initial` cannot serve as the
+   * baseline on its own: `router.refresh()` hands down a fresh one after every
+   * save and this component is never remounted, so the comparison has to
+   * remember what was last written *from here*.
+   */
+  const [saved, setSaved] = useState(initial);
+  const dirty = isDirty(saved, draft);
+  useUnsavedChanges(dirty);
+
   const system = draft.kind === "system";
   const published = draft.status === "published";
   const current = draft.translations.find((t) => t.locale === active)!;
@@ -48,10 +61,17 @@ export default function PageEditor({
 
   function run(action: () => Promise<ActionResult>) {
     setResult(null);
+    // Read before the transition: the baseline is what we are about to send,
+    // not whatever is on screen when the round trip lands. Anything typed while
+    // the save was in flight is still unsaved, and should stay marked so.
+    const sent = draft;
     startTransition(async () => {
       const outcome = await action();
       setResult(outcome);
-      if (outcome.ok) router.refresh();
+      if (outcome.ok) {
+        setSaved(sent);
+        router.refresh();
+      }
     });
   }
 
@@ -75,7 +95,9 @@ export default function PageEditor({
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {dirty ? <Unsaved /> : null}
+
           <button
             type="button"
             disabled={pending}
@@ -129,20 +151,7 @@ export default function PageEditor({
         </p>
       ) : null}
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      <section className="grid gap-4 sm:grid-cols-3">
+            <section className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <span className={label}>Ruta</span>
           <input
@@ -265,6 +274,8 @@ export default function PageEditor({
           </div>
         ) : null}
       </section>
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

@@ -1078,6 +1078,112 @@ segunda línea, truncado y con el texto completo en el `title`. Son mensajes
 largos, y uno envuelto hacía ilegible el resto de la tabla a cambio de un texto
 que nadie lee entero de un vistazo.
 
+### Las piezas que atraviesan el panel
+
+Cuatro cosas que no son de ningún módulo y están en todos. Se construyeron
+juntas porque las cuatro responden a lo mismo: el panel lo usa una sola persona,
+muchas veces, y lo que se paga en una sesión larga no son los milisegundos sino
+los clics y el trabajo perdido.
+
+**Buscar y filtrar: el filtro es la URL.** `lib/list-filters.ts` es puro y lo
+comparten Blogs, Proyectos y Páginas; `components/ListFilters.tsx` lo escribe en
+los parámetros de la dirección, no en estado de React. Así un filtro se marca
+como favorito, el botón de atrás hace lo que se espera, y el servidor ya sabe
+qué enseñar sin un render intermedio con la lista entera.
+
+Tres decisiones que el código no explica solo:
+
+- **`fold()` quita los acentos**, así que «paginas» encuentra «Páginas» y
+  «espana» encuentra «España». No es una concesión: en un teclado se escribe sin
+  acentos y buscar es escribir rápido, no escribir bien.
+- **Las filas sin fecha suben, no bajan.** La lista ordena por fecha
+  descendente, y un borrador recién creado todavía no tiene `publishedAt`. Al
+  final de la lista es donde no se vuelve a ver, que es justo lo contrario de lo
+  que hace falta.
+- **El filtro dice cuántas filas escondió.** Una lista que oculta en silencio es
+  una lista que te hace creer que perdiste algo.
+
+**⌘K: una lista, dos orígenes.** `components/CommandPalette.tsx` saca los
+módulos de los mismos datos de `lib/navigation.ts` que dibuja el menú —así un
+módulo nuevo aparece aquí el día que aparece allí, sin una segunda lista que
+mantener— y el contenido se resuelve **una vez** en el servidor al renderizar el
+armazón (`lib/commands.ts`). No hay búsqueda contra la base por cada tecla: a la
+latencia de esta base eso sería un teclado que se arrastra.
+
+Lo que empieza por lo que escribiste gana a lo que lo lleva por el medio. Y el
+índice seleccionado se recorta **al renderizar**, no en un efecto: cuando la
+lista se encoge bajo el cursor, un efecto dibujaría el hueco vacío una vez antes
+de corregirse.
+
+**Cambios sin guardar.** `lib/use-unsaved.ts`. `isDirty` compara como JSON
+canónico y no por referencia, porque los editores reconstruyen su borrador en
+cada tecla: por referencia un formulario recién abierto saldría sucio, y un
+aviso que siempre está encendido es un aviso que se aprende a ignorar. Ordenar
+las claves hace además que una clave ausente y un `undefined` explícito sean el
+mismo borrador — que es exactamente la diferencia de `ordered?: boolean` que
+`normaliseBody` ya tuvo que resolver.
+
+La base de comparación la mueve el guardado y **solo si la acción confirmó que
+salió bien**: lo que se envió pasa a ser lo guardado, no lo que haya en pantalla
+cuando vuelve el viaje, así que lo que escribiste mientras guardaba sigue
+marcado como pendiente. En Perfil hay cuatro bases, una por sección, porque cada
+sección se guarda sola.
+
+Lo que **no** cubre, y conviene saberlo: solo `beforeunload`, o sea cerrar la
+pestaña, recargar y escribir otra dirección. El App Router no ofrece forma
+documentada de interceptar una navegación de cliente, así que pulsar «Blogs» con
+cambios sin guardar los pierde igual. Prometer lo contrario en un comentario
+sería peor que no tenerlo.
+
+**Toasts: el aviso ya no empuja la página.** `components/Toast.tsx`. El banner
+anterior se insertaba sobre el formulario, así que cada guardado bajaba todo una
+línea y luego la subía — en un editor eso significa que el campo que estabas
+mirando se mueve mientras lo miras.
+
+**El éxito se va solo; el fallo no.** Un «guardado» dice algo que ya esperabas y
+en lo que no hace falta volver a pensar. Un fallo dice lo contrario de lo que
+esperabas, nombra qué hacer, y es el único mensaje que vale releer: quitarlo con
+un temporizador es cómo se pierde.
+
+El temporizador depende de `result` y de nada más. Con `onDismiss` entre las
+dependencias se reiniciaba en cada tecla —es un cierre nuevo en cada render— y
+«Guardado» no se iba nunca mientras siguieras escribiendo. Un `ref` mantiene la
+llamada al día sin ser dependencia.
+
+Y no hay portal, aunque lo parezca necesario: `fixed` se mide contra el
+antepasado *transformado* más cercano, y de `<main>` hacia abajo no hay ninguno.
+El cajón móvil sí se anima con un `transform`, pero es hermano del contenido, no
+su padre.
+
+#### La vista previa se acuña al pulsar, no al renderizar
+
+El token de vista previa dura cinco minutos a propósito: abre un documento sin
+publicar a quien lo tenga. Pero eso significa que **no se puede acuñar cuando se
+renderiza la página del editor**, que fue como se hizo primero: una sesión de
+edición dura más de cinco minutos, así que el botón estaba muerto antes de que
+nadie lo pulsara, y muerto de una forma que nadie iba a relacionar con cuánto
+llevaba escribiendo.
+
+Así que el botón apunta a `/api/preview` del propio panel, con una dirección que
+no caduca, y el token se acuña en el clic. Ese salto va detrás de la sesión del
+panel, que es también lo que evita que sea una máquina abierta de tokens.
+
+`previewKinds` vive en `packages/shared/src/preview.ts` como lista, y el tipo
+sale de ella. La lista estaba escrita a mano en los dos lados de la frontera, y
+una copia a mano es una copia que algún día le falta un elemento.
+
+#### Al depurar: el HTML de desarrollo no sirve para auditar secretos
+
+Buscando el token en el HTML del editor aparecía la cookie de sesión completa,
+junto a las cabeceras de la petición y rutas absolutas de `.next/dev/`. Es la
+instrumentación de desarrollo de Next, que serializa la promesa de `headers()`
+con su pila para el panel de errores. En el build de producción: cero cookies,
+cero cabeceras, cero rutas de disco.
+
+Misma lección que la del origen horneado en `robots.txt`: **lo que se audita es
+el build, no el servidor de desarrollo.** Un falso positivo aquí cuesta una
+tarde buscando una fuga que no existe.
+
 ### Perfil y credenciales
 
 En `app.nassican.com/perfil`: datos personales, redes, CVs, experiencia,
@@ -1346,7 +1452,8 @@ npm run dev:admin    # plataforma de gestión en :3001
 npm run build        # build de producción de todos los workspaces
 npm run lint         # ESLint en las dos aplicaciones
 npm run typecheck    # tsc --noEmit en todos los workspaces
-npm test             # runner de Node sobre packages/shared/src/*.test.ts
+npm test             # runner de Node: packages/shared, apps/web/src/lib,
+                     # apps/admin/src/lib. Sin dependencias nuevas.
 npm run db:generate  # regenera el cliente de Prisma
 npm run db:migrate   # crea y aplica una migración
 npm run db:studio    # Prisma Studio

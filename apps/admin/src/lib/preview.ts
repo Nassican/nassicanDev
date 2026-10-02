@@ -28,3 +28,14 @@ export function previewUrl(
   url.searchParams.set("locale", locale);
   return url.toString();
 }
+
+/**
+ * Whether a preview link can be minted at all.
+ *
+ * Separate from `previewUrl` so the button can be hidden without minting a
+ * token just to find out — and so a missing variable hides the button instead
+ * of producing one that fails when pressed.
+ */
+export function isPreviewConfigured(): boolean {
+  return Boolean(process.env.PUBLIC_SITE_URL && process.env.REVALIDATE_SECRET);
+}

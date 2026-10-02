@@ -20,7 +20,18 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * after a few minutes.
  */
 
-export type PreviewKind = "post" | "project" | "page";
+export const previewKinds = ["post", "project", "page"] as const;
+
+export type PreviewKind = (typeof previewKinds)[number];
+
+/**
+ * A list and a type derived from it, rather than a type and a list written to
+ * match: the kinds are checked at a URL boundary in both apps, and a hand-kept
+ * copy of them is a copy that will one day be short one.
+ */
+export function isPreviewKind(value: unknown): value is PreviewKind {
+  return previewKinds.includes(value as PreviewKind);
+}
 
 export type PreviewClaim = {
   kind: PreviewKind;
@@ -93,7 +104,7 @@ export function verifyPreviewToken(
     return { ok: false, reason: "contenido ilegible" };
   }
 
-  if (!claim?.id || !["post", "project", "page"].includes(claim.kind)) {
+  if (!claim?.id || !isPreviewKind(claim.kind)) {
     return { ok: false, reason: "token incompleto" };
   }
 

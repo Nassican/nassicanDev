@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import Toast from "@/components/Toast";
+import Unsaved from "@/components/Unsaved";
+import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import { useRouter } from "next/navigation";
 import { locales, localeNames, type Locale } from "@nassican/shared";
 import {
@@ -76,9 +79,12 @@ function Section({
           <h2 className="text-sm font-semibold">{title}</h2>
           {note ? <p className="mt-0.5 text-xs text-neutral-600">{note}</p> : null}
         </div>
-        <button type="button" className={primary} disabled={pending} onClick={onSave}>
-          {pending ? "Guardando…" : dirty ? "Guardar cambios" : "Guardar"}
-        </button>
+        <div className="flex items-center gap-2">
+          {dirty ? <Unsaved label={false} /> : null}
+          <button type="button" className={primary} disabled={pending} onClick={onSave}>
+            {pending ? "Guardando…" : dirty ? "Guardar cambios" : "Guardar"}
+          </button>
+        </div>
       </header>
       {children}
     </section>
@@ -122,12 +128,34 @@ export default function ProfileModule({
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function run(action: () => Promise<ActionResult>) {
+  const [savedProfile, setSavedProfile] = useState(initialProfile);
+  const [savedExperience, setSavedExperience] = useState(initialExperience);
+  const [savedEducation, setSavedEducation] = useState(initialEducation);
+  const [savedCertificates, setSavedCertificates] = useState(initialCertificates);
+
+  const dirt = {
+    profile: isDirty(savedProfile, profile),
+    experience: isDirty(savedExperience, experience),
+    education: isDirty(savedEducation, education),
+    certificates: isDirty(savedCertificates, certificates),
+  };
+
+  useUnsavedChanges(Object.values(dirt).some(Boolean));
+
+  /**
+   * `commit` moves this section's baseline, and only runs when the action
+   * reported success: a save that failed left the row as it was, so the edits
+   * are still unsaved and still have to look that way.
+   */
+  function run(action: () => Promise<ActionResult>, commit?: () => void) {
     setResult(null);
     startTransition(async () => {
       const outcome = await action();
       setResult(outcome);
-      if (outcome.ok) router.refresh();
+      if (outcome.ok) {
+        commit?.();
+        router.refresh();
+      }
     });
   }
 
@@ -144,26 +172,18 @@ export default function ProfileModule({
         </p>
       </header>
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {/* ---------------- Perfil ---------------- */}
+            {/* ---------------- Perfil ---------------- */}
       <Section
         title="Datos personales"
         note="Nombre, contacto, redes y CV descargable"
-        dirty={false}
+        dirty={dirt.profile}
         pending={pending}
-        onSave={() => run(() => actions.saveProfile(profile))}
+        onSave={() =>
+          run(
+            () => actions.saveProfile(profile),
+            () => setSavedProfile(profile),
+          )
+        }
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
@@ -313,9 +333,14 @@ export default function ProfileModule({
       <Section
         title="Experiencia"
         note="Historial laboral. El grado universitario va en Formación."
-        dirty={false}
+        dirty={dirt.experience}
         pending={pending}
-        onSave={() => run(() => actions.saveExperience(experience))}
+        onSave={() =>
+          run(
+            () => actions.saveExperience(experience),
+            () => setSavedExperience(experience),
+          )
+        }
       >
         {experience.map((item, i) => (
           <article key={item.id ?? `nuevo-${i}`} className="flex flex-col gap-3 rounded border border-neutral-900 p-3">
@@ -407,9 +432,14 @@ export default function ProfileModule({
       <Section
         title="Formación"
         note="El estado se declara, no se deduce de la fecha: el sitio es estático."
-        dirty={false}
+        dirty={dirt.education}
         pending={pending}
-        onSave={() => run(() => actions.saveEducation(education))}
+        onSave={() =>
+          run(
+            () => actions.saveEducation(education),
+            () => setSavedEducation(education),
+          )
+        }
       >
         {education.map((item, i) => (
           <article key={item.id ?? `nuevo-${i}`} className="flex flex-col gap-3 rounded border border-neutral-900 p-3">
@@ -475,9 +505,14 @@ export default function ProfileModule({
       <Section
         title="Certificados"
         note="La categoría alimenta los filtros de /certificates"
-        dirty={false}
+        dirty={dirt.certificates}
         pending={pending}
-        onSave={() => run(() => actions.saveCertificates(certificates))}
+        onSave={() =>
+          run(
+            () => actions.saveCertificates(certificates),
+            () => setSavedCertificates(certificates),
+          )
+        }
       >
         {certificates.map((item, i) => (
           <article key={item.id ?? `nuevo-${i}`} className="flex flex-col gap-3 rounded border border-neutral-900 p-3">
@@ -518,6 +553,8 @@ export default function ProfileModule({
           Añadir certificado
         </button>
       </Section>
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

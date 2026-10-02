@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { localeNames } from "@nassican/shared";
+import ListFilters from "@/components/ListFilters";
+import { filterList, listFiltersFromParams } from "@/lib/list-filters";
 import { incompleteLocales, isLocaleComplete, listPosts } from "@/lib/posts";
 import { createPost } from "./actions";
+
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export const metadata: Metadata = { title: "Blogs" };
 
@@ -20,8 +26,16 @@ const statusLabels: Record<string, string> = {
   archived: "archivado",
 };
 
-export default async function BlogsPage() {
-  const posts = await listPosts();
+export default async function BlogsPage({ searchParams }: PageProps) {
+  const filters = listFiltersFromParams(await searchParams);
+  const all = await listPosts();
+
+  const posts = filterList(all, filters, (post) => ({
+    title: post.translations.find((t) => t.title.trim())?.title ?? "",
+    handle: post.slug,
+    status: post.status,
+    date: post.publishedAt,
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,9 +43,9 @@ export default async function BlogsPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Blogs</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {posts.length === 0
+            {all.length === 0
               ? "Todavía no hay artículos."
-              : `${posts.length} ${posts.length === 1 ? "artículo" : "artículos"}.`}
+              : `${all.length} ${all.length === 1 ? "artículo" : "artículos"}.`}
           </p>
         </div>
 
@@ -45,10 +59,27 @@ export default async function BlogsPage() {
         </form>
       </header>
 
-      {posts.length === 0 ? (
+      {all.length > 1 ? (
+        <ListFilters
+          base="/contenido/blogs"
+          filters={filters}
+          statuses={[
+            { value: "published", label: "Publicados" },
+            { value: "draft", label: "Borradores" },
+          ]}
+          total={all.length}
+          shown={posts.length}
+        />
+      ) : null}
+
+      {all.length === 0 ? (
         <p className="rounded border border-dashed border-neutral-800 px-6 py-12 text-center text-sm text-neutral-500">
           Crea el primero. Mientras no haya ninguno publicado, <code>/blog</code>{" "}
           en el sitio público sigue mostrando su estado «Próximamente».
+        </p>
+      ) : posts.length === 0 ? (
+        <p className="rounded border border-dashed border-neutral-800 px-6 py-12 text-center text-sm text-neutral-500">
+          Ningún artículo coincide con el filtro.
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-neutral-900 border-y border-neutral-900">

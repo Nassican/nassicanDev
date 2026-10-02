@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Toast from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import { Pager, usePage } from "@/components/Pager";
 import type { SystemSummary } from "@/lib/system";
@@ -157,20 +158,7 @@ export default function SystemModule({
         </p>
       </header>
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {/* ------------------------------ Uptime ------------------------------- */}
+            {/* ------------------------------ Uptime ------------------------------- */}
       <Section
         title="Disponibilidad"
         note="Se comprueba cuando lo pides: este panel no tiene planificador, y una página de monitorización cuyos datos solo se mueven al abrirla es mejor decirlo que disimularlo."
@@ -465,6 +453,8 @@ export default function SystemModule({
           onPage={auditPage.setPage}
         />
       </Section>
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

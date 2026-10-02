@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Toast from "@/components/Toast";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { StatsSummary } from "@/lib/stats";
@@ -95,20 +96,7 @@ export default function StatsModule({
         </button>
       </header>
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {/* ------------------------- Salud del contenido ----------------------- */}
+            {/* ------------------------- Salud del contenido ----------------------- */}
       <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-neutral-900 bg-neutral-900 lg:grid-cols-4">
         <Tile
           label="Artículos"
@@ -371,6 +359,8 @@ export default function StatsModule({
           una instantánea del día.
         </p>
       )}
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

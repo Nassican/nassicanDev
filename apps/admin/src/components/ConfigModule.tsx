@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Toast from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import {
   anchoredSectionKeys,
@@ -284,20 +285,7 @@ export default function ConfigModule({
         </p>
       ) : null}
 
-      {result ? (
-        <p
-          role="status"
-          className={`rounded border px-4 py-3 text-sm ${
-            result.ok
-              ? "border-green-900/60 bg-green-950/30 text-green-300"
-              : "border-red-900/60 bg-red-950/30 text-red-300"
-          }`}
-        >
-          {result.message}
-        </p>
-      ) : null}
-
-      {/* ------------------------- Parámetros globales ----------------------- */}
+            {/* ------------------------- Parámetros globales ----------------------- */}
       <Section
         title="Parámetros globales"
         note="Cada uno decide algo que el sitio hace de verdad. El correo de contacto no está aquí: de eso se encarga el perfil."
@@ -703,6 +691,8 @@ export default function ConfigModule({
           ))}
         </ul>
       </Section>
+
+      <Toast result={result} onDismiss={() => setResult(null)} />
     </div>
   );
 }

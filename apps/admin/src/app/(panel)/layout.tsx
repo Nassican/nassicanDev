@@ -1,4 +1,5 @@
 import PanelShell from "@/components/PanelShell";
+import { listCommands } from "@/lib/commands";
 import { requireUser } from "@/lib/session";
 
 /**
@@ -14,10 +15,11 @@ import { requireUser } from "@/lib/session";
 export default async function PanelLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const user = await requireUser();
+  const [user, commands] = await Promise.all([requireUser(), listCommands()]);
 
   return (
     <PanelShell
+      commands={commands}
       user={{
         name: user.name,
         email: user.email,

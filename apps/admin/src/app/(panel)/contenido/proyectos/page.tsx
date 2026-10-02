@@ -1,13 +1,29 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { localeNames } from "@nassican/shared";
+import ListFilters from "@/components/ListFilters";
+import { filterList, listFiltersFromParams } from "@/lib/list-filters";
 import { hasCaseStudy, isLocaleComplete, listProjects } from "@/lib/projects";
 import { createProject } from "./actions";
 
 export const metadata: Metadata = { title: "Proyectos" };
 
-export default async function ProjectsPage() {
-  const projects = await listProjects();
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function ProjectsPage({ searchParams }: PageProps) {
+  const filters = listFiltersFromParams(await searchParams);
+  const all = await listProjects();
+
+  const projects = filterList(all, filters, (project) => ({
+    title: project.title,
+    handle: project.slug,
+    status: project.status,
+    // `date` is the project's own date, stored as written — "2024" and
+    // "2024-08" are both valid, so it is used as the sort key directly.
+    date: project.date || null,
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -15,8 +31,8 @@ export default async function ProjectsPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Proyectos</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {projects.length} en el portafolio ·{" "}
-            {projects.filter((p) => p.status === "published").length} publicados
+            {all.length} en el portafolio ·{" "}
+            {all.filter((p) => p.status === "published").length} publicados
           </p>
         </div>
 
@@ -29,6 +45,25 @@ export default async function ProjectsPage() {
           </button>
         </form>
       </header>
+
+      {all.length > 1 ? (
+        <ListFilters
+          base="/contenido/proyectos"
+          filters={filters}
+          statuses={[
+            { value: "published", label: "Publicados" },
+            { value: "draft", label: "Borradores" },
+          ]}
+          total={all.length}
+          shown={projects.length}
+        />
+      ) : null}
+
+      {projects.length === 0 && all.length > 0 ? (
+        <p className="rounded border border-dashed border-neutral-800 px-6 py-12 text-center text-sm text-neutral-500">
+          Ningún proyecto coincide con el filtro.
+        </p>
+      ) : null}
 
       <ul className="flex flex-col divide-y divide-neutral-900 border-y border-neutral-900">
         {projects.map((project) => (
