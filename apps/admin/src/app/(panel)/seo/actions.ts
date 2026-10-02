@@ -8,9 +8,11 @@ import { logAudit } from "@/lib/audit";
 import { notifyPublicSite } from "@/lib/revalidate";
 import { listSearchConsoleSites, syncSearchConsole } from "@/lib/search-console";
 import {
+  extractVerificationToken,
   normaliseDestination,
   normaliseSource,
   redirectProblem,
+  verificationProblem,
   type RedirectDraft,
   type SeoSettingsDraft,
 } from "@/lib/seo-draft";
@@ -36,12 +38,18 @@ export async function saveSeoSettings(
     return { ok: false, message: "Los controles de rastreo deben ser activados o desactivados." };
   }
 
+  const badToken = verificationProblem(draft.googleSiteVerification);
+  if (badToken) return { ok: false, message: badToken };
+
   const fields = {
     // `siteUrl` is not editable here: the public site reads the origin from its
     // own environment, so a value stored here would be misleading.
     siteUrl: process.env.PUBLIC_SITE_URL ?? "https://www.nassican.com",
     titleTemplate: draft.titleTemplate.trim() || null,
-    googleSiteVerification: draft.googleSiteVerification.trim() || null,
+    // Stored as the bare token, whatever shape it arrived in: Google hands
+      // you the whole tag and Next builds the element from the value.
+      googleSiteVerification:
+        extractVerificationToken(draft.googleSiteVerification) || null,
     ga4MeasurementId: draft.ga4MeasurementId.trim() || null,
     ga4PropertyId: draft.ga4PropertyId.trim() || null,
     gscSiteUrl: draft.gscSiteUrl.trim() || null,

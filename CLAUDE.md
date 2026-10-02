@@ -520,6 +520,45 @@ manejador de ruta, porque `MetadataRoute.Robots` no admite líneas arbitrarias y
 `robotsExtra` las necesita. La salida se comprobó byte a byte contra la anterior
 antes de cambiarla.
 
+#### La verificación de propiedad, y una trampa que costó semanas
+
+`seo_settings.google_site_verification` guarda **el token a secas**, porque Next
+construye el elemento a partir del valor. Search Console, en cambio, te muestra
+la **etiqueta completa** y te dice que la copies — así que pegarla es lo natural,
+y el resultado era un `<meta>` anidado dentro de su propio atributo:
+
+```html
+<meta name="google-site-verification"
+      content="&lt;meta name=&quot;google-site-verification&quot; …&gt;"/>
+```
+
+HTML válido, servido durante semanas, verificación que nunca pasaba, y **nada
+podía avisarlo**: el campo estaba rellenado y la etiqueta estaba presente. Se
+descubrió mirando el HTML de producción, no el panel.
+
+Por eso `extractVerificationToken()` acepte la etiqueta pegada, el atributo
+suelto, la línea del archivo `googleXXXX.html` o el token pelado, y guarda
+siempre el token. Ser permisivo aquí no es descuido: es negarse a castigar a
+alguien por seguir las instrucciones de la otra pantalla. Lo que sigue pareciendo
+HTML sin token extraíble se rechaza al guardar en vez de volver a servir basura.
+`seo-draft.test.ts` cubre las cinco formas que de verdad llegan del portapapeles.
+
+**Propiedad de dominio frente a prefijo de URL.** La que funciona es
+`sc-domain:nassican.com`, una **propiedad de dominio**: cubre el ápex, `www`,
+cualquier subdominio, y http y https, de una vez. Solo se puede verificar por
+DNS — y esa es la razón por la que las opciones de archivo HTML, etiqueta meta y
+Google Analytics no aparecen para ella: no se ofrecen para propiedades de
+dominio.
+
+Añadir `https://www.nassican.com/` como propiedad de prefijo es **redundante**
+para medir: ya está cubierto. El archivo `apps/web/public/google1be6c3bc11e05264.html`
+está puesto y la etiqueta meta se emite, así que se puede verificar si alguna
+integración exige una propiedad de prefijo — pero no hace falta para que el
+panel lea Search Console.
+
+De paso quedó comprobado que `gtag` se emite **dentro de `<head>`**, así que el
+método de verificación por Google Analytics también cumpliría su requisito.
+
 **Redirecciones.** Se resuelven en el catch-all, no en el proxy. El proxy corre
 en el edge y no alcanza a Prisma, y consultar una tabla en cada petición para
 pagar por la URL vieja ocasional sería el intercambio equivocado. Una
