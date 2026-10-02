@@ -31,6 +31,44 @@
 }
 
 /*
+  Dark mode: the same ramp, with its three faintest steps lifted to where they
+  can be read.
+
+  This was wrong from the start, and light mode is what exposed it: measuring the
+  light steps against their surfaces made it plain that nobody had measured the
+  dark ones. `text-neutral-600` — the faintest text *and* the most used class in
+  the panel — sat at 2.29 on a card, and `neutral-500` at 3.78. Both below AA, on
+  10 and 11 pixel text, in the place the operator reads numbers.
+
+  **The floor is set by the card, not by the page.** Muted text lands on both
+  #0a0a0a and #171717, and the lighter surface needs the lighter grey. It never
+  lands on #262626 — that chip only ever carries `text-neutral-100`, 6 uses out
+  of 6 — which is why the ramp is not pushed further than it is.
+
+  `neutral-700` moves for a different reason: it is the border of every button,
+  so it is a control boundary, and 1.4.11 wants 3:1 from one — not the 1.73 it
+  had. Its handful of uses as *text* were a misuse of a border step and went to
+  600 instead. A variable cannot be both a faint line and legible text, and
+  trying to make it both is what left placeholders at 1.73.
+
+  Every value is solved, not picked: the lowest grey that clears its target on
+  both surfaces, so the ramp stays as quiet as the rule allows.
+
+    neutral-700  #404040 -> #646464   borde  1.73 -> 3.03
+    neutral-600  #525252 -> #808080   texto  2.29 -> 4.54
+    neutral-500  #737373 -> #919191   texto  3.78 -> 5.69
+
+  The hover and focus borders ride the same two variables and only gain from it:
+  `hover:border-neutral-600` and `focus:border-neutral-600` were 2.29 against the
+  card they sit on, which is a focus ring you have to look for.
+*/
+:root.dark {
+  --color-neutral-700: #646464;
+  --color-neutral-600: #808080;
+  --color-neutral-500: #919191;
+}
+
+/*
   Light mode: the depth scale inverted, with the steps chosen for contrast
   rather than by mirroring the numbers.
 
@@ -55,7 +93,15 @@
   --color-neutral-950: #ffffff;
   --color-neutral-900: #eceef1;
   --color-neutral-800: #dadde3;
-  --color-neutral-700: #b4bac3;
+
+  /*
+    The button border, and the one step here that is not a surface: these are
+    outline buttons — a border, no fill, a label — so the border is the thing
+    that says "pressable" rather than "sentence". #b4bac3 gave 1.68 against the
+    raised surface, which is a button you find by guessing. #818891 is the
+    lightest value clearing 3:1 on all three surfaces.
+  */
+  --color-neutral-700: #818891;
 
   /* Text, faintest first */
   --color-neutral-600: #656c75;

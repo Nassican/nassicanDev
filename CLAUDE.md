@@ -253,11 +253,57 @@ resolvieron buscando el mínimo que pasa:
 El primero es la lección: un valor que pasa sobre la tarjeta blanca y falla
 sobre el fondo de página se ve perfecto en una maqueta y es ilegible en uso.
 
-**Un hallazgo que no toqué:** en el tema **oscuro**, `text-neutral-600` da 2.53 y
-`neutral-500` da 4.18 sobre `#0a0a0a` — ambos por debajo de AA, y así estaban
-desde el principio. No lo cambié porque alteraría el aspecto de los nueve
-módulos ya aprobados, y esa es una decisión tuya, no un arreglo que se cuela en
-un cambio de tema.
+**El oscuro tenía el mismo problema y no se había medido.** Está arreglado y
+medido abajo.
+
+#### El contraste, medido en los dos temas
+
+El modo claro se construyó midiendo cada paso contra sus tres superficies. Hacer
+eso dejó a la vista que **nadie había medido los del oscuro**, que llevaban así
+desde el primer día:
+
+| | antes | ahora |
+| --- | --- | --- |
+| `neutral-600` texto (127 usos, el más tenue) | 2.53 página · **2.29 ficha** | 5.01 · 4.54 |
+| `neutral-500` texto (102 usos) | 4.18 · **3.78** | 6.28 · 5.69 |
+| `neutral-700` borde de botón | 1.91 · **1.73** | 3.35 · 3.03 |
+
+Nada falla cuando esto está mal: no hay error, no hay aviso, y la pantalla
+parece deliberada. Lo único que lo encuentra es la aritmética, así que la
+aritmética vive en `lib/contrast.test.ts` — lee `globals.css` de verdad y falla
+nombrando el ratio que se habría desplegado. Se comprobó que muerde, poniendo el
+valor viejo a mano: `#525252 sobre #0a0a0a da 2.53, por debajo de 4.5`.
+
+Cuatro decisiones que el archivo no explica solo:
+
+- **El suelo lo pone la ficha, no la página.** El texto tenue cae sobre `#0a0a0a`
+  y sobre `#171717`, y la superficie más clara exige el gris más claro. Medir solo
+  contra el fondo de página da un valor que pasa y que en una tarjeta falla — el
+  mismo error que ya se cometió una vez en el modo claro.
+- **No se empuja más arriba porque el chip `#262626` no lleva texto tenue**: solo
+  `text-neutral-100`, 6 de 6 comprobados. Eso era una suposición, así que ahora es
+  una prueba — si alguien escribe texto apagado ahí, salta.
+- **`neutral-700` hacía dos trabajos y no podía hacer bien los dos.** Era el borde
+  de los botones *y* el color de los placeholders, a 1.73. Una variable no puede
+  ser a la vez línea tenue y texto legible, así que los siete usos como texto
+  —cuatro placeholders, «sin portada», el módulo pendiente del menú y el digest de
+  `error.tsx`— se movieron a 600, y el paso se quedó siendo borde. El único que no
+  se movió es la flecha `aria-hidden` de SEO, que es decoración.
+- **Los botones son de contorno** —borde, sin relleno, etiqueta—, así que el borde
+  es lo que dice «esto se pulsa» y no «esto es una frase». Por eso se le pide el
+  3:1 de 1.4.11, en los dos temas: en claro estaba a 1.68 y `#b4bac3` pasó a
+  `#818891`. **Es el cambio más visible de todo esto**: los botones en claro tienen
+  ahora un contorno bastante más marcado.
+
+Los valores están **resueltos, no elegidos**: cada uno es el gris más claro que
+pasa su umbral en todas sus superficies, de modo que la escala queda tan discreta
+como la regla permite. Los pasos de 400 arriba no se tocaron porque ya pasaban, y
+los diez colores de acento se midieron enteros —el peor es `red-400` a 5.63 sobre
+su fondo teñido— así que ahí no había nada que arreglar.
+
+Efecto colateral gratis: `hover:border-neutral-600` y `focus:border-neutral-600`
+montan las mismas variables. Estaban a 2.29 contra la ficha donde se dibujan, o
+sea un anillo de foco que había que buscar.
 
 El contrato del tema vive en `packages/shared/src/theme.ts` —solo la parte pura:
 nombre de cookie, duración y el script que corre antes del primer pintado—

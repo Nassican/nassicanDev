@@ -49,7 +49,7 @@ export default function CoverPicker({
           {url ? (
             <Image src={url} alt="" fill sizes="80px" className="object-cover" />
           ) : (
-            <span className="flex size-full items-center justify-center font-mono text-[10px] text-neutral-700">
+            <span className="flex size-full items-center justify-center font-mono text-[10px] text-neutral-600">
               sin portada
             </span>
           )}

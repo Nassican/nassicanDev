@@ -37,7 +37,7 @@ export default function PanelError({
           Reintentar es casi siempre suficiente.
         </p>
         {error.digest ? (
-          <p className="font-mono text-[10px] text-neutral-700">
+          <p className="font-mono text-[10px] text-neutral-600">
             {error.digest}
           </p>
         ) : null}

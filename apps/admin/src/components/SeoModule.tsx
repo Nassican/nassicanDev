@@ -20,7 +20,7 @@ import type {
 } from "@/app/(panel)/seo/actions";
 
 const field =
-  "w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-700 focus:border-neutral-600 focus:outline-none";
+  "w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
 const labelStyle =
   "font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500";
 const ghost =
