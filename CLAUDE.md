@@ -1177,6 +1177,47 @@ título, descripción y al menos un bloque; `publishPost` rechaza la publicació
 enumerando los que faltan. Es la regla principal de este documento trasladada
 del compilador al momento en que importa.
 
+#### Vista previa: la del sitio, no una imitación
+
+El botón de los tres editores abre el documento en nassican.com **renderizado
+por el renderizador del sitio**. Rehacer la página del artículo dentro del panel
+habría sido más rápido y habría empezado a mentir la primera vez que cambiara
+`Prose`, la tipografía o el tema — y una vista previa que se desvía de
+producción es peor que no tenerla, porque se confía en ella.
+
+Así que la capa de datos aprende una sola pregunta —`isPreview()`— y todo lo de
+abajo es la página real.
+
+**El enlace lleva una firma, no el secreto.** Una vista previa es una navegación
+del navegador: lo que lleve acaba en el historial, en cabeceras `Referer` y en
+registros. `REVALIDATE_SECRET` viaja en una cabecera `Authorization` y debe
+quedarse ahí; meterlo en una URL sería repartir permiso permanente de invalidar
+caché a cualquier cosa que registre la petición. El secreto **firma** y no
+viaja: lo que viaja es `{kind, id, expiresAt}` más su HMAC, inútil para otro
+documento e inútil del todo a los cinco minutos.
+
+`verifyPreviewToken` **falla cerrado** — lo contrario de `isCanonicalHost`,
+porque los costes son opuestos: allí lo malo es desindexar el sitio real, aquí
+es servir borradores a quien pregunte.
+
+El token lleva el **id**, no la ruta: un slug cambia mientras se edita, y un
+enlace que da 404 tras renombrar es un enlace en el que no se vuelve a confiar.
+La ruta lo resuelve al abrir.
+
+**La vista previa salta la caché, y esa es la mitad importante.**
+`unstable_cache` devolvería la versión anterior a la edición, que es justo la
+pregunta que se abrió la vista previa para responder.
+
+**Muestra lo guardado, no lo que se está escribiendo.** Lee la fila, así que una
+edición sin guardar no está. Lo dice el `title` del botón en lugar de dejar que
+se descubra preguntándose por qué no aparece el cambio.
+
+Cómo se verificó, con un borrador real: sin token el artículo da **404** y no
+aparece en el índice; un token inventado da **401**; uno caducado da **401 con
+su motivo**; el firmado redirige, pone la cookie y renderiza el borrador con su
+aviso; salir devuelve el 404; y `?back=https://evil.com` se ignora — la salida
+solo acepta rutas, porque una redirección abierta es una herramienta de phishing.
+
 #### Cómo llega un cambio al sitio público
 
 Las dos aplicaciones son despliegues distintos, así que `revalidateTag` en el

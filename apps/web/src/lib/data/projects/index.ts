@@ -6,6 +6,7 @@ import {
   locales,
   type Locale,
 } from "@nassican/shared";
+import { isPreview } from "@/lib/data/preview";
 import type { ProjectItem, ProjectTranslation } from "./types";
 
 /**
@@ -111,6 +112,12 @@ export async function getFeaturedProjects(): Promise<ProjectItem[]> {
 export async function getProject(
   slug: string,
 ): Promise<ProjectItem | undefined> {
+  // Same as articles: a preview reads the stored row, draft or not, uncached.
+  if (await isPreview()) {
+    const row = await db.project.findFirst({ where: { slug }, include });
+    return (row ? toProject(row as unknown as Row) : null) ?? undefined;
+  }
+
   const read = unstable_cache(
     async () => {
       const row = await db.project.findFirst({

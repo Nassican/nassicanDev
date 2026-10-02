@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageEditor from "@/components/PageEditor";
+import PreviewLink from "@/components/PreviewLink";
 import { getPageDraft } from "@/lib/pages";
 import { deletePage, publishPage, savePage, unpublishPage } from "../actions";
 
@@ -16,12 +17,15 @@ export default async function EditPagePage({ params }: PageProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      <Link
-        href="/contenido/paginas"
-        className="w-fit text-xs text-neutral-500 transition-colors hover:text-neutral-300"
-      >
-        ← Páginas
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          href="/contenido/paginas"
+          className="w-fit text-xs text-neutral-500 transition-colors hover:text-neutral-300"
+        >
+          ← Páginas
+        </Link>
+        <PreviewLink kind="page" id={id} />
+      </div>
 
       <PageEditor
         initial={page}

@@ -8,17 +8,20 @@ import Navigation from "@/components/Navigation";
 import SectionNavigator from "@/components/SectionNavigator";
 import Footer from "@/components/Footer";
 import Maintenance from "@/components/Maintenance";
+import PreviewBanner from "@/components/PreviewBanner";
 import { getCertificates } from "@/lib/data/certificates";
 import { getEducation } from "@/lib/data/education";
 import { getExperience } from "@/lib/data/experience";
 import { getProfile } from "@/lib/data/profile";
 import { getSeoSettings } from "@/lib/data/seo-settings";
 import { getNavigation, getSiteSettings } from "@/lib/data/site-config";
+import { isPreview } from "@/lib/data/preview";
 import { getDictionary } from "@/lib/i18n";
 import {
   htmlLang,
   isLocale,
   locales,
+  localePath,
   openGraphLocale,
   type Locale,
 } from "@/lib/i18n/config";
@@ -142,6 +145,8 @@ export default async function RootLayout({
   const locale = raw as Locale;
   const t = getDictionary(locale);
 
+  const preview = await isPreview();
+
   const [profile, experience, education, certificates, settings, nav, seo] =
     await Promise.all([
       getProfile(),
@@ -206,6 +211,7 @@ export default async function RootLayout({
               brandLine={settings.brandLine}
               copyrightName={settings.copyrightName}
             />
+            {preview ? <PreviewBanner t={t} back={localePath(locale, "/")} /> : null}
             {settings.showSectionNavigator ? (
               <SectionNavigator
                 previousLabel={t.nav.previousSection}

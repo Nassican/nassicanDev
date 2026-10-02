@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PostEditor from "@/components/PostEditor";
+import PreviewLink from "@/components/PreviewLink";
 import { getPostDraft } from "@/lib/posts";
 import { deletePost, publishPost, savePost, unpublishPost } from "../actions";
 
@@ -16,12 +17,15 @@ export default async function EditPostPage({ params }: PageProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      <Link
-        href="/contenido/blogs"
-        className="w-fit text-xs text-neutral-500 transition-colors hover:text-neutral-300"
-      >
-        ← Blogs
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          href="/contenido/blogs"
+          className="w-fit text-xs text-neutral-500 transition-colors hover:text-neutral-300"
+        >
+          ← Blogs
+        </Link>
+        <PreviewLink kind="post" id={id} />
+      </div>
 
       <PostEditor
         initial={post}

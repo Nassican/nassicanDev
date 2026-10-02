@@ -176,6 +176,12 @@ export const es = {
     home: "Inicio",
   },
 
+  preview: {
+    label: "Vista previa",
+    note: "Estás viendo un borrador. Nadie más lo ve así.",
+    exit: "Salir de la vista previa",
+  },
+
   maintenance: {
     title: "Volvemos enseguida",
     body: "Estamos haciendo algunos ajustes en el sitio. Vuelve a intentarlo en unos minutos.",

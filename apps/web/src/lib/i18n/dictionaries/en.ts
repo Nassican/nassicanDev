@@ -176,6 +176,12 @@ export const en: Dictionary = {
     home: "Home",
   },
 
+  preview: {
+    label: "Preview",
+    note: "You are looking at a draft. Nobody else sees this.",
+    exit: "Leave preview",
+  },
+
   maintenance: {
     title: "Back in a moment",
     body: "The site is being updated. Please check back in a few minutes.",

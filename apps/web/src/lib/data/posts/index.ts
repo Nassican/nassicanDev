@@ -6,6 +6,7 @@ import {
   locales,
   type Locale,
 } from "@nassican/shared";
+import { isPreview } from "@/lib/data/preview";
 import type { Post, PostTranslation } from "./types";
 
 /**
@@ -88,6 +89,18 @@ export const getPublishedPosts = unstable_cache(
 );
 
 export async function getPost(slug: string): Promise<Post | undefined> {
+  /**
+   * A preview skips both the status filter and the cache.
+   *
+   * The cache is the important half: `unstable_cache` would hand back the
+   * version from before the edit, which is precisely the question the preview
+   * was opened to answer.
+   */
+  if (await isPreview()) {
+    const row = await db.post.findFirst({ where: { slug }, include: postWithContent });
+    return (row ? toPost(row as PostRow) : null) ?? undefined;
+  }
+
   const read = unstable_cache(
     async () => {
       const row = await db.post.findFirst({
