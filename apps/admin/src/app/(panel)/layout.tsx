@@ -1,6 +1,6 @@
 import PanelShell from "@/components/PanelShell";
-import { listCommands } from "@/lib/commands";
 import { requireUser } from "@/lib/session";
+import { loadCommands } from "./actions";
 
 /**
  * Everything inside this route group is behind the session check. `requireUser`
@@ -15,11 +15,11 @@ import { requireUser } from "@/lib/session";
 export default async function PanelLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [user, commands] = await Promise.all([requireUser(), listCommands()]);
+  const user = await requireUser();
 
   return (
     <PanelShell
-      commands={commands}
+      loadCommands={loadCommands}
       user={{
         name: user.name,
         email: user.email,

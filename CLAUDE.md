@@ -1149,17 +1149,67 @@ Tres decisiones que el código no explica solo:
 - **El filtro dice cuántas filas escondió.** Una lista que oculta en silencio es
   una lista que te hace creer que perdiste algo.
 
-**⌘K: una lista, dos orígenes.** `components/CommandPalette.tsx` saca los
-módulos de los mismos datos de `lib/navigation.ts` que dibuja el menú —así un
-módulo nuevo aparece aquí el día que aparece allí, sin una segunda lista que
-mantener— y el contenido se resuelve **una vez** en el servidor al renderizar el
-armazón (`lib/commands.ts`). No hay búsqueda contra la base por cada tecla: a la
-latencia de esta base eso sería un teclado que se arrastra.
+**⌘K: los módulos son locales, el contenido se pide.** `components/CommandPalette.tsx`
+saca los módulos de los mismos datos de `lib/navigation.ts` que dibuja el menú
+—así un módulo nuevo aparece aquí el día que aparece allí, sin una segunda lista
+que mantener— y no cuesta ningún viaje, que es lo que hace que ⌘K sea instantáneo
+para aquello en lo que más se usa. El contenido llega de una acción de servidor
+la **primera** vez que se abre la paleta y se queda el resto de la pestaña. No hay
+búsqueda contra la base por cada tecla: a la latencia de esta base eso sería un
+teclado que se arrastra.
+
+Antes bajaba con cada render del armazón, y conviene contar bien lo que costaba
+porque es fácil equivocarse en los dos sentidos. Medido suelto, `listCommands()`
+son **217 ms** con seis filas de contenido en toda la base —tres `findMany`, dos
+de ellos arrastrando una relación, o sea cinco viajes; el coste nunca fueron las
+filas— pero medido **de punta a punta no cambiaba nada**: corría en el mismo
+`Promise.all` que `requireUser()` y en paralelo con las consultas de la propia
+página, así que estaba escondido detrás de ellas. Las medianas por página antes y
+después son las mismas dentro del ruido.
+
+Se dejó perezoso de todas formas, y por razones que no son la latencia de hoy:
+quita cinco viajes a la base por cada vista de página, saca de la carga útil de
+*todas* las páginas el título de todos los borradores, y es lo único que escala —
+el coste del layout crece con el contenido mientras el de la página no, así que
+algún día sí sería el camino crítico. La lección a no repetir: **medir una función
+suelta dice lo que cuesta, no lo que tarda la página.**
+
+Mientras el contenido viene, la paleta dice «Buscando en el contenido…» en vez de
+«nada coincide», que sería una mentira que se corrige sola un instante después.
 
 Lo que empieza por lo que escribiste gana a lo que lo lleva por el medio. Y el
 índice seleccionado se recorta **al renderizar**, no en un efecto: cuando la
 lista se encoge bajo el cursor, un efecto dibujaría el hueco vacío una vez antes
 de corregirse.
+
+#### Nada de `backdrop-filter` en una capa a pantalla completa
+
+Esto es lo que de verdad hacía que escribir en la paleta se arrastrara, y no la
+base de datos.
+
+`backdrop-blur-sm` convierte su elemento en una *raíz de fondo*: el navegador
+tiene que capturar todo lo pintado por debajo, aplicarle un desenfoque gaussiano
+a esa captura y recomponer — a lo ancho de toda la ventana, en **cada fotograma
+en que algo por encima cambie**, que en la paleta es cada tecla. Con GPU es un
+shader y casi no se nota. Con la aceleración por hardware apagada es una
+convolución en CPU sobre varios millones de píxeles, y entonces sí se nota.
+
+Había dos, las dos fuera:
+
+- **La paleta**, por lo anterior. Ahora es un negro translúcido plano, que
+  compone gratis y dice lo mismo.
+- **El velo del cajón móvil**, por una razón más puntiaguda: ese **se anima** con
+  `transition-opacity`, así que el desenfoque se recalculaba en cada fotograma de
+  la transición — en el único dispositivo donde eso importa.
+
+De paso se fueron dos cosas del mismo saco: `shadow-2xl` pasó a `shadow-lg` (un
+radio de 50 px rasterizado en CPU no es gratis) y las filas perdieron su
+`transition-colors`, que hacía que el resaltado fuera por detrás de la flecha al
+navegar con el teclado.
+
+Y una micro-optimización que además deja el código más limpio: plegar una
+etiqueta con `fold()` asigna tres cadenas, así que se pliega **una vez por lista**
+y no una vez por etiqueta por tecla. Lo que corre al teclear solo compara.
 
 **Cambios sin guardar.** `lib/use-unsaved.ts`. `isDirty` compara como JSON
 canónico y no por referencia, porque los editores reconstruyen su borrador en

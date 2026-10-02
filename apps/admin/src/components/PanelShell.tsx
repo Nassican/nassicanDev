@@ -164,12 +164,16 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
  */
 export default function PanelShell({
   user,
-  commands,
+  loadCommands,
   children,
 }: {
   user: PanelUser;
-  /** Resolved on the server so the palette opens with everything already in it. */
-  commands: Command[];
+  /**
+   * Fetched by the palette the first time it opens, not resolved here. Resolving
+   * it here charged every page in the panel 217 ms for a list most pages never
+   * showed.
+   */
+  loadCommands: () => Promise<Command[]>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -203,7 +207,7 @@ export default function PanelShell({
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
-      <CommandPalette content={commands} />
+      <CommandPalette load={loadCommands} />
 
       {/* ----------------------------- escritorio ------------------------- */}
       <aside className="hidden shrink-0 border-r border-neutral-900 lg:block lg:w-60">
@@ -217,7 +221,13 @@ export default function PanelShell({
       <div
         aria-hidden
         onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity lg:hidden ${
+        /*
+          Dimmed, not blurred, and for a sharper reason than in the palette: this
+          one *animates*. A `backdrop-filter` has to re-blur the whole viewport
+          on every frame of the fade, so the drawer opened with a stutter on
+          exactly the device where that matters.
+        */
+        className={`fixed inset-0 z-40 bg-black/60 transition-opacity lg:hidden ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
