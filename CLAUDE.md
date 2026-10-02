@@ -221,6 +221,60 @@ antes de cerrarlo, y ese es justo el renderizado en cascada del que avisa el
 compilador de React. Como efecto secundario gratis, también se cierra con el
 botón de atrás, que ningún manejador de clic llega a ver.
 
+#### Modo claro: la escala remapeada, no seiscientas clases
+
+El panel se escribe en una paleta y se lee en dos. Cada superficie, línea y
+color de texto de sus veinte componentes es una clase `neutral-N`, y **N se usa
+como profundidad, no como oscuridad literal**: 950 es la superficie más honda,
+900 las líneas, 500/600 el texto apagado, 100/200 el que de verdad se lee.
+Seiscientas apariciones.
+
+Así que el modo claro no son seiscientas ediciones: es la escala redefinida.
+Tailwind v4 emite `var(--color-neutral-900)` en lugar del hex, así que sobre­
+escribir esas variables bajo `:root:not(.dark)` voltea todas las utilidades de
+golpe y ningún componente sabe que existe un segundo tema. Se comprobó en la
+hoja generada: `.bg-neutral-950{background-color:var(--color-neutral-950)}`.
+
+**El coste, dicho claro:** en `globals.css`, `bg-neutral-950` significa «la
+superficie más honda», que en claro es blanco. Quien lea un componente esperando
+un gris oscuro se confundirá un momento, y el comentario de ese archivo es la
+disculpa. La alternativa era reescribir cada componente y revisar nueve módulos
+a ojo.
+
+**Los pasos están medidos, no elegidos a ojo.** Cada color de texto se contrastó
+contra las tres superficies sobre las que puede caer, y los dos que fallaban se
+resolvieron buscando el mínimo que pasa:
+
+| | antes | ahora |
+| --- | --- | --- |
+| `neutral-600` (114 usos, el más tenue) | 4.59 en tarjeta, **4.32 y 3.95 FALLA** | 5.31 · 5.00 · 4.57 |
+| `green-400` sobre su fondo teñido | **4.49 FALLA** | 4.73 |
+
+El primero es la lección: un valor que pasa sobre la tarjeta blanca y falla
+sobre el fondo de página se ve perfecto en una maqueta y es ilegible en uso.
+
+**Un hallazgo que no toqué:** en el tema **oscuro**, `text-neutral-600` da 2.53 y
+`neutral-500` da 4.18 sobre `#0a0a0a` — ambos por debajo de AA, y así estaban
+desde el principio. No lo cambié porque alteraría el aspecto de los nueve
+módulos ya aprobados, y esa es una decisión tuya, no un arreglo que se cuela en
+un cambio de tema.
+
+El contrato del tema vive en `packages/shared/src/theme.ts` —solo la parte pura:
+nombre de cookie, duración y el script que corre antes del primer pintado—
+porque las dos aplicaciones necesitan exactamente eso y ninguna lo posee. La
+mitad que toca el DOM se queda en cada app a propósito: ese paquete no tiene la
+librería `dom` porque `packages/db` lo importa y ese código es `server-only`.
+
+Las dos apps **no comparten la cookie**: `nassican.com` y `app.nassican.com` son
+orígenes distintos, así que el mismo nombre guarda una elección en cada uno. Es
+lo que se quiere — leer a oscuras de noche no dice nada de cómo quieres editar a
+mediodía.
+
+Y hay prueba. Mover ese archivo ya lo rompió una vez: un heredoc se comió la
+barra de `\s`, el patrón de la cookie compiló como `s*` y no habría encontrado
+nunca `; theme=dark`. Nada habría lanzado un error — el panel habría destellado
+el tema equivocado en cada carga, para siempre. `theme.test.ts` fija eso.
+
 `app/not-found.tsx` queda **fuera** del grupo `(panel)`, así que un 404 nunca
 ejecuta `requireUser()` ni dibuja el árbol de módulos alrededor. Una dirección
 equivocada responde igual haya sesión o no, y quien acierte una URL a ciegas no
@@ -801,6 +855,25 @@ Ninguna salió de leer la referencia; todas salieron de llamar a la API.
 - **De los presupuestos solo se muestra el límite**, que es lo que Wallet
   expone. Lo consumido se calcularía cruzando movimientos y categorías, y una
   cifra propia que discrepe de la que ves en la app es peor que no dar cifra.
+
+#### Las tarjetas de crédito engañan, y el módulo lo dice
+
+Wallet calcula una tarjeta en modo `creditCardManual` como **la suma pelada de
+sus movimientos**. Con `initial = 0` —que es como quedan si nadie lo ajusta— el
+saldo solo refleja lo registrado desde el primer movimiento: lo que se debía
+antes no está en ninguna parte del cálculo, y la cifra parece mucho menor de lo
+que es.
+
+Pasó, y costó una pregunta: RappiCard mostraba 583.994,96 debiendo bastante más.
+El espejo era fiel —cuadraba al céntimo con Wallet en las seis cuentas, con los
+mismos conteos de registros—, así que el desfase estaba en Wallet.
+
+Dos cosas salieron de ahí. Una tarjeta muestra **«debes X»** en lugar de un
+negativo mudo, porque un signo menos junto a un saldo de ahorros invita a la
+lectura contraria. Y `understatesDebt()` marca la huella exacta del problema —
+tarjeta, saldo inicial 0, movimientos > 0 — en vez de dejar que se descubra
+comparando con la app del banco. Se arregla ajustando el saldo inicial **en
+Wallet**: este módulo no escribe.
 
 El token va en `WALLET_API_TOKEN` (requiere plan Premium) y solo en el entorno
 del panel. Se comprobó que su valor no aparece en ninguno de los 47 bundles de

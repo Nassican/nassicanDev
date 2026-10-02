@@ -22,6 +22,7 @@ import {
   BsX,
 } from "react-icons/bs";
 import SignOutButton from "@/components/SignOutButton";
+import ThemeToggle from "@/components/ThemeToggle";
 import { activeHref, navigation, type NavEntry, type NavIcon } from "@/lib/navigation";
 
 const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
@@ -268,7 +269,10 @@ export default function PanelShell({
               </p>
             </div>
           </div>
-          <SignOutButton />
+          <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggle />
+            <SignOutButton />
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>

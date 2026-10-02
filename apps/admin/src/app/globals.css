@@ -1,8 +1,26 @@
 @import "tailwindcss";
 
-/* The panel is dark only: one operator, one environment, no toggle to keep in
-   sync with the public site's cookie contract. */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  The panel is written in one palette and reads in two.
+
+  Every surface, line and text colour in these twenty components is a
+  `neutral-N` class, and N is used as a *depth* rather than as a literal
+  darkness: 950 is the deepest surface, 900 the lines, 500/600 the muted text,
+  100/200 the text you actually read. Six hundred of them.
+
+  So light mode is not six hundred edits — it is the ramp redefined. Tailwind v4
+  emits `var(--color-neutral-900)`, so overriding those variables under a
+  selector flips every utility at once, and no component knows a second theme
+  exists.
+
+  The cost, stated plainly: in this file `bg-neutral-950` means "the deepest
+  surface", which in light mode is white. Anyone reading a component and
+  expecting a literal dark grey will be briefly confused, and this comment is
+  the apology. The alternative was rewriting every component and re-checking
+  nine modules by eye.
+*/
 
 :root {
   color-scheme: dark;
@@ -10,6 +28,68 @@
   --foreground: #ededed;
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", Consolas, monospace;
+}
+
+/*
+  Light mode: the depth scale inverted, with the steps chosen for contrast
+  rather than by mirroring the numbers.
+
+  The steps are not guesses: every text colour was measured against all three
+  surfaces it can sit on, and the two that failed were solved for.
+
+  `text-neutral-600` is the most used class in the panel (114 times) and the
+  faintest text, so it decides whether light mode is readable at all. #6f7680
+  cleared AA on a white card (4.59) and **failed** on the page background (4.32)
+  and on a raised surface (3.95) — a value that looks fine in a mockup and is
+  not. #656c75 clears 4.5 on all three. Mirroring the ramp arithmetically would
+  have landed near #d4d4d4: invisible.
+
+  Same for green-400 on its tinted background: 4.49, missing AA by a hundredth.
+*/
+:root:not(.dark) {
+  color-scheme: light;
+  --background: #f7f8fa;
+  --foreground: #16191d;
+
+  /* Surfaces and lines */
+  --color-neutral-950: #ffffff;
+  --color-neutral-900: #eceef1;
+  --color-neutral-800: #dadde3;
+  --color-neutral-700: #b4bac3;
+
+  /* Text, faintest first */
+  --color-neutral-600: #656c75;
+  --color-neutral-500: #5b626c;
+  --color-neutral-400: #4a5159;
+  --color-neutral-300: #343a41;
+  --color-neutral-200: #23282e;
+  --color-neutral-100: #16191d;
+  --color-neutral-50: #0b0d10;
+
+  /*
+    Accents follow the same convention: `-950` is a tinted background, `-900` a
+    border, `-300`/`-400` the text on top. Inverted the same way, and the text
+    steps darkened deliberately — green-400 on white is around 2:1 and would
+    fail every contrast check while technically "working".
+  */
+  --color-green-950: #e7f6ee;
+  --color-green-900: #b8e2cb;
+  --color-green-400: #147c3b;
+  --color-green-300: #166534;
+
+  --color-red-950: #fdeceb;
+  --color-red-900: #f5c4c0;
+  --color-red-400: #b91c1c;
+  --color-red-300: #991b1b;
+
+  --color-amber-950: #fdf4e3;
+  --color-amber-900: #f0ddb0;
+  --color-amber-400: #a16207;
+  --color-amber-300: #854d0e;
+
+  --color-blue-950: #eaf2fd;
+  --color-blue-300: #1d4ed8;
+  --color-blue-200: #1e3a8a;
 }
 
 @theme inline {

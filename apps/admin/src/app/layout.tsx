@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { THEME_COOKIE, themeInitScript } from "@nassican/shared";
 import "./globals.css";
 
 /**
@@ -16,11 +18,26 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  /**
+   * The class is decided on the server from the cookie, so the first painted
+   * frame is already correct. The inline script below is the belt: it runs
+   * before paint on a response that was cached without the cookie, and on a
+   * back-navigation restored from the browser's own cache.
+   *
+   * Reading a cookie opts this layout out of static rendering, which costs
+   * nothing here — every page behind it is behind a session check anyway.
+   */
+  const stored = (await cookies()).get(THEME_COOKIE)?.value;
+  const theme = stored === "light" ? "light" : "dark";
+
   return (
-    <html lang="es" className="dark">
+    <html lang="es" className={theme === "dark" ? "dark" : undefined}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
+      </head>
       <body className="antialiased">{children}</body>
     </html>
   );

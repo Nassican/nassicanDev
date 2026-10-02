@@ -49,10 +49,29 @@ export type FinanceAccount = {
   accountType: string;
   currencyCode: string;
   currentBalance: number;
+  /** What the account was worth before the first recorded movement. */
+  initialBalance: number;
   archived: boolean;
   excludeFromStats: boolean;
   recordCount: number;
 };
+
+/** Wallet's own type string for a card. */
+export const isCreditCard = (account: FinanceAccount) =>
+  account.accountType === "CreditCard";
+
+/**
+ * A credit card whose starting balance was never entered.
+ *
+ * Wallet computes a card in `creditCardManual` mode as the plain sum of its
+ * records, so with `initial = 0` the balance is only what has been written down
+ * since tracking began. If there was debt before the first record, it is in no
+ * part of the calculation - and the figure looks far too small without anything
+ * saying why. This is the fingerprint of that, and it is worth naming in the
+ * interface rather than leaving someone to notice it against their bank app.
+ */
+export const understatesDebt = (account: FinanceAccount) =>
+  isCreditCard(account) && account.initialBalance === 0 && account.recordCount > 0;
 
 export type FinanceCategory = {
   id: string;

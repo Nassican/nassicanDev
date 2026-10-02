@@ -1,19 +1,21 @@
-export type Theme = "dark" | "light";
-
 /**
- * What the site shows before anyone has chosen anything: dark, and the system
- * preference is deliberately not consulted.
+ * The site's half of the theme contract.
  *
- * The panel can change it, so this is now the fallback rather than the answer
- * - what the client reads before hydration, and what the inline script uses
- * if reading the cookie throws.
+ * The pure parts — cookie name, lifetime, and the inline script — moved to
+ * `@nassican/shared` when the panel grew a light mode, because two copies of a
+ * cookie contract is two contracts drifting apart. They are re-exported here so
+ * every import inside `apps/web` keeps working untouched, the same arrangement
+ * `lib/i18n/config.ts` and `lib/data/content.ts` already use.
+ *
+ * What stays is everything that touches the DOM: `packages/shared` has no `dom`
+ * lib because `packages/db` imports it and that code is `server-only`.
+ *
+ * The move was verified the way the `robots.txt` change was — the generated
+ * script came out byte-identical for both fallbacks and for no argument at all.
  */
-export const DEFAULT_THEME: Theme = "dark";
+import { DEFAULT_THEME, THEME_COOKIE, COOKIE_MAX_AGE, type Theme } from "@nassican/shared";
 
-export const THEME_COOKIE = "theme";
-
-/** One year, so the choice survives well beyond a single session. */
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+export { DEFAULT_THEME, THEME_COOKIE, themeInitScript, type Theme } from "@nassican/shared";
 
 /**
  * Event both `ThemeToggle` instances (navbar and mobile drawer) listen to, so
@@ -52,16 +54,3 @@ export function subscribeToTheme(onChange: () => void) {
   window.addEventListener(THEME_EVENT, onChange);
   return () => window.removeEventListener(THEME_EVENT, onChange);
 }
-
-/**
- * Runs in `<head>` before first paint, so the page never flashes the wrong
- * theme. Self-contained on purpose: it executes long before any bundle loads,
- * so it cannot import from this module.
- *
- * It also adopts the value the previous `localStorage`-based toggle left
- * behind, so returning visitors keep the theme they had chosen.
- *
- * The default arrives as an argument rather than being read here: the script
- * is a string assembled on the server, and the panel decides what it says.
- */
-export const themeInitScript = (fallback: Theme = DEFAULT_THEME) => `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)${THEME_COOKIE}=(dark|light)/);var t=m&&m[1];if(!t){var l=localStorage.getItem("${THEME_COOKIE}");if(l==="dark"||l==="light"){t=l;document.cookie="${THEME_COOKIE}="+t+";path=/;max-age=${COOKIE_MAX_AGE};samesite=lax";}}if(!t){t="${fallback === "light" ? "light" : "dark"}";}document.documentElement.classList.toggle("dark",t==="dark");}catch(e){document.documentElement.classList.add("dark");}})();`;

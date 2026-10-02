@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   formatMoney,
+  isCreditCard,
   paramsFromFilters,
   sortLabels,
   typeLabels,
+  understatesDebt,
   type FinanceFilters,
   type FinanceSummary,
   type SortColumn,
@@ -152,16 +154,41 @@ export default function FinanceModule({
                   {a.name}
                   {a.archived ? " · archivada" : ""}
                 </button>
-                <span className="text-lg font-semibold tabular-nums">
-                  {formatMoney(a.currentBalance, a.currencyCode)}
+                <span
+                  className={`text-lg font-semibold tabular-nums ${
+                    isCreditCard(a) && a.currentBalance < 0 ? "text-amber-400" : ""
+                  }`}
+                >
+                  {/* A card's negative balance is a debt, so it says so. A bare
+                      minus sign next to a savings balance invites exactly the
+                      wrong reading. */}
+                  {isCreditCard(a) && a.currentBalance < 0
+                    ? `debes ${formatMoney(Math.abs(a.currentBalance), a.currencyCode)}`
+                    : formatMoney(a.currentBalance, a.currencyCode)}
                 </span>
                 <span className="text-[11px] text-neutral-600">
                   {a.accountType} · {num.format(a.recordCount)} mov.
                   {a.excludeFromStats ? " · fuera de estadísticas" : ""}
                 </span>
+                {understatesDebt(a) ? (
+                  <span
+                    className="text-[10px] text-amber-400/80"
+                    title="Wallet calcula esta tarjeta como la suma de sus movimientos. Con saldo inicial 0, lo que debías antes del primero no está contado."
+                  >
+                    saldo inicial 0 · puede quedarse corto
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
+          {accounts.some(understatesDebt) ? (
+            <p className="text-[11px] text-neutral-600">
+              Las tarjetas marcadas tienen saldo inicial 0 en Wallet, así que su
+              saldo es solo la suma de los movimientos registrados: lo que
+              debías antes del primero no está contado. Se corrige ajustando el
+              saldo inicial en Wallet, no aquí — este módulo no escribe.
+            </p>
+          ) : null}
         </section>
       ) : null}
 

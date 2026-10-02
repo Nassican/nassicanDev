@@ -374,6 +374,7 @@ export async function getFinances(
       accountType: a.accountType,
       currencyCode: a.currencyCode,
       currentBalance: Number(a.currentBalance),
+      initialBalance: Number(a.initialBalance),
       archived: a.archived,
       excludeFromStats: a.excludeFromStats,
       recordCount: a.recordCount,
