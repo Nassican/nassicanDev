@@ -21,15 +21,24 @@ export async function runAnalyticsSync(days: number): Promise<ActionResult> {
   const result = await syncAnalytics(days);
   revalidatePath("/analitica");
 
-  return result.ok
-    ? {
-        ok: true,
-        message:
-          result.days === 0
-            ? `Sin datos entre ${result.from} y ${result.to}. Si la etiqueta se instaló hace poco, aún no hay nada que traer.`
-            : `${result.days} días traídos (${result.from} → ${result.to}).`,
-      }
-    : { ok: false, message: result.reason };
+  if (!result.ok) return { ok: false, message: result.reason };
+
+  // A zero now explains itself: GA4 was asked whether the property has data at
+  // all, so the message distinguishes "this range is empty" from "nothing has
+  // ever arrived".
+  if (result.days === 0) {
+    return {
+      ok: true,
+      message:
+        result.note ??
+        `Sin datos entre ${result.from} y ${result.to}.`,
+    };
+  }
+
+  return {
+    ok: true,
+    message: `${result.days} días traídos (${result.from} → ${result.to}).`,
+  };
 }
 
 /**

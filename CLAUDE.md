@@ -233,11 +233,44 @@ actualización de `better-auth`, ejecuta `npm run check:auth --workspace
 Así se encontró `account.issuer`, y de la peor manera: por un error en tiempo
 de ejecución en el callback de OAuth.
 
-El login pide además permisos de solo lectura sobre Analytics y Search Console:
-el `refreshToken` que Google devuelve queda en `accounts` y es lo que hace
-innecesaria una service account. Por eso el proveedor lleva `accessType:
-"offline"` y `prompt: "consent"` — sin ambos, Google entrega el refresh token
-solo en el primer consentimiento y nunca más.
+#### El token de Google caduca a los 7 días, y esto se dio por supuesto mal
+
+Este documento afirmaba que el `refreshToken` guardado en `accounts` hacía
+innecesaria una service account. **Era falso**, y el coste fue semanas de
+Analítica y Search Console vacías sin que nada lo dijera.
+
+Una app OAuth **externa en estado «Testing»** recibe refresh tokens que
+**caducan a los 7 días**. La única excepción son los grants cuyos scopes son
+exclusivamente de perfil (`openid`, `userinfo.email`, `userinfo.profile`) — y
+`analytics.readonly` no lo es.
+
+Lo que lo hizo invisible: **entrar al panel siguió funcionando siempre**, porque
+cada login emite un token nuevo. Lo que muere a los 7 días es el uso del token
+guardado *en segundo plano*, que es de lo único que viven las dos
+sincronizaciones. El panel se veía sano con sus dos integraciones caídas.
+
+La salida no es publicar la app. Publicar exige política de privacidad,
+condiciones del servicio y verificación de scopes sensibles — un trámite de días
+para una aplicación cuyo único usuario es el dueño de los datos. **El
+consentimiento OAuth existe para actuar en nombre de terceros, y aquí no hay
+terceros.**
+
+Por eso `lib/google.ts` prefiere una **service account**
+(`GOOGLE_SERVICE_ACCOUNT_KEY`) y solo cae al token del operador si no hay clave.
+Firma su propia aserción RS256 con `node:crypto`: es una firma, y la regla del
+repositorio es no añadir dependencias de runtime sin motivo.
+
+Separar las dos cosas arregla las dos: si las lecturas van por la service
+account, el login puede quedarse con los tres scopes de perfil, que **son
+justamente los de la excepción** — y entonces su propio token deja de caducar
+aunque la app siga sin publicar. Quitar `analytics.readonly` y
+`webmasters.readonly` de `socialProviders.google.scope` es el último paso, **y
+solo después de confirmar que la service account lee de verdad**: mientras no lo
+haga, el token del operador es el único plan B.
+
+El proveedor conserva `accessType: "offline"` y `prompt: "consent"` mientras ese
+plan B exista — sin ambos, Google entrega el refresh token solo en el primer
+consentimiento y nunca más.
 
 ## Regla principal: todo cambio lleva su traducción
 
@@ -462,6 +495,17 @@ Cinco informes estrechos en un solo `batchRunReports` en vez de uno ancho:
 cruzar todas las dimensiones a la vez multiplica las filas sin que nadie
 lea nunca la combinación. GA4 admite justo cinco por lote.
 
+**Un `ok` con 0 filas no es una respuesta.** Era indistinguible de una
+sincronización correcta sobre un rango vacío, y fue la otra mitad de por qué
+esto tardó en verse: las primeras ejecuciones pidieron un rango que terminaba el
+día en que se instaló la etiqueta, así que cero era lo correcto y nadie lo supo.
+Ahora, cuando la ventana vuelve vacía, `explainEmptyRange` hace **una** consulta
+más —solo en ese caso— preguntando desde 2020, y distingue «este rango está
+vacío, el primer día con sesiones es el X» de «la propiedad no ha recibido datos
+nunca». La nota se guarda en el `sync_run` junto al estado `ok`, igual que la
+sincronización parcial de Vercel, porque es lo que hace legible un cero un mes
+después.
+
 El idioma de cada ruta se deduce del prefijo, no se le pide a GA4, que no
 sabe que nuestro `/en` significa algo. La duración media y la tasa de
 interacción se ponderan por sesiones al sumarlas entre días, que es la
@@ -677,6 +721,90 @@ Dos cosas que el código no explica solo:
 Antes que nada, Web Analytics tiene que estar **activado en el proyecto de
 Vercel**: `@vercel/analytics` ya está en el sitio, pero con el interruptor
 apagado no se guarda nada y la API responde vacío.
+
+### Finanzas: espejo de solo lectura de Wallet
+
+En `app.nassican.com/finanzas`. Lee las finanzas personales de Wallet
+(BudgetBakers) y **nunca escribe en Wallet**.
+
+#### Por qué un espejo y no llamadas en vivo
+
+La API da **300 peticiones por hora** y admite **dos condiciones de filtro como
+máximo**, con un único orden. El módulo existe para cruzar fecha, monto,
+categoría y cuenta a la vez: eso no cabe en una petición, así que en vivo habría
+que traer páginas y ordenar en memoria en cada carga de pantalla.
+
+Espejado es SQL corriente — el mismo patrón que ya siguen GA4, Search Console y
+Vercel aquí. La cifra que lo zanja: **una sincronización completa de 1.346
+movimientos cuesta 10 peticiones**, así que la frescura sale casi gratis y el
+presupuesto horario no se toca.
+
+#### Solo lectura por construcción, y con prueba
+
+`lib/wallet-client.ts` es la única puerta y abre en un sentido. Tres cosas hacen
+que escribir sea imposible, no desaconsejable:
+
+1. `read()` **no tiene parámetro `method`**: `"GET"` está escrito dentro.
+2. **No se exporta nada genérico.** La superficie son cuatro lectores tipados;
+   quien llama no alcanza el `fetch`, así que no alcanza otro verbo.
+3. `import "server-only"`, que además es lo que mantiene el token fuera del
+   bundle del navegador — por construcción, no por acordarse.
+
+Y como un comentario que dice «no añadas escrituras» sobrevive hasta la primera
+persona con prisa, **hay una prueba que lee el fuente y falla** si esa forma se
+rompe: verbos distintos de GET, un `method` tomado de una variable, una
+exportación genérica nueva, o `readRecords` perdiendo su parámetro obligatorio.
+`npm test` la corre.
+
+#### Cuatro cosas que la documentación no decía
+
+Ninguna salió de leer la referencia; todas salieron de llamar a la API.
+
+- **Hay una ventana de fechas oculta.** Sin pedir rango, `/records` aplica
+  **tres meses** por su cuenta y lo confiesa en `appliedRecordDateFilters`. Un
+  espejo que confiara en el valor por defecto guardaría un trimestre y lo
+  llamaría historial completo. Por eso `readRecords(since, …)` exige la fecha:
+  la omisión no se puede cometer.
+- **`limit` no es 200 en todos los endpoints.** La referencia dice «max: 200»
+  para los listados; `/budgets` responde `400 limit must be at most 20`. Los
+  demás sí aceptan 200. Medido endpoint por endpoint después de que una
+  sincronización muriera con el número documentado.
+- **`createdAt` no siempre viene.** Un registro llegó sin él tras 460 correctos,
+  y la columna obligatoria convirtió eso en sincronización fallida. Ahora los
+  timestamps son nulables: un espejo no puede exigir un campo que la fuente
+  trata como opcional, e inventar una fecha sería peor que admitir que no se
+  sabe.
+- **El orden por defecto es del más nuevo al más viejo**, que importa para
+  paginar correctamente.
+
+#### Decisiones del modelo
+
+- **Dinero en `numeric`, nunca `float`.** La API manda números JSON
+  (`-78.4`); guardarlos como dobles es cómo un saldo acaba en `.00000000001`.
+- **El signo se conserva**: un gasto es negativo porque así lo manda Wallet. No
+  se normaliza a positivo con una columna de signo — la convención de la fuente
+  es lo único que un espejo no debe reinterpretar.
+- **Sin claves foráneas entre las tablas del espejo.** Son datos de otro: una
+  cuenta puede desaparecer de la API con sus movimientos aún presentes, y una
+  restricción convertiría eso en una sincronización fallida en lugar de una fila
+  con un nombre viejo. Wallet ya denormaliza los nombres en cada movimiento, así
+  que el espejo los guarda y el listado se sostiene solo.
+- **Borrar es parte de sincronizar**, acotado a la ventana leída: lo que ya no
+  está en Wallet se va del espejo, pero una sincronización parcial no puede
+  arrasar el histórico anterior.
+- **Los filtros viven en la URL.** Una vista filtrada es un enlace que se puede
+  guardar y el botón de atrás hace lo que debe. Cualquier cambio salvo la página
+  vuelve a la primera: quedarse en la página 7 de un resultado más estrecho
+  muestra una tabla vacía y parece roto.
+- **Los totales se calculan sobre el conjunto filtrado, no sobre la página
+  visible.** Un total que cambia al pasar de página no es un total.
+- **De los presupuestos solo se muestra el límite**, que es lo que Wallet
+  expone. Lo consumido se calcularía cruzando movimientos y categorías, y una
+  cifra propia que discrepe de la que ves en la app es peor que no dar cifra.
+
+El token va en `WALLET_API_TOKEN` (requiere plan Premium) y solo en el entorno
+del panel. Se comprobó que su valor no aparece en ninguno de los 47 bundles de
+cliente.
 
 ### Usuarios: sesiones, roles y revocación
 

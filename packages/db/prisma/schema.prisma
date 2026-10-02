@@ -99,6 +99,7 @@ enum SyncSource {
   uptime
   content_stats
   link_check
+  wallet
 }
 
 enum SyncStatus {
@@ -1067,6 +1068,138 @@ model HomeSection {
   isVisible Boolean @default(true) @map("is_visible")
 
   @@map("home_sections")
+}
+
+// ---------------------------------------------------------------------------
+// Finanzas personales (espejo de solo lectura de Wallet)
+// ---------------------------------------------------------------------------
+
+/// A local mirror of BudgetBakers Wallet, read-only by construction.
+///
+/// Why a copy and not live calls: the API allows 300 requests an hour and at
+/// most two filter conditions per query, while the point of the module is to
+/// sort and filter by date, amount, category and account at once. One page view
+/// would cost several requests and still have to sort in memory. Mirrored, it is
+/// ordinary SQL - the same pattern GA4, Search Console and Vercel already use
+/// here.
+///
+/// **No foreign keys between these tables, on purpose.** This is somebody
+/// else's data: an account can disappear from the API while its records remain,
+/// and a referential constraint would turn that into a failed sync instead of a
+/// row with a stale name. Wallet already denormalises the names into each
+/// record, so the mirror keeps them and stays self-sufficient for listing.
+model WalletAccount {
+  /// Wallet's own id, so a resync updates rather than duplicates.
+  id           String  @id
+  name         String
+  accountType  String  @map("account_type")
+  currencyCode String  @map("currency_code")
+  color        String?
+  archived     Boolean @default(false)
+  /// Wallet's own flag: these are left out of its statistics, so the panel
+  /// must be able to leave them out too rather than quietly disagreeing.
+  excludeFromStats Boolean @default(false) @map("exclude_from_stats")
+  isBankSync       Boolean @default(false) @map("is_bank_sync")
+
+  /// Money as `numeric`, never float. The API sends JSON numbers; storing them
+  /// as doubles is how a balance ends in .00000000001.
+  initialBalance Decimal @default(0) @map("initial_balance") @db.Decimal(18, 4)
+  currentBalance Decimal @default(0) @map("current_balance") @db.Decimal(18, 4)
+  recordCount    Int     @default(0) @map("record_count")
+
+  /// Nullable because Wallet does not always send them. A record came back
+  /// with no `createdAt` after 460 good ones, and a required column turned that
+  /// into a failed sync. A mirror of somebody else's data cannot insist on a
+  /// field the source treats as optional - and inventing a date to fill the gap
+  /// would be worse than admitting it is unknown.
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  syncedAt  DateTime  @default(now()) @map("synced_at")
+
+  @@index([archived])
+  @@map("wallet_accounts")
+}
+
+model WalletCategory {
+  id        String  @id
+  name      String
+  groupId   String? @map("group_id")
+  groupName String? @map("group_name")
+  color     String?
+  /// Wallet's stable key for a built-in category, e.g. `financial_expenses__taxes`.
+  systemId String? @map("system_id")
+  /// `must` | `want` | … - Wallet's own needs-vs-wants tag.
+  cardinality    String?
+  customCategory Boolean @default(false) @map("custom_category")
+  archived       Boolean @default(false)
+
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  syncedAt  DateTime  @default(now()) @map("synced_at")
+
+  @@index([groupId])
+  @@map("wallet_categories")
+}
+
+model WalletRecord {
+  id        String @id
+  accountId String @map("account_id")
+  /// Denormalised from the API, which sends it on every record. It is what
+  /// lets a listing render without a join and survive an account vanishing.
+  accountName String @map("account_name")
+
+  categoryId    String? @map("category_id")
+  categoryName  String? @map("category_name")
+  categoryGroup String? @map("category_group")
+
+  /// Negative for an expense, exactly as Wallet sends it. Not normalised to a
+  /// positive number plus a sign column: the source's convention is the one
+  /// thing a mirror must not reinterpret.
+  amount       Decimal @db.Decimal(18, 4)
+  currencyCode String  @map("currency_code")
+
+  /// Wallet stores a date-only record at 12:00:00Z, so the day is read in UTC
+  /// and midnight comparisons would miss it. Kept as sent.
+  recordDate  DateTime @map("record_date")
+  recordType  String   @map("record_type")
+  recordState String   @map("record_state")
+
+  note         String?
+  counterParty String? @map("counter_party")
+  /// `string[]` of label ids; kept raw because the module only filters by them.
+  labels     Json?
+  transferId String? @map("transfer_id")
+  source     String?
+
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  syncedAt  DateTime  @default(now()) @map("synced_at")
+
+  @@index([recordDate])
+  @@index([accountId, recordDate])
+  @@index([categoryId, recordDate])
+  @@index([recordType])
+  @@map("wallet_records")
+}
+
+model WalletBudget {
+  id           String  @id
+  name         String
+  limitAmount  Decimal @map("limit_amount") @db.Decimal(18, 4)
+  currencyCode String  @map("currency_code")
+  /// `BUDGET_INTERVAL_MONTH` and friends.
+  type   String
+  closed Boolean @default(false)
+  /// Empty means every account / every category, which is Wallet's own
+  /// convention and not a missing value.
+  accountIds  Json @map("account_ids")
+  categoryIds Json @map("category_ids")
+
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  syncedAt  DateTime  @default(now()) @map("synced_at")
+
+  @@map("wallet_budgets")
 }
 
 // ---------------------------------------------------------------------------

@@ -24,7 +24,8 @@ export type NavIcon =
   | "seo"
   | "settings"
   | "users"
-  | "system";
+  | "system"
+  | "finance";
 
 export type NavEntry = {
   label: string;
@@ -54,6 +55,12 @@ export const navigation: NavSection[] = [
       { label: "Páginas", href: "/contenido/paginas", icon: "page", ready: true },
       { label: "Multimedia", href: "/contenido/multimedia", icon: "media", ready: true },
       { label: "Perfil", href: "/perfil", icon: "profile", ready: true },
+    ],
+  },
+  {
+    label: "Finanzas",
+    entries: [
+      { label: "Movimientos", href: "/finanzas", icon: "finance", ready: true },
     ],
   },
   {

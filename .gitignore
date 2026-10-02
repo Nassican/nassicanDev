@@ -43,3 +43,10 @@ next-env.d.ts
 
 # prisma generated client
 packages/db/generated
+
+# Claves de service account de Google. El JSON lleva una clave privada: nunca
+# al repositorio, ni aunque sea temporal mientras se pasa al entorno.
+clave.json
+*-service-account*.json
+*serviceaccount*.json
+gcp-*.json

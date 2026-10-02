@@ -16,7 +16,7 @@ type BatchResponse = {
 };
 
 export type SyncOutcome =
-  | { ok: true; days: number; from: string; to: string }
+  | { ok: true; days: number; from: string; to: string; note?: string }
   | { ok: false; reason: string };
 
 /** GA4 finishes processing a day within a few hours; two is comfortable. */
@@ -31,6 +31,54 @@ function fromGaDate(value: string): Date {
   return new Date(
     `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T00:00:00Z`,
   );
+}
+
+/**
+ * Why an empty window is empty.
+ *
+ * A sync that answers "ok, 0 rows" is indistinguishable from one that worked on
+ * a range with nothing in it, and that ambiguity cost weeks here: the first
+ * syncs ran the day the tag went live, so zero was the *correct* answer, and
+ * nothing said so. One extra request - only when the window came back empty -
+ * turns the mystery into a sentence.
+ */
+async function explainEmptyRange(
+  property: string,
+  token: string,
+  from: string,
+  to: string,
+): Promise<string> {
+  try {
+    const response = await fetch(`${API}/properties/${property}:runReport`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({
+        // Earlier than GA4 existed, so this is "everything there has ever been".
+        dateRanges: [{ startDate: "2020-01-01", endDate: "today" }],
+        dimensions: [{ name: "date" }],
+        metrics: [{ name: "sessions" }],
+        limit: 1,
+        orderBys: [{ dimension: { dimensionName: "date" } }],
+      }),
+    });
+
+    if (!response.ok) {
+      return `GA4 no devolvió nada entre ${from} y ${to}, y no se pudo comprobar si la propiedad tiene datos (HTTP ${response.status}).`;
+    }
+
+    const body = (await response.json()) as { rows?: ReportRow[] };
+    const first = body.rows?.[0]?.dimensionValues?.[0]?.value;
+
+    if (!first) {
+      return "La propiedad de GA4 no ha recibido datos nunca. Revisa el flujo de datos y que la etiqueta esté viva en producción.";
+    }
+
+    const readable = `${first.slice(0, 4)}-${first.slice(4, 6)}-${first.slice(6, 8)}`;
+    return `Sin datos entre ${from} y ${to}, pero la propiedad sí tiene: el primer día con sesiones es ${readable}. Sincroniza un rango que lo incluya.`;
+  } catch {
+    return `GA4 no devolvió nada entre ${from} y ${to}.`;
+  }
 }
 
 const n = (row: ReportRow, i: number) => Number(row.metricValues?.[i]?.value ?? 0);
@@ -243,12 +291,23 @@ export async function syncAnalytics(days = 28): Promise<SyncOutcome> {
       (geo?.rows?.length ?? 0) +
       (devices?.rows?.length ?? 0);
 
+    const days = totals?.rows?.length ?? 0;
+    const note =
+      days === 0 ? await explainEmptyRange(property, token.token, from, to) : null;
+
     await db.syncRun.update({
       where: { id: run.id },
-      data: { status: "ok", rowsWritten: written, finishedAt: new Date() },
+      data: {
+        status: "ok",
+        rowsWritten: written,
+        // Same shape as the Vercel partial sync: the run succeeded, and the
+        // note is what makes a zero legible a month later.
+        error: note,
+        finishedAt: new Date(),
+      },
     });
 
-    return { ok: true, days: totals?.rows?.length ?? 0, from, to };
+    return { ok: true, days, from, to, ...(note ? { note } : {}) };
   } catch (error) {
     const reason = error instanceof Error ? error.message : "fallo al consultar GA4";
     await db.syncRun.update({

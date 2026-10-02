@@ -23,15 +23,23 @@ export function isAllowedEmail(email: string): boolean {
 }
 
 /**
- * Read-only access to the two Google APIs the panel reports on. Requesting
- * them during sign-in is what makes a service account unnecessary: the refresh
- * token stored on the account row is the credential the SEO and Analytics
- * modules use.
+ * Identity only. The login asks Google who you are and nothing else.
+ *
+ * It used to request `analytics.readonly` and `webmasters.readonly` so the
+ * stored refresh token could serve the SEO and Analytics modules. That was a
+ * trap: an unpublished OAuth app expires refresh tokens after **seven days**
+ * unless the only scopes are profile ones. Signing in kept working - each login
+ * mints a new token - while both background syncs died in silence.
+ *
+ * Those reads now use a service account (`lib/google.ts`), which is the right
+ * credential for a job reading its owner's own data. Dropping the two sensitive
+ * scopes puts this grant inside the seven-day exception, so the app can stay
+ * unpublished and nothing expires.
+ *
+ * Keep this list to profile scopes. Adding a Google API scope here re-arms the
+ * expiry, and the failure is invisible until a dashboard quietly empties.
  */
-const googleScopes = [
-  "https://www.googleapis.com/auth/analytics.readonly",
-  "https://www.googleapis.com/auth/webmasters.readonly",
-];
+const googleScopes: string[] = [];
 
 function baseUrl(): string | undefined {
   if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
