@@ -10,21 +10,6 @@ export const es = {
     description:
       "Portafolio de Jesús David Benavides Chicaiza (Nassican), desarrollador web full stack, Colombia. Proyectos con Next.js, React, TypeScript, NestJS y PostgreSQL.",
     jobTitle: "Desarrollador Web Full Stack",
-    keywords: [
-      "Jesús David Benavides Chicaiza",
-      "Nassican",
-      "desarrollador web",
-      "desarrollador full stack",
-      "programador Colombia",
-      "desarrollador Pasto",
-      "Next.js",
-      "React",
-      "TypeScript",
-      "NestJS",
-      "PostgreSQL",
-      "ingeniería de sistemas",
-      "portafolio desarrollador",
-    ],
   },
 
   nav: {

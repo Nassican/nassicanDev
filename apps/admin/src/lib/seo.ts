@@ -9,7 +9,7 @@ export * from "@/lib/seo-draft";
 function emptyPerLocale(): SeoSettingsDraft["perLocale"] {
   const out = {} as SeoSettingsDraft["perLocale"];
   for (const locale of locales) {
-    out[locale] = { defaultTitle: "", defaultDescription: "", keywords: [] };
+    out[locale] = { defaultTitle: "", defaultDescription: "" };
   }
   return out;
 }
@@ -26,7 +26,6 @@ export async function getSeoSettingsDraft(): Promise<SeoSettingsDraft> {
     perLocale[locale] = {
       defaultTitle: t?.defaultTitle ?? "",
       defaultDescription: t?.defaultDescription ?? "",
-      keywords: ((t?.keywords as string[] | null) ?? []),
     };
   }
 

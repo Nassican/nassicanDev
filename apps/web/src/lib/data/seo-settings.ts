@@ -20,7 +20,6 @@ export type SeoSettings = {
   defaultOgImageUrl: string | null;
   defaultTitle: Localized<string>;
   defaultDescription: Localized<string>;
-  keywords: Localized<string[]>;
 };
 
 /**
@@ -56,7 +55,6 @@ async function readSeoSettings(): Promise<SeoSettings | null> {
     defaultOgImageUrl: row.defaultOgImage?.url ?? null,
     defaultTitle: pick((l) => t(l)?.defaultTitle ?? ""),
     defaultDescription: pick((l) => t(l)?.defaultDescription ?? ""),
-    keywords: pick((l) => ((t(l)?.keywords as string[] | null) ?? [])),
   };
 }
 

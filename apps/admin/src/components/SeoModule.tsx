@@ -183,14 +183,6 @@ export default function SeoModule({
                 patchLocale(locale, { defaultDescription: e.target.value })
               }
             />
-            <input
-              className={field}
-              value={settings.perLocale[locale].keywords.join(", ")}
-              placeholder="Palabras clave, separadas por comas"
-              onChange={(e) =>
-                patchLocale(locale, { keywords: e.target.value.split(",") })
-              }
-            />
           </div>
         ))}
 

@@ -88,7 +88,6 @@ export async function savePage(draft: PageDraft): Promise<ActionResult> {
           : prismaJson.body(t.body as ContentBlock[]),
       seoTitle: t.seoTitle.trim() || null,
       seoDescription: t.seoDescription.trim() || null,
-      keywords: prismaJson.strings(t.keywords.map((k) => k.trim()).filter(Boolean)),
       noindex: t.noindex,
     };
 

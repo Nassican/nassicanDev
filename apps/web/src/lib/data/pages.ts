@@ -21,7 +21,6 @@ import {
 export type PageSeoOverride = {
   title?: string;
   description?: string;
-  keywords?: string[];
   noindex: boolean;
 };
 
@@ -45,20 +44,18 @@ export const getPageSeo = (route: string, locale: Locale) =>
         select: {
           seoTitle: true,
           seoDescription: true,
-          keywords: true,
           noindex: true,
         },
       });
 
       if (!row) return null;
-      if (!row.seoTitle && !row.seoDescription && !row.noindex && !row.keywords) {
+      if (!row.seoTitle && !row.seoDescription && !row.noindex) {
         return null;
       }
 
       return {
         title: row.seoTitle ?? undefined,
         description: row.seoDescription ?? undefined,
-        keywords: (row.keywords as string[] | null) ?? undefined,
         noindex: row.noindex,
       };
     },
@@ -85,7 +82,6 @@ export const getCustomPage = (route: string, locale: Locale) =>
         seo: {
           title: t.seoTitle ?? undefined,
           description: t.seoDescription ?? undefined,
-          keywords: (t.keywords as string[] | null) ?? undefined,
           noindex: t.noindex,
         },
       };

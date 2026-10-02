@@ -10,7 +10,6 @@ export type PageTranslationDraft = {
   body: ContentBlock[];
   seoTitle: string;
   seoDescription: string;
-  keywords: string[];
   noindex: boolean;
 };
 

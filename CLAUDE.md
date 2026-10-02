@@ -515,6 +515,47 @@ comparten estas filas, y un canonical apuntando a producción desde una vista
 previa es justo el problema de contenido duplicado contra el que ya protege
 `robots.txt`. Se queda en `NEXT_PUBLIC_SITE_URL`.
 
+**Las palabras clave se fueron, y no volverán.** La etiqueta
+`<meta name="keywords">` ya no se emite, su campo desapareció del panel —global
+y por página— y sus dos columnas se borraron del esquema. Google la ignora
+**desde 2009** y Bing la trata como una señal débil de spam; mantener un campo
+editable para ella era invitar a alguien a pasar una tarde rellenando algo que
+no hace nada.
+
+Quitar solo el campo habría dejado una columna que nadie puede editar — el mismo
+señuelo que ya se eliminó en Configuración con `featureFlags`. Por eso se fue
+entera.
+
+**Lo que sí se quedó** son las `keywords` de `lib/seo.ts`, que son otra cosa: una
+propiedad de schema.org sobre `Article` y `CreativeWork`, que los consumidores de
+datos estructurados sí leen. Comparten nombre y no tienen nada que ver.
+
+**Los campos se eligen contra límites, no a ojo.** Google muestra unos 60
+caracteres de un título y 155 de una descripción, y corta el resto a media
+palabra. El estado anterior salía del diccionario y era competente salvo en un
+punto medible: las descripciones iban a 159 y 162 caracteres y se truncaban.
+
+La plantilla era `%s | Jesús David Benavides Chicaiza`: **treinta caracteres de
+sufijo gastados antes de que el título de la página dijera nada**. Con
+`%s · Nassican` un artículo de cuarenta caracteres cabe entero donde antes se
+cortaba. La portada no se ve afectada — usa su título absoluto y conserva el
+nombre completo, que es lo que interesa posicionar.
+
+| | antes | ahora |
+| --- | --- | --- |
+| portada ES | 61 | 52 |
+| portada EN | 57 | 48 |
+| descripción ES | 159 ✂ | 123 |
+| descripción EN | 162 ✂ | 131 |
+| `/blog` | 37 | 15 |
+| `/projects` | 42 | 20 |
+
+Lo que queda vacío sigue cayendo al diccionario: **un campo en blanco deja lo
+que el sitio ya decía en vez de borrarlo**. Esa es la razón de que estos campos
+existan — cambiar el mensaje es una edición, no un despliegue— y también la
+razón de no rellenarlos con una copia de lo que el diccionario ya dice, que
+serían dos fuentes para el mismo texto.
+
 `robots.txt` dejó de ser el archivo de convención `robots.ts` y pasó a ser un
 manejador de ruta, porque `MetadataRoute.Robots` no admite líneas arbitrarias y
 `robotsExtra` las necesita. La salida se comprobó byte a byte contra la anterior

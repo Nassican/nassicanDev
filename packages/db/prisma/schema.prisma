@@ -711,8 +711,6 @@ model PageTranslation {
   seoTitle       String? @map("seo_title")
   seoDescription String? @map("seo_description")
   ogImageId      String? @map("og_image_id")
-  /// string[] - indicative, for your own tracking.
-  keywords  Json?
   noindex   Boolean  @default(false)
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -865,8 +863,6 @@ model SeoSettingsTranslation {
   locale             Locale
   defaultTitle       String @map("default_title")
   defaultDescription String @map("default_description")
-  /// string[]
-  keywords Json?
 
   settings SeoSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
 

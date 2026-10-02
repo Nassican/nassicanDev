@@ -13,10 +13,7 @@ export type SeoSettingsDraft = {
   robotsExtra: string;
   defaultOgMediaId: string | null;
   defaultOgUrl: string | null;
-  perLocale: Record<
-    Locale,
-    { defaultTitle: string; defaultDescription: string; keywords: string[] }
-  >;
+  perLocale: Record<Locale, { defaultTitle: string; defaultDescription: string }>;
 };
 
 export type RedirectDraft = {

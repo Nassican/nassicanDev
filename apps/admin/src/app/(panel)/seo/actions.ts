@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db, prismaJson } from "@nassican/db";
+import { db } from "@nassican/db";
 import { cacheTags, locales, robotsExtraProblem } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
@@ -71,7 +71,6 @@ export async function saveSeoSettings(
     const data = {
       defaultTitle: t.defaultTitle.trim(),
       defaultDescription: t.defaultDescription.trim(),
-      keywords: prismaJson.strings(t.keywords.map((k) => k.trim()).filter(Boolean)),
     };
 
     await db.seoSettingsTranslation.upsert({

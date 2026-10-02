@@ -55,9 +55,15 @@ export async function generateMetadata({
   const title = seo?.defaultTitle[locale]?.trim() || t.meta.title;
   const description =
     seo?.defaultDescription[locale]?.trim() || t.meta.description;
-  const keywords = seo?.keywords[locale]?.length
-    ? seo.keywords[locale]
-    : t.meta.keywords;
+  /**
+   * There is no `keywords` here on purpose. Google has ignored
+   * `<meta name="keywords">` since 2009, Bing treats it as a weak spam signal,
+   * and keeping an editable field for it invited someone to spend an afternoon
+   * filling in something that does nothing.
+   *
+   * The `keywords` that remain in `lib/seo.ts` are a different thing: a
+   * schema.org property on Article and CreativeWork, which consumers do read.
+   */
 
   const canIndex = isIndexableDeployment(process.env) && !(await getSiteSettings()).maintenanceMode;
   const images = [{ url: seo?.defaultOgImageUrl ? absoluteUrl(seo.defaultOgImageUrl) : localeUrl(locale, "/social-image"), alt: title }];
@@ -70,7 +76,6 @@ export async function generateMetadata({
       template: seo?.titleTemplate?.trim() || `%s | ${profile.name}`,
     },
     description,
-    keywords,
     ...(seo?.googleSiteVerification
       ? { verification: { google: seo.googleSiteVerification } }
       : {}),

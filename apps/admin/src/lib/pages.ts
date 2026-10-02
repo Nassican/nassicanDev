@@ -26,7 +26,6 @@ function emptyTranslation(locale: Locale): PageTranslationDraft {
     body: [],
     seoTitle: "",
     seoDescription: "",
-    keywords: [],
     noindex: false,
   };
 }
@@ -44,7 +43,6 @@ type Row = {
     body: unknown;
     seoTitle: string | null;
     seoDescription: string | null;
-    keywords: unknown;
     noindex: boolean;
   }[];
 };
@@ -66,7 +64,6 @@ function toDraft(row: Row): PageDraft {
         body: (t.body as ContentBlock[] | null) ?? [],
         seoTitle: t.seoTitle ?? "",
         seoDescription: t.seoDescription ?? "",
-        keywords: (t.keywords as string[] | null) ?? [],
         noindex: t.noindex,
       };
     }),

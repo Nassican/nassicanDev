@@ -246,18 +246,6 @@ export default function PageEditor({
           </span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <span className={label}>Palabras clave</span>
-          <input
-            className={field}
-            value={current.keywords.join(", ")}
-            placeholder="separadas por comas"
-            onChange={(e) =>
-              patch(active, { keywords: e.target.value.split(",") })
-            }
-          />
-        </div>
-
         <label className="flex w-fit items-center gap-2 text-sm text-neutral-300">
           <input
             type="checkbox"

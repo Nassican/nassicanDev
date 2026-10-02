@@ -118,7 +118,6 @@ export function pageMetadata({
   return {
     title,
     description,
-    ...(override?.keywords?.length ? { keywords: override.keywords } : {}),
     robots: {
       index: canIndex, follow: true,
       googleBot: { index: canIndex, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },

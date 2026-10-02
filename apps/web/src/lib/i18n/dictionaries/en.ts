@@ -10,21 +10,6 @@ export const en: Dictionary = {
     description:
       "Portfolio of Jesús David Benavides Chicaiza (Nassican), full stack web developer, Colombia. Projects built with Next.js, React, TypeScript, NestJS and PostgreSQL.",
     jobTitle: "Full Stack Web Developer",
-    keywords: [
-      "Jesús David Benavides Chicaiza",
-      "Nassican",
-      "web developer",
-      "full stack developer",
-      "developer Colombia",
-      "remote developer",
-      "Next.js",
-      "React",
-      "TypeScript",
-      "NestJS",
-      "PostgreSQL",
-      "systems engineering",
-      "developer portfolio",
-    ],
   },
 
   nav: {

@@ -134,21 +134,11 @@ function extend(base: PrismaClient) {
           compute: (t) =>
             parseNullableBody(t.body, `page ${t.pageId} (${t.locale})`),
         },
-        keywords: {
-          needs: { keywords: true },
-          compute: (t) => parseStringArray(t.keywords),
-        },
       },
       profileTranslation: {
         bio: {
           needs: { bio: true },
           compute: (t) => parseStringArray(t.bio) ?? [],
-        },
-      },
-      seoSettingsTranslation: {
-        keywords: {
-          needs: { keywords: true },
-          compute: (t) => parseStringArray(t.keywords),
         },
       },
     },
