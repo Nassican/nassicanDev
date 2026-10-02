@@ -556,8 +556,61 @@ está puesto y la etiqueta meta se emite, así que se puede verificar si alguna
 integración exige una propiedad de prefijo — pero no hace falta para que el
 panel lea Search Console.
 
-De paso quedó comprobado que `gtag` se emite **dentro de `<head>`**, así que el
-método de verificación por Google Analytics también cumpliría su requisito.
+**Los otros dos métodos de verificación no pueden funcionar en este sitio**, y
+conviene saber por qué antes de perder una tarde con ellos:
+
+- **Google Tag Manager**: no hay contenedor de GTM en la página. Cero
+  apariciones de `gtm.js`. El sitio carga GA4 directamente con
+  `@next/third-parties`, sin GTM de por medio.
+- **Google Analytics**: en el HTML inicial solo hay un
+  `<link rel="preload" href="…gtag/js?id=…" as="script">`. La etiqueta
+  `<script>` de verdad la inyecta `next/script` tras la hidratación, y el
+  verificador de Google **no ejecuta JavaScript**: busca el fragmento en el HTML
+  crudo y solo encuentra una pista de precarga.
+
+Esto no afecta a la medición —el script sí se carga en el navegador, y hay datos
+reales en GA4—, solo a los verificadores que leen HTML sin ejecutarlo. Si alguna
+vez hiciera falta el fragmento en el HTML inicial, habría que renderizarlo en el
+layout en lugar de delegarlo a `@next/third-parties`.
+
+#### Un despliegue, varios hostnames, una sola copia indexable
+
+`isIndexableDeployment` mira el entorno, y el entorno no distingue por qué
+puerta entró la petición. Vercel da a **cada despliegue** una URL permanente
+`*.vercel.app` que no se puede borrar, y todas sirven producción con
+`VERCEL_ENV=production`. Se midió: **diez despliegues listos, los tres probados
+servían el sitio entero con `Allow: /`**. Tres copias rastreables, y una nueva
+con cada `git push`.
+
+Quitar el alias con nombre propio desde Vercel cierra *una* puerta de muchas.
+Por eso la comprobación está en el código: `isCanonicalHost()` compara el host
+de la petición contra el origen canónico, y `robots.txt` —que ya era un route
+handler— sirve `Disallow: /` cuando no coinciden.
+
+**La función falla abierta, y eso es la decisión importante.** Su modo de fallo
+no es una página rota: es `Disallow: /` en el sitio real, que ningún monitor
+detecta y que tarda semanas en revertirse. Así que todo lo que no pueda
+establecer —sin origen configurado, un origen inválido, una petición sin host—
+se trata como «este es el host canónico». **Bloquear exige prueba positiva del
+host equivocado, nunca la ausencia de prueba del correcto.**
+
+Dos detalles que la prueba fijó: el host se compara en minúsculas y sin los
+puertos implícitos `:443` y `:80`, y de una cadena de proxies separada por comas
+se juzga el **primer** salto, que es el que pidió el visitante.
+
+La ruta lleva `dynamic = "force-dynamic"` precisamente porque su respuesta
+depende del host: cachearla entre hostnames anularía todo lo anterior.
+
+**Cómo se verificó**, y conviene repetirlo con cualquier cambio aquí: el mismo
+build, arrancado con el origen de producción horneado, respondiendo a seis
+hostnames distintos. `www` en sus tres formas devolvió `Allow: /`; el ápex y dos
+URL reales de despliegue devolvieron `Disallow: /`. Y lo que sirve `www` se
+comparó contra lo que producción servía en ese momento: **idéntico**.
+
+Un aviso para quien pruebe esto en local: `NEXT_PUBLIC_SITE_URL` se **inlinea en
+tiempo de build**. Arrancar con otro valor no cambia nada y hace que todo
+parezca bloqueado — el primer intento de esta verificación dio `Disallow: /` en
+los seis hosts y el fallo estaba en la prueba, no en el código.
 
 **Redirecciones.** Se resuelven en el catch-all, no en el proxy. El proxy corre
 en el edge y no alcanza a Prisma, y consultar una tabla en cada petición para

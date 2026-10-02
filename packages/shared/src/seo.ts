@@ -39,6 +39,48 @@ export function isIndexableDeployment(env: { NODE_ENV?: string; VERCEL_ENV?: str
   return env.NODE_ENV === "production" && (!env.VERCEL_ENV || env.VERCEL_ENV === "production");
 }
 
+/**
+ * Whether this request arrived at the hostname the site calls its own.
+ *
+ * A production deployment answers on more hostnames than its domain: Vercel
+ * gives every deployment a permanent `*.vercel.app` URL, and those cannot be
+ * removed. Ten of them were serving the whole site with `Allow: /` — a second,
+ * third and tenth crawlable copy. `isIndexableDeployment` cannot see this,
+ * because `VERCEL_ENV` is `production` whichever door the request came through.
+ *
+ * **This function fails open, and that is deliberate.** Its failure mode is
+ * serving `Disallow: /` on the real site, which is the worst outcome in SEO and
+ * recovers slowly. So anything it cannot establish — no origin configured, an
+ * unparseable one, a request with no host header — is treated as "this is the
+ * canonical host". Blocking requires positive evidence of the wrong hostname,
+ * never the absence of evidence of the right one.
+ */
+export function isCanonicalHost(
+  requestHost: string | null | undefined,
+  canonicalOrigin: string | null | undefined,
+): boolean {
+  if (!requestHost?.trim()) return true;
+  if (!canonicalOrigin?.trim()) return true;
+
+  let expected: string;
+  try {
+    expected = new URL(canonicalOrigin).host.toLowerCase();
+  } catch {
+    return true;
+  }
+  if (!expected) return true;
+
+  // The header can carry a comma-separated chain behind proxies; the first hop
+  // is the hostname the visitor actually asked for.
+  const actual = requestHost.split(",")[0].trim().toLowerCase();
+
+  if (actual === expected) return true;
+
+  // Default ports are implicit, so :443 and :80 must not count as a mismatch.
+  const bare = (host: string) => host.replace(/:(443|80)$/, "");
+  return bare(actual) === bare(expected);
+}
+
 /** Each specific group needs its own API exclusion: robots groups do not inherit. */
 export function buildRobots(origin: string, settings: CrawlSettings, indexable: boolean, extra = ""): string {
   const group = (agents: readonly string[], allow: boolean) => [
