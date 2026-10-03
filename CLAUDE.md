@@ -911,11 +911,102 @@ aterriza en `system_events` y se lista aquí. Es su sitio natural. Una caché qu
 no se limpió es un problema del despliegue, no de lo que el operador acababa de
 guardar.
 
-**La disponibilidad se comprueba cuando se pide.** El panel no tiene
-planificador, y una página de monitorización cuyos datos solo se mueven al
-abrirla es mejor decirlo que disimularlo. Se pide `GET` y no `HEAD` a propósito:
+**La disponibilidad se comprueba cuando se pide**, y sigue siendo la única que
+no pasó al planificador: una comprobación diaria reportaría una caída con hasta
+24 h de retraso, así que no es monitorización. Una página cuyos datos solo se
+mueven al abrirla es mejor decirlo que disimularlo. Se pide `GET` y no `HEAD` a propósito:
 lo que importa es que la página se renderice, y con la caché fría se renderiza
 bajo demanda — que es justo el caso que vale la pena medir.
+
+#### El planificador: un cron al día, y Wallet fuera a propósito
+
+`apps/admin/vercel.json` dispara `GET /api/cron/daily` a las 06:00 UTC. Hace lo
+que antes solo ocurría si alguien abría el módulo: comprobar enlaces, tomar la
+instantánea de contenido, y sincronizar GA4, Search Console y Vercel.
+
+Medido en producción local: **18 s de reloj** la primera vez, 12 s la segunda.
+Los cuatro externos van en paralelo porque son cuatro servicios distintos, así
+que los 28,7 s que suman en serie no se pagan.
+
+**Wallet no está aquí.** Se sincroniza a mano, y además es la única que tarda
+126 s en su peor caso y la única que ha fallado: meterla con el resto significaba
+que un fallo suyo se llevara por delante la instantánea, que es lo único de esta
+lista que no se puede recuperar.
+
+**La disponibilidad tampoco**, y eso es un juicio y no un olvido: una
+comprobación diaria no es monitorización — reportaría una caída con hasta 24 h de
+retraso, y en el plan Hobby no se puede programar nada más frecuente. Se queda
+bajo demanda, donde al menos la pantalla dice sin disimulo que el número se mueve
+cuando lo pides.
+
+Cuatro cosas que vienen de los límites reales, verificados contra la
+documentación y no contra la memoria:
+
+- **`CRON_SECRET`, nunca `requireUser()`.** Esta es la trampa que habría costado
+  una tarde: `requireUser()` **redirige** a `/login`, y **los crons no siguen
+  redirecciones**. El trabajo se habría quedado con el 3xx, se habría registrado
+  como terminado, y no habría hecho nada. Un éxito silencioso es el peor fallo
+  posible en algo que nadie mira. Falla cerrado: sin secreto en el entorno, 401.
+- **Caben de sobra.** Con fluid compute el máximo en Hobby son **300 s**, no 60.
+  Y son **100 crons en todos los planes**: Hobby limita la frecuencia (una vez al
+  día, ±59 min), no la cantidad.
+- **06:00 UTC = 01:00 en Bogotá**, y por eso esa hora. La instantánea se agrupa
+  por `site_settings.timezone`, así que la ventana de ±59 min de Hobby tiene que
+  caer entera dentro del mismo día local. A las 00:30 UTC se archivaría bajo el
+  día anterior la mitad de las veces.
+- **La entrega es best-effort: se pierden *y* se duplican invocaciones.** Lo
+  bueno es que todo esto ya era idempotente —cada sincronización hace upsert y la
+  instantánea es una fila por día reemplazada—, así que no hubo que cambiar nada.
+  Comprobado ejecutando dos veces seguidas: sigue habiendo **una** fila para hoy.
+
+**Dónde difiere del botón de Estadísticas, y por qué.** La acción del panel no
+toma la instantánea si la comprobación de enlaces falló, con buen motivo: el
+operador ve el error y vuelve a pulsar. Aquí no hay un «vuelve a pulsar» —Vercel
+no reintenta un cron fallido—, así que un día omitido es un día perdido para
+siempre. Siete de los ocho campos de la instantánea no tienen nada que ver con
+los enlaces, y tirar las cifras de contenido y de traducción para evitar un
+recuento rancio es el lado equivocado de ese intercambio. **La instantánea se
+toma igual.**
+
+**Devuelve 200 aunque un paso falle**, y el cuerpo dice cuál. Cada sincronización
+ya escribe su propia fila en `sync_runs`, así que Sistema lista el fallo con su
+mensaje de todas formas — ese es el registro que importa. Un 500 aquí solo
+pondría el panel de Vercel en rojo por una caída de Google sobre la que este
+proyecto no puede hacer nada. Probado con un token roto a propósito: los dos
+pasos de Vercel fallaron nombrando el 403, y `link_check` y `snapshot` siguieron
+adelante.
+
+**Dónde va `vercel.json`, y cómo se comprueba.** Vercel lo lee desde el **Root
+Directory del proyecto**, no desde la raíz del repositorio: en un monorepo con dos
+proyectos, uno en la raíz lo ignorarían los dos. El del panel es `apps/admin`, y
+la comprobación no es leer la configuración sino preguntárselo al CLI:
+
+```bash
+cd apps/admin
+npx -y vercel@latest crons ls      # tiene que listar /api/cron/daily
+```
+
+Si el archivo estuviera en el sitio equivocado la tabla saldría vacía. Con el
+proyecto vinculado responde `0 6 * * *` y el estado del despliegue, y ese estado
+es la otra mitad: un cron solo existe **después** de desplegar.
+
+Y el orden importa en un punto que es fácil invertir: **la variable primero, el
+despliegue después.** Las variables se inyectan en el despliegue, así que añadir
+`CRON_SECRET` luego obliga a volver a desplegar para que la función la vea — y
+mientras tanto el cron responde 401 sin explicar por qué.
+
+Para disparar el cron sin esperar a las 06:00, `npx vercel crons run
+/api/cron/daily`. Lee las definiciones del proyecto **desplegado**, no del
+`vercel.json` local, así que no sirve antes del primer despliegue. El comando
+está en beta.
+
+**Por qué el token no ve el panel.** El proyecto del panel es `admin-nassican` y
+vive en un **equipo**; el `VERCEL_TOKEN` del entorno está limitado a un solo
+proyecto —`nassican-dev`, raíz `apps/web`— y no puede ni listar equipos ni
+resolver el usuario. Por eso `syncDeployments` lista el proyecto del panel como
+omitido, que es el comportamiento correcto y no un fallo. Si algún día interesa el
+historial de despliegues del panel en Sistema, lo que falta es un token con
+alcance de equipo y `VERCEL_TEAM_ID` puesto; no hay nada que cambiar en el código.
 
 #### Vercel
 
