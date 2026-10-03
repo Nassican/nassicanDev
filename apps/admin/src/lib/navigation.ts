@@ -40,6 +40,21 @@ export type NavEntry = {
 export type NavSection = {
   /** Null for the first group, which needs no heading above one entry. */
   label: string | null;
+  /**
+   * The section's own page, which also makes its heading a link.
+   *
+   * Only «Personal» has one, and that is the difference the flag describes:
+   * «Contenido» and «Medición» are kinds of work, not places — there is nothing
+   * to see *about* them. «Personal» is a set of things you own, so «¿cómo voy?»
+   * is a real question with a real answer.
+   */
+  href?: string;
+  /**
+   * Folds away. On for «Personal» alone: everything else is what this panel is
+   * *for*, and this is a separate life that happens to share the login. Hiding
+   * the work would be hiding the point.
+   */
+  collapsible?: boolean;
   entries: NavEntry[];
 };
 
@@ -62,14 +77,11 @@ export const navigation: NavSection[] = [
     ],
   },
   {
-    label: "Finanzas",
+    label: "Personal",
+    href: "/personal",
+    collapsible: true,
     entries: [
       { label: "Movimientos", href: "/finanzas", icon: "finance", ready: true },
-    ],
-  },
-  {
-    label: "Personal",
-    entries: [
       { label: "Juegos", href: "/juegos", icon: "game", ready: true },
       { label: "Libros", href: "/libros", icon: "book", ready: true },
     ],
@@ -104,10 +116,19 @@ export const navigation: NavSection[] = [
 export function activeHref(pathname: string): string | null {
   if (pathname === "/") return "/";
 
-  const all = navigation.flatMap((section) => section.entries);
-  const matches = all
-    .filter((e) => e.href !== "/" && (pathname === e.href || pathname.startsWith(`${e.href}/`)))
-    .sort((a, b) => b.href.length - a.href.length);
+  /*
+   * Section pages count too. «Personal» has one of its own, and it is not an
+   * entry in any list, so matching only entries left `/personal` lighting up
+   * nothing at all — the one route in the panel that highlighted no heading.
+   */
+  const all = [
+    ...navigation.flatMap((section) => section.entries.map((e) => e.href)),
+    ...navigation.map((section) => section.href).filter((href): href is string => !!href),
+  ];
 
-  return matches[0]?.href ?? null;
+  const matches = all
+    .filter((href) => href !== "/" && (pathname === href || pathname.startsWith(`${href}/`)))
+    .sort((a, b) => b.length - a.length);
+
+  return matches[0] ?? null;
 }

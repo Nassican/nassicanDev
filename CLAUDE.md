@@ -1114,6 +1114,79 @@ Antes que nada, Web Analytics tiene que estar **activado en el proyecto de
 Vercel**: `@vercel/analytics` ya está en el sitio, pero con el interruptor
 apagado no se guarda nada y la API responde vacío.
 
+### Personal: lo que no es el sitio
+
+En `app.nassican.com/personal`, con Movimientos, Juegos y Libros debajo. Las tres
+cosas que comparten el login con el panel sin tener nada que ver con la web.
+
+**Es la única sección que se pliega, y la única con página propia.** Las dos
+cosas describen la misma diferencia: «Contenido» y «Medición» son *tipos de
+trabajo*, no lugares — no hay nada que ver *sobre* ellos, y esconderlos sería
+esconder para lo que existe este panel. «Personal» es un conjunto de cosas que
+posees, así que «¿cómo voy?» es una pregunta de verdad con una respuesta de
+verdad.
+
+Finanzas dejó de ser su propia sección: tenía una sola entrada y pertenecía aquí
+desde el principio.
+
+**El plegado vive en estado y no en una cookie ni en `localStorage`.** El armazón
+*es* el layout, así que una navegación de cliente nunca lo remonta y la elección
+dura toda la sesión; una recarga completa vuelve a abrirlo, que es el valor por
+defecto correcto de todas formas. Persistirlo compraría muy poco y costaría o un
+destello del estado equivocado antes de hidratar, o una lectura de cookie en cada
+petición.
+
+Y se pliega **solo a propósito**: una sección que se abriera sola porque navegaste
+dentro desharía una decisión que acabas de tomar. El título y el botón son dos
+objetivos separados y no una fila pulsable, porque «ir a Personal» y «esconder
+Personal» son intenciones distintas y un solo objetivo convertiría una de las dos
+en un accidente.
+
+#### La página central
+
+Nada editable: es donde miras antes de decidir qué módulo abrir. Las dos
+primeras cifras cruzan los tres módulos, que es lo que ninguno puede responder
+solo — cuántas cosas tienes sin empezar y cuánto costaron.
+
+`activeHref()` tuvo que aprender que una sección puede tener página. Emparejaba
+solo contra las entradas, así que `/personal` era la única ruta del panel que no
+iluminaba ninguna cabecera. `navigation.test.ts` lo fija, junto con que toda
+sección plegable tenga una página a la que ir: plegar un grupo sin destino
+escondería sus entradas detrás de un título que no hace nada.
+
+**Lo que tengo y lo que debo van separados**, y el número neto solo detrás. Junto
+salía **negativo**, que se lee como «debes» cuando la mitad es dinero en Nequi.
+Dos cifras responden dos preguntas; una sola no responde ninguna.
+
+La partición es **por tipo de cuenta, nunca por el signo del saldo**. Una cuenta
+de ahorros en descubierto sigue siendo donde guardas dinero, y una tarjeta que
+pagaste de más sigue siendo una tarjeta. Ordenar por signo movería una cuenta
+entre «tengo» y «debo» según la semana, y una cifra que cambia de categoría sola
+es una cifra que nadie puede leer.
+
+**Dos avisos que el total necesita para no mentir.** El primero es el de
+`understatesDebt` un nivel más arriba: dos tarjetas sin saldo inicial hacen que
+«lo que debo» sea más pequeño que la verdad, y un total que absorbiera eso en
+silencio sería el mismo problema con más alcance. El segundo es que **filtrar por
+`excludeFromStats` escondía 946.309 pesos de efectivo**: esa bandera significa
+«fuera de mis gráficos», y «¿cuánto tengo?» no es un gráfico. Se cuentan, y
+cuánto aportan se dice aparte, así que la página no impone ninguna de las dos
+lecturas.
+
+**Un fallo de zona horaria, del mismo linaje que el de la instantánea diaria.**
+La etiqueta decía «Gastado en septiembre de 2026» el tres de octubre: la consulta
+acota el mes en UTC y la etiqueta se formateaba en hora local, y medianoche UTC
+del día uno son las siete de la tarde del treinta en Bogotá. Se formatea en UTC
+para que el nombre del mes y las filas contadas hablen del mismo mes.
+
+UTC en los dos lados es seguro aquí y no solo consistente: Wallet guarda un
+registro sin hora a las 12:00:00Z, así que un desplazamiento de cinco horas no
+puede cruzarlo de mes.
+
+Y la categoría `Transfer` se excluye por su id además de por `transfer_id`, que
+es lo que ya costó una vez: sin ella, lo más alto del ranking de gasto eran 36
+millones que no se gastaron en nada.
+
 ### Finanzas: espejo de solo lectura de Wallet
 
 En `app.nassican.com/finanzas`. Lee las finanzas personales de Wallet

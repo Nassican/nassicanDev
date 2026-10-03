@@ -20,6 +20,7 @@ import {
   BsWallet2,
   BsController,
   BsBook,
+  BsChevronDown,
   BsStars,
   BsGraphUp,
   BsX,
@@ -27,7 +28,13 @@ import {
 import CommandPalette, { type Command } from "@/components/CommandPalette";
 import SignOutButton from "@/components/SignOutButton";
 import ThemeToggle from "@/components/ThemeToggle";
-import { activeHref, navigation, type NavEntry, type NavIcon } from "@/lib/navigation";
+import {
+  activeHref,
+  navigation,
+  type NavEntry,
+  type NavIcon,
+  type NavSection,
+} from "@/lib/navigation";
 
 const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
   dashboard: BsSpeedometer2,
@@ -112,29 +119,127 @@ function NavTree({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname() ?? "/";
   const current = activeHref(pathname);
 
+  /**
+   * Which collapsible sections the operator has folded away.
+   *
+   * Open by default and folded only on purpose, which is the behaviour that
+   * cannot surprise anyone: a section that opened itself because you happened to
+   * navigate into it would undo a decision you had just made.
+   *
+   * Kept in state and not in a cookie or `localStorage`. The shell is the
+   * layout, so a client navigation never remounts it and the choice survives the
+   * whole session; a full reload starts open again, which is the right default
+   * anyway. Persisting it would buy very little and cost either a flash of the
+   * wrong state before hydration or a cookie read on every request.
+   */
+  const [folded, setFolded] = useState<Set<string>>(new Set());
+
   return (
     <nav className="flex flex-col gap-5">
-      {navigation.map((section, i) => (
-        <div key={section.label ?? `group-${i}`} className="flex flex-col gap-1">
-          {section.label ? (
-            <h2 className="px-2.5 pb-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-600">
-              {section.label}
-            </h2>
-          ) : null}
-          <ul className="flex flex-col gap-0.5">
-            {section.entries.map((entry) => (
-              <li key={entry.href}>
-                <NavLink
-                  entry={entry}
-                  active={current === entry.href}
-                  onNavigate={onNavigate}
-                />
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {navigation.map((section, i) => {
+        const key = section.label ?? `group-${i}`;
+        const open = !section.collapsible || !folded.has(key);
+
+        return (
+          <div key={key} className="flex flex-col gap-1">
+            {section.label ? (
+              <SectionHeading
+                section={section}
+                open={open}
+                active={section.href ? current === section.href : false}
+                onNavigate={onNavigate}
+                onToggle={() =>
+                  setFolded((previous) => {
+                    const next = new Set(previous);
+                    if (next.has(key)) next.delete(key);
+                    else next.add(key);
+                    return next;
+                  })
+                }
+              />
+            ) : null}
+
+            {open ? (
+              <ul className="flex flex-col gap-0.5">
+                {section.entries.map((entry) => (
+                  <li key={entry.href}>
+                    <NavLink
+                      entry={entry}
+                      active={current === entry.href}
+                      onNavigate={onNavigate}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        );
+      })}
     </nav>
+  );
+}
+
+/**
+ * A group's heading, which is three different things depending on the group.
+ *
+ * Plain text for a group that is only a label; a link when the group has a page
+ * of its own; and a button beside it when it folds. The two are kept apart
+ * rather than merged into one clickable row, because «ir a Personal» and
+ * «esconder Personal» are different intentions and a single target would make
+ * one of them an accident.
+ */
+function SectionHeading({
+  section,
+  open,
+  active,
+  onNavigate,
+  onToggle,
+}: {
+  section: NavSection;
+  open: boolean;
+  active: boolean;
+  onNavigate?: () => void;
+  onToggle: () => void;
+}) {
+  const text = (
+    <span
+      className={`font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
+        active ? "text-neutral-300" : "text-neutral-600"
+      }`}
+    >
+      {section.label}
+    </span>
+  );
+
+  return (
+    <h2 className="flex items-center gap-1 px-2.5 pb-0.5">
+      {section.href ? (
+        <Link
+          href={section.href}
+          onClick={onNavigate}
+          className="flex-1 hover:text-neutral-300"
+        >
+          {text}
+        </Link>
+      ) : (
+        <span className="flex-1">{text}</span>
+      )}
+
+      {section.collapsible ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-label={`${open ? "Plegar" : "Desplegar"} ${section.label}`}
+          className="-mr-1 rounded p-0.5 text-neutral-700 transition-colors hover:text-neutral-400"
+        >
+          <BsChevronDown
+            aria-hidden
+            className={`h-2.5 w-2.5 transition-transform ${open ? "" : "-rotate-90"}`}
+          />
+        </button>
+      ) : null}
+    </h2>
   );
 }
 
