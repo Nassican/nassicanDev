@@ -13,10 +13,14 @@ import { blankToNull, parseNumber, type GameDraft } from "@/lib/game-draft";
  * page for nothing — the rule that `getStats` had to learn the hard way.
  */
 
+export type StoreRow = { id: string; key: string; name: string; uses: number };
+
 export type GameRow = {
   id: string;
   title: string;
   platform: GamePlatform;
+  storeId: string | null;
+  storeName: string | null;
   status: GameStatus;
   hours: number | null;
   price: number | null;
@@ -35,17 +39,27 @@ export type GamesSummary = {
   /** Only over games that have both a price and hours, or it means nothing. */
   costPerHour: number | null;
   byPlatform: { platform: GamePlatform; count: number }[];
+  /** The shops, so the editor and the filter read the same list. */
+  stores: StoreRow[];
 };
 
 export async function getGames(): Promise<GamesSummary> {
-  const rows = await db.game.findMany({
-    orderBy: [{ status: "asc" }, { title: "asc" }],
-  });
+  // One Promise.all: the shops do not depend on the games, so asking after
+  // would cost a whole round trip for a list of four rows.
+  const [rows, stores] = await Promise.all([
+    db.game.findMany({
+      orderBy: [{ status: "asc" }, { title: "asc" }],
+      include: { store: { select: { name: true } } },
+    }),
+    listStores(),
+  ]);
 
   const games: GameRow[] = rows.map((row) => ({
     id: row.id,
     title: row.title,
     platform: row.platform,
+    storeId: row.storeId,
+    storeName: row.store?.name ?? null,
     status: row.status,
     hours: row.hours,
     // Decimal does not survive the trip to a client component, so it becomes a
@@ -57,6 +71,7 @@ export async function getGames(): Promise<GamesSummary> {
   }));
 
   const counts: Record<GameStatus, number> = {
+    wishlist: 0,
     backlog: 0,
     playing: 0,
     finished: 0,
@@ -74,7 +89,12 @@ export async function getGames(): Promise<GamesSummary> {
     counts[game.status] += 1;
     platforms.set(game.platform, (platforms.get(game.platform) ?? 0) + 1);
 
-    if (game.price !== null) {
+    /*
+     * A wishlist price is what you expect to pay, not what you paid. Letting it
+     * into either total would report money spent that still sits in the bank —
+     * the one way these figures could lie without looking wrong.
+     */
+    if (game.price !== null && game.status !== "wishlist") {
       totalSpend += game.price;
       if (game.status === "backlog") unplayedSpend += game.price;
     }
@@ -104,6 +124,7 @@ export async function getGames(): Promise<GamesSummary> {
     byPlatform: [...platforms.entries()]
       .map(([platform, count]) => ({ platform, count }))
       .sort((a, b) => b.count - a.count),
+    stores,
   };
 }
 
@@ -118,6 +139,7 @@ function toRow(draft: GameDraft) {
   return {
     title: draft.title.trim(),
     platform: draft.platform,
+    storeId: draft.store === "" ? null : draft.store,
     status: draft.status,
     hours: parseNumber(draft.hours),
     price: parseNumber(draft.price),
@@ -162,4 +184,65 @@ export async function existingTitles(): Promise<string[]> {
 export async function setStatus(id: string, status: GameStatus): Promise<string> {
   const game = await db.game.update({ where: { id }, data: { status } });
   return game.title;
+}
+
+export async function listStores(): Promise<StoreRow[]> {
+  const rows = await db.gameStore.findMany({
+    orderBy: [{ position: "asc" }, { name: "asc" }],
+    include: { _count: { select: { games: true } } },
+  });
+  return rows.map((r) => ({ id: r.id, key: r.key, name: r.name, uses: r._count.games }));
+}
+
+/**
+ * A new shop.
+ *
+ * The key is derived from the name rather than asked for: it exists so an import
+ * can match, and making the operator invent one is asking for a decision they
+ * have no information to make.
+ */
+export async function createStore(
+  name: string,
+): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
+  const clean = name.trim();
+  if (!clean) return { ok: false, reason: "Falta el nombre." };
+
+  const key = clean
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const existing = await db.gameStore.findUnique({ where: { key } });
+  if (existing) return { ok: false, reason: `Ya existe «${existing.name}».` };
+
+  const last = await db.gameStore.findFirst({
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
+
+  const row = await db.gameStore.create({
+    data: { key, name: clean, position: (last?.position ?? -1) + 1 },
+  });
+  return { ok: true, id: row.id };
+}
+
+/**
+ * Deleting a shop does not delete the games bought there.
+ *
+ * The foreign key is `SetNull`, so they keep their launcher and lose only the
+ * answer to "where did this come from" — which is already optional, and is the
+ * mild outcome. Refusing instead would mean a shop that closed can never be
+ * tidied away.
+ */
+export async function removeStore(id: string): Promise<{ name: string; orphaned: number }> {
+  const row = await db.gameStore.findUnique({
+    where: { id },
+    select: { name: true, _count: { select: { games: true } } },
+  });
+  if (!row) return { name: "", orphaned: 0 };
+
+  await db.gameStore.delete({ where: { id } });
+  return { name: row.name, orphaned: row._count.games };
 }

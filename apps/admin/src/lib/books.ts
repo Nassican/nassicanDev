@@ -56,6 +56,7 @@ export async function getBooks(): Promise<BooksSummary> {
   }));
 
   const counts: Record<BookStatus, number> = {
+    wishlist: 0,
     backlog: 0,
     reading: 0,
     finished: 0,
@@ -76,7 +77,8 @@ export async function getBooks(): Promise<BooksSummary> {
       authors.set(book.author, (authors.get(book.author) ?? 0) + 1);
     }
 
-    if (book.price !== null) {
+    // A wishlist price is what you expect to pay, not what you paid.
+    if (book.price !== null && book.status !== "wishlist") {
       totalSpend += book.price;
       if (book.status === "backlog") unreadSpend += book.price;
     }

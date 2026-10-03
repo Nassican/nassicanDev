@@ -21,7 +21,8 @@
     "content:import": "tsx --conditions=react-server scripts/import-content.ts",
     "media:optimise": "tsx --conditions=react-server scripts/optimise-media.ts",
     "profile:import": "tsx --conditions=react-server scripts/import-profile.ts",
-    "games:import": "tsx --conditions=react-server scripts/import-games.ts"
+    "games:import": "tsx --conditions=react-server scripts/import-games.ts",
+    "games:list": "tsx --conditions=react-server scripts/import-games-list.ts"
   },
   "engines": {
     "node": ">=20"

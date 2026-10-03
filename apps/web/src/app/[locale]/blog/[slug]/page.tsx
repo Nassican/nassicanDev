@@ -6,7 +6,8 @@ import { getProfile } from "@/lib/data/profile";
 import { notFound } from "next/navigation";
 import { BsArrowLeft } from "react-icons/bs";
 import Prose from "@/components/Prose";
-import { readingMinutes } from "@/lib/data";
+import TableOfContents from "@/components/ui/TableOfContents";
+import { readingMinutes, tableOfContents } from "@/lib/data";
 import { getPost, getPublishedPosts } from "@/lib/data/posts";
 import { formatDate } from "@/lib/format";
 import { getDictionary } from "@/lib/i18n";
@@ -118,6 +119,13 @@ export default async function PostPage({ params }: PageParams) {
         {locale === "es" ? "Por " : "By "}<Link href={localePath(locale, "/")} rel="author" className="underline">{profile.name}</Link>
       </p>
       {post.image ? <Image src={post.image} alt={c.title} width={1200} height={630} sizes="(min-width: 768px) 48rem, 100vw" className="mb-8 h-auto w-full rounded-xl" /> : null}
+      {/*
+        Above the article and not floating beside it: at this width there is no
+        margin to float into, and a list you scroll past once is what a table of
+        contents is for.
+      */}
+      <TableOfContents entries={tableOfContents(c.body)} label={t.blog.toc} />
+
       <article>
         <Prose blocks={c.body} />
       </article>

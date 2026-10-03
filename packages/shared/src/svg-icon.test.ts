@@ -4,6 +4,7 @@ import {
   buildIconSprite,
   fitSvg,
   iconSymbolId,
+  monochromeSvg,
   looksLikeSvg,
   namespaceSvgIds,
   prepareIconSvg,
@@ -179,4 +180,50 @@ test("un sprite sin iconos es cadena vacía, no un svg vacío", () => {
 test("iconSymbolId limpia la clave igual que el prefijo de los ids", () => {
   assert.equal(iconSymbolId("Tailwind CSS"), "tech-tailwind-css");
   assert.equal(iconSymbolId("Node.js"), "tech-node-js");
+});
+
+// -------------------------------------------------------------- monocromo
+
+/** Express's real shape: one path, no `fill`, so SVG defaults it to black. */
+const EXPRESS = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><path d="M126.67 98.44c-4.56 1.16-7.38.05-9.91-3.75"/></svg>`;
+
+test("un logo sin fill deja de ser negro por defecto", () => {
+  const out = monochromeSvg(EXPRESS);
+
+  // Without this the path paints black, which on a dark background is nothing.
+  assert.ok(out.includes('fill="currentColor"'), out);
+});
+
+test("los degradados se van con los colores que los referenciaban", () => {
+  const out = monochromeSvg(prepareIconSvg(VITE, "Vite"));
+
+  assert.ok(!out.includes("linearGradient"), out);
+  assert.ok(!out.includes("#bd34fe"), out);
+  assert.ok(!out.includes("url(#"), "una referencia a un degradado borrado no pinta nada");
+  assert.ok(out.includes('fill="currentColor"'));
+});
+
+/**
+ * `fill="none"` is structure, not colour: it is how a logo keeps its holes.
+ * Repainting it would fill them in.
+ */
+test("fill=\"none\" sobrevive, que es como el logo conserva sus huecos", () => {
+  const out = monochromeSvg(`<svg viewBox="0 0 24 24"><path fill="none" stroke="#f00" d="M0 0"/></svg>`);
+
+  assert.ok(out.includes('fill="none"'), out);
+  assert.ok(!out.includes("#f00"), out);
+});
+
+test("se quita el color escrito como estilo en línea", () => {
+  const out = monochromeSvg(`<svg viewBox="0 0 24 24"><path style="fill:#ff0000;opacity:.5" d="M0 0"/></svg>`);
+
+  assert.ok(!out.includes("#ff0000"), out);
+  assert.ok(out.includes("opacity:.5"), "la opacidad es forma, no color");
+});
+
+test("el viewBox y la geometría sobreviven enteros", () => {
+  const out = monochromeSvg(prepareIconSvg(VITE, "Vite"));
+
+  assert.ok(out.includes('viewBox="0 0 128 128"'));
+  assert.ok(out.includes("<path"), out);
 });

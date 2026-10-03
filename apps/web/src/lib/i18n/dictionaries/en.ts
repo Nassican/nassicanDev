@@ -110,6 +110,7 @@ export const en: Dictionary = {
 
   blog: {
     title: "Blog",
+    toc: "Contents",
     listDescription:
       "Technical notes on web development: Next.js, TypeScript, frontend and backend architecture.",
     metaDescription:

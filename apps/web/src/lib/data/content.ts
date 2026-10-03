@@ -14,6 +14,8 @@ export {
   wordCount,
   readingMinutes,
   headingId,
+  tableOfContents,
   extractLinks,
+  type TocEntry,
   type ContentBlock,
 } from "@nassican/shared";

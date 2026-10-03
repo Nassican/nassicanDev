@@ -44,6 +44,8 @@ export default function GamesModule({
     save: (draft: GameDraft) => Promise<ActionResult>;
     remove: (id: string, title: string) => Promise<ActionResult>;
     setStatus: (id: string, status: GameDraft["status"]) => Promise<ActionResult>;
+    addStore: (name: string) => Promise<ActionResult>;
+    removeStore: (id: string) => Promise<ActionResult>;
   };
 }) {
   const router = useRouter();
@@ -52,6 +54,12 @@ export default function GamesModule({
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [onlyStatus, setOnlyStatus] = useState<GameDraft["status"] | "">("");
+  const [onlyStore, setOnlyStore] = useState("");
+  const [onlyPlatform, setOnlyPlatform] = useState("");
+  const [managing, setManaging] = useState(false);
+  const [newStore, setNewStore] = useState("");
+
+  const stores = summary.stores;
 
   const dirty = draft !== null && isDirty(baselineFor(draft, summary), draft);
   useUnsavedChanges(dirty);
@@ -74,6 +82,8 @@ export default function GamesModule({
     const needle = fold(query);
     return summary.games.filter((game) => {
       if (onlyStatus && game.status !== onlyStatus) return false;
+      if (onlyStore && game.storeId !== onlyStore) return false;
+      if (onlyPlatform && game.platform !== onlyPlatform) return false;
       if (!needle) return true;
       return (
         fold(game.title).includes(needle) ||
@@ -81,7 +91,7 @@ export default function GamesModule({
         fold(game.note ?? "").includes(needle)
       );
     });
-  }, [summary.games, query, onlyStatus]);
+  }, [summary.games, query, onlyStatus, onlyStore, onlyPlatform]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -189,6 +199,23 @@ export default function GamesModule({
               </select>
             </Labelled>
 
+            <Labelled label="Dónde se compró">
+              <select
+                className={field}
+                value={draft.store}
+                onChange={(e) =>
+                  setDraft({ ...draft, store: e.target.value as GameDraft["store"] })
+                }
+              >
+                <option value="">No lo recuerdo</option>
+                {stores.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </Labelled>
+
             <Labelled label="Estado">
               <select
                 className={field}
@@ -271,6 +298,8 @@ export default function GamesModule({
               if (e.key === "Escape") {
                 setQuery("");
                 setOnlyStatus("");
+                setOnlyStore("");
+                setOnlyPlatform("");
               }
             }}
             placeholder="Buscar por título, plataforma o nota…"
@@ -288,12 +317,124 @@ export default function GamesModule({
               </option>
             ))}
           </select>
+
+          {/*
+            Two filters and not one, for the same reason there are two fields:
+            «lo compré en Steam» and «se abre en Ubisoft» are different questions
+            and 9 of these games answer them differently.
+          */}
+          <select
+            className={field}
+            value={onlyPlatform}
+            onChange={(e) => setOnlyPlatform(e.target.value)}
+          >
+            <option value="">Cualquier lanzador</option>
+            {summary.byPlatform.map((p) => (
+              <option key={p.platform} value={p.platform}>
+                {platformLabel(p.platform)} ({p.count})
+              </option>
+            ))}
+          </select>
+
+          {stores.length > 0 ? (
+            <select
+              className={field}
+              value={onlyStore}
+              onChange={(e) => setOnlyStore(e.target.value)}
+            >
+              <option value="">Cualquier tienda</option>
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.uses})
+                </option>
+              ))}
+            </select>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => setManaging((v) => !v)}
+            className="rounded border border-neutral-800 px-2.5 py-1.5 text-[11px] text-neutral-500 transition-colors hover:border-neutral-600 hover:text-neutral-300"
+          >
+            {managing ? "Ocultar tiendas" : "Tiendas"}
+          </button>
+
           {shown.length !== summary.games.length ? (
             <span className="text-[11px] text-neutral-600">
               {shown.length} de {summary.games.length}
             </span>
           ) : null}
         </div>
+      ) : null}
+
+      {managing ? (
+        <section className="flex flex-col gap-3 rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+          <h2 className={label}>Dónde se compra</h2>
+
+          <ul className="flex flex-wrap gap-2">
+            {stores.map((s) => (
+              <li
+                key={s.id}
+                className="inline-flex items-center gap-2 rounded-full border border-neutral-800 px-3 py-1 text-xs text-neutral-300"
+              >
+                {s.name}
+                <span className="font-mono text-[10px] text-neutral-600">{s.uses}</span>
+                <button
+                  type="button"
+                  aria-label={`Eliminar ${s.name}`}
+                  disabled={pending}
+                  onClick={() => {
+                    const warning =
+                      s.uses > 0
+                        ? `«${s.name}» está en ${s.uses} ${s.uses === 1 ? "juego" : "juegos"}. Se quedarán sin tienda, pero conservan todo lo demás. ¿Seguir?`
+                        : `¿Eliminar «${s.name}»?`;
+                    if (!confirm(warning)) return;
+                    run(() => actions.removeStore(s.id));
+                  }}
+                  className="text-neutral-600 transition-colors hover:text-red-400"
+                >
+                  <BsTrash className="h-3 w-3" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              className={`${field} min-w-48`}
+              value={newStore}
+              placeholder="Eneba, Humble Bundle, Instant Gaming…"
+              onChange={(e) => setNewStore(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newStore.trim()) {
+                  run(() => actions.addStore(newStore.trim()), () => setNewStore(""));
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={pending || !newStore.trim()}
+              onClick={() =>
+                run(() => actions.addStore(newStore.trim()), () => setNewStore(""))
+              }
+              className={`${button} border-neutral-700 text-neutral-200 hover:border-neutral-500`}
+            >
+              Añadir tienda
+            </button>
+          </div>
+
+          {/*
+            Deleting a shop does not delete its games: the foreign key is
+            `SetNull`, so they keep their launcher and lose only the answer to
+            «de dónde salió». Refusing instead would mean a shop that closed can
+            never be tidied away.
+          */}
+          <p className="text-[11px] text-neutral-600">
+            El lanzador es una lista cerrada —no te inventas uno—, pero las
+            tiendas no: aparece una nueva cada temporada. Borrar una deja sus
+            juegos sin tienda y no les quita nada más.
+          </p>
+        </section>
       ) : null}
 
       {summary.games.length === 0 ? (
@@ -319,6 +460,13 @@ export default function GamesModule({
                 <span className="block truncate text-[11px] text-neutral-600">
                   {[
                     platformLabel(game.platform),
+                    // Only worth saying when the two differ, which is the case
+                    // this field exists for.
+                    // Only worth saying when the two differ, which is the case
+                    // this field exists for.
+                    game.storeName && game.storeName !== platformLabel(game.platform)
+                      ? `comprado en ${game.storeName}`
+                      : null,
                     game.purchasedAt,
                     game.price !== null ? money(game.price) : null,
                     game.hours !== null ? `${game.hours} h` : null,
@@ -360,6 +508,7 @@ export default function GamesModule({
                       id: game.id,
                       title: game.title,
                       platform: game.platform,
+                      store: game.storeId ?? "",
                       status: game.status,
                       hours: game.hours === null ? "" : String(game.hours),
                       price: game.price === null ? "" : String(game.price),
@@ -421,6 +570,7 @@ function baselineFor(draft: GameDraft, summary: GamesSummary): GameDraft {
     id: row.id,
     title: row.title,
     platform: row.platform,
+    store: row.storeId ?? "",
     status: row.status,
     hours: row.hours === null ? "" : String(row.hours),
     price: row.price === null ? "" : String(row.price),

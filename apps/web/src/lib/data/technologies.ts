@@ -18,6 +18,8 @@ export type TechnologyBrand = {
   hex: string;
   /** Prepared markup, or null to fall back to the monochrome react-icons map. */
   iconSvg: string | null;
+  /** `mono` repaints it in currentColor; see `monochromeSvg`. */
+  iconMono: boolean;
 };
 
 export type SkillGroupData = {
@@ -36,7 +38,7 @@ export const getSkillGroups = unstable_cache(
           orderBy: { position: "asc" },
           include: {
             technology: {
-              select: { key: true, name: true, hex: true, iconSvg: true },
+              select: { key: true, name: true, hex: true, iconSvg: true, iconMode: true },
             },
           },
         },
@@ -51,6 +53,7 @@ export const getSkillGroups = unstable_cache(
         name: item.technology.name,
         hex: item.technology.hex,
         iconSvg: item.technology.iconSvg,
+        iconMono: item.technology.iconMode === "mono",
       })),
     }));
   },

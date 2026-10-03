@@ -438,6 +438,9 @@ Al agregar una ruta nueva:
 3. Usa `pageMetadata()` de `@/lib/seo` para canonical + hreflang + OpenGraph.
 4. Agrégala a `src/app/sitemap.ts` con `localizedEntries()`.
 5. Agrégala a la sección `Páginas` de `src/app/[locale]/llms.txt/route.ts`.
+   Si lleva un punto en el nombre (`algo.xml`), añádela también al `matcher` de
+   `middleware.ts`: las rutas con punto quedan fuera por defecto y la URL
+   española daría 404 mientras la inglesa funciona.
 6. Enlázala desde `Navigation.tsx` y/o `Footer.tsx` con `localePath`.
 
 ## Contenido
@@ -1279,6 +1282,48 @@ tiñendo su fondo, su borde y su resplandor, y el glifo ya no.
 Con la variante `plain` pasa lo contrario y también a propósito: es una forma sola
 que **sí** debe teñirse, y para eso está el hex.
 
+#### Monocromo: dos modos que quieren lo contrario de la misma propiedad
+
+`color` no basta, y el caso que lo demuestra es Express: **su marca es un path sin
+atributo `fill`**, y el valor por defecto de `fill` en SVG es **negro**. Sobre un
+fondo oscuro no es que desentone — no se ve. El hex de marca tampoco lo salva,
+porque el color de marca *es* negro.
+
+Y hay un segundo motivo, menos dramático: veintitrés logos con sus propias
+paletas son veintitrés paletas discutiendo con la del sitio.
+
+Así que `IconMode` tiene dos valores y **cada uno necesita lo contrario del otro**
+en `BrandIcon`:
+
+| modo | `color` del icono | por qué |
+| --- | --- | --- |
+| `color` | `initial`, no hereda | si hereda, el tinte de la ficha lo aplana — el fallo de Vite |
+| `mono` | hereda `currentColor` | si no hereda, cae al negro por defecto — el fallo de Express |
+
+Eso es exactamente por qué el modo es un campo y no una convención: una sola
+regla no puede servir a los dos.
+
+`monochromeSvg()` quita degradados, filtros, atributos de color y las
+declaraciones `fill`/`stroke` escritas como estilo, y pone `fill="currentColor"`
+en la raíz. **`fill="none"` sobrevive a propósito**: eso es forma y no color — es
+como un logo conserva sus huecos, y repintarlo los rellenaría.
+
+Se aplica **al construir el sprite**, no al guardar. El original preparado se
+queda en la fila, así que cambiar de modo es una columna y nunca otra descarga, y
+volver atrás no pierde nada.
+
+#### Añadir tecnologías, que es lo que faltaba
+
+La primera versión solo editaba lo que la migración de contenido había sembrado,
+lo que la convertía en un selector de color y no en un módulo: lo que de verdad
+se le pide es poner una tecnología nueva en el sitio sin desplegar.
+
+Eliminar **se niega mientras algo la referencie**, y dice cuántos. Misma regla que
+`deleteMedia` y por el mismo motivo: el stack de un proyecto es una clave
+foránea, así que borrar la fila de debajo fallaría en la base o vaciaría una
+ficha en silencio. El botón se deshabilita además con el conteo en el `title`,
+pero la comprobación que cuenta es la de la acción.
+
 #### Dónde quedó la migración de `skills.ts`
 
 Las tablas `technologies` y `skill_groups` ya tenían los datos desde la migración
@@ -1350,6 +1395,85 @@ lógica estaba además duplicada en `games.ts`, o sea que el fallo existía en d
 sitios y se podía arreglar en uno solo; ahora hay una sola función y una prueba
 que comprueba que validar y guardar leen el número igual.
 
+#### La tienda no es el lanzador, y hacen falta las dos
+
+«Lo compré en Steam pero es de Ubisoft y se abre en Ubisoft Connect» no es un
+caso raro: **son 9 de los 96 juegos**. Un solo campo obligaba a mentir en todos
+ellos, y la pregunta que se hace después —«¿dónde hago clic para jugarlo?»— tiene
+una sola respuesta correcta.
+
+- **`platform`** es dónde se ejecuta: el lanzador que abres.
+- **`store`** es dónde se compró, y es opcional porque a veces ya no se recuerda.
+
+La ficha solo menciona la tienda cuando difiere del lanzador, que es el único
+caso en que decirlo aporta algo.
+
+#### Las tiendas son filas; los lanzadores, no
+
+Y la diferencia no es arbitraria. **Un lanzador es un conjunto cerrado que no te
+inventas** —Steam, Ubisoft Connect, GOG Galaxy, Epic— y añadir uno es un acto raro
+y deliberado, así que vive bien en un enum. **Una tienda es lo contrario**: Eneba,
+Humble, Fanatical, Instant Gaming y la siguiente reventa de claves que aparezca.
+Obligar a desplegar para registrar una compra en una tienda nueva es la clase de
+fricción que termina con el campo vacío, y un campo vacío es un campo muerto.
+
+Borrar una tienda **no borra sus juegos**: la clave foránea es `SetNull`, así que
+conservan su lanzador y pierden solo la respuesta a «de dónde salió», que ya era
+opcional. Negarse en cambio significaría que una tienda que cerró no se puede
+ordenar nunca.
+
+**La migración se escribió a mano porque la generada perdía datos.** `prisma
+migrate diff` proponía `DROP COLUMN "store"` antes de que existiera dónde copiar
+las 88 asignaciones. El orden es el asunto entero: crear la tabla, sembrarla desde
+el enum que está a punto de irse, rellenar, y solo entonces borrar la columna.
+Comprobado contando antes y después: 88 y 88.
+
+Dos filtros en la lista y no uno, por la misma razón que hay dos campos: «lo
+compré en Steam» y «se abre en Ubisoft» son preguntas distintas y nueve de estos
+juegos las responden distinto.
+
+#### «Lo quiero»: un deseo no es dinero gastado
+
+`wishlist` existe en las dos bibliotecas, y el compilador señaló al añadirlo algo
+que no estaba pensado: **el precio de un deseo es lo que esperas pagar, no lo que
+pagaste**. Dejarlo entrar en «gasto total» o en «sin abrir» reportaría dinero que
+sigue en el banco — la única forma en que esas cifras podrían mentir sin parecer
+mal. Queda fuera de las dos.
+
+Lo encontró `Record<GameStatus, number>` al dejar de compilar, que es el mismo
+truco de exhaustividad que usan `localeParity` y el mapa de secciones de la
+portada.
+
+#### La lista curada, fusionada con la siembra
+
+```bash
+npm run games:list -- --dry   # informa sin escribir
+npm run games:list            # escribe
+```
+
+Dos registros de los mismos seis años con granularidades distintas. La siembra
+desde Wallet partió cada pack en sus juegos —diecisiete títulos de Valve, tres de
+Outlast— pero adivinó el lanzador a partir del comercio y le salió `other` casi
+siempre. La lista curada sabe la **tienda** de cada compra y no parte los packs.
+
+**El mapeo está escrito a mano, no emparejado por parecido.** «Assassins Creed
+Origins» y «Assassin's Creed Origins - Standard Edition» son la misma compra;
+«Half-Life 2» y «Half-Life 2: Episode One» no lo son. Un emparejamiento difuso
+acertaría casi siempre, y estos datos ya habían producido dos respuestas seguras
+y falsas. Lo explícito se revisa; lo listo no.
+
+Resultado: 56 compras cubriendo 88 de 96 filas, 85 corregidas, 3 creadas (las de
+este mes, posteriores a la última sincronización), **0 sin mapear**, y 8 filas que
+la lista no menciona y que se dejan intactas.
+
+El precio de un pack **no se reparte entre sus miembros**: queda en la nota. Es la
+misma regla de la primera siembra y por el mismo motivo — 13.131 entre diecisiete
+juegos son 772 que nadie midió.
+
+Un fallo que cazó el `--dry`: la creación no comprobaba lo ya existente, así que
+una segunda pasada habría duplicado esos tres títulos. Es exactamente para lo que
+estos scripts imprimen antes de actuar.
+
 #### La siembra desde Wallet, una sola vez
 
 ```bash
@@ -1387,6 +1511,60 @@ la nota, así que el cargo de Hostinger —anotado «Diferido a 1 mes» y nada m
 iba a entrar como un juego llamado *Diferido a 1 mes*. Ahora se comprueba también
 la contraparte, y una línea que solo dice que el cobro fue diferido se descarta
 por sí sola.
+
+### RSS: el feed que no existía
+
+`/rss.xml` y `/en/rss.xml`, generados desde las mismas consultas que alimentan el
+sitemap. Es lo más barato de toda la lista de pendientes y lo que más
+desproporcionadamente rinde: un blog sin feed es invisible para los lectores y los
+agregadores, que en una audiencia técnica son casi todo el tráfico que no viene de
+una búsqueda.
+
+**RSS 2.0 y no Atom**, que es el más viejo y más feo de los dos y el que cualquier
+lector maneja sin pensar. Ahí no está la decisión interesante.
+
+Tres que sí lo son:
+
+- **El `guid` es el slug, no la URL.** Un lector apoya en él su lista de «esto ya
+  lo vi», así que tiene que sobrevivir al día en que una ruta cambie. Con la URL,
+  renombrar un artículo lo reenviaría a todo el mundo como si fuera nuevo.
+- **Un despliegue de vista previa y el modo mantenimiento devuelven un canal
+  vacío, no un 404.** Un lector que recibe un 404 puede darse de baja; uno que
+  recibe un canal sin entradas simplemente no encuentra nada nuevo, que es la
+  verdad en los dos casos.
+- **`atom:link rel="self"`** apunta al propio feed, que es como un lector se
+  entera de que la dirección se movió.
+
+**Y una trampa que este documento ya describía desde el otro lado.** `/rss.xml`
+daba **404** mientras `/en/rss.xml` funcionaba, porque el matcher del proxy excluye
+las rutas con punto —así es como `/media/<sha256>.webp` nunca se reescribe al
+segmento `[locale]`— y por tanto `/rss.xml` nunca llegaba a `/es/rss.xml`. Se
+arregla como ya se había arreglado `/llms.txt`: listándolo explícitamente para
+volver a entrar en la reescritura. **Cualquier ruta nueva con un punto en el
+nombre tiene este fallo**, y solo en la URL española, que es la que menos se
+prueba.
+
+### El índice de contenidos, y el fallo que destapó
+
+`headingId` lleva desde siempre poniendo un `id` a cada encabezado de `Prose` —el
+comentario de esa función incluso decía «para anclas y el índice»— y nada lo
+enlazaba. El trabajo estaba hecho; faltaba la lista.
+
+**Pero `headingId` solo no basta, y el índice es justo lo que lo enseña.** Dos
+encabezados llamados «Resultado» pliegan los dos a `resultado`, el navegador salta
+al primero, y la segunda entrada de la lista apunta en silencio a la sección
+equivocada. Se lee como un ancla rota, no como una colisión.
+
+Por eso el sufijo lo pone `tableOfContents()`, y **`Prose` renderiza desde esa
+misma función** en lugar de llamar a `headingId` por bloque. Si no, la lista y el
+documento discreparían sobre cómo se llama el segundo «Resultado», que es peor que
+el fallo que se estaba arreglando. Los dos recorren solo los bloques `heading` y
+en el mismo orden, así que no se pueden desalinear.
+
+Se oculta con menos de dos entradas: uno no es un índice, es la primera línea del
+artículo repetida. Y es servidor y `<a>` pelados — un resaltado que sigue al lector
+es bonito y también es un componente de cliente en cada página de artículo, y esto
+se gana su sitio sin uno.
 
 ### Libros: la misma idea con otros sustantivos
 

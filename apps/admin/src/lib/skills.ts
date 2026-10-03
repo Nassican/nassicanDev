@@ -19,6 +19,7 @@ export type TechnologyRow = {
   iconSvg: string | null;
   deviconName: string | null;
   deviconVariant: string | null;
+  iconMono: boolean;
   /** Used by projects or experience, so deleting it would orphan something. */
   uses: number;
   groups: string[];
@@ -66,6 +67,7 @@ export async function getSkills(): Promise<SkillsSummary> {
     iconSvg: t.iconSvg,
     deviconName: t.deviconName,
     deviconVariant: t.deviconVariant,
+    iconMono: t.iconMode === "mono",
     uses: t._count.projects + t._count.experience,
     groups: t.groups.map((g) => g.groupId),
   }));
@@ -109,4 +111,89 @@ export async function setTechnologyColor(id: string, hex: string): Promise<strin
     select: { name: true },
   });
   return row.name;
+}
+
+/**
+ * A new technology.
+ *
+ * The key is what projects and experience reference by foreign key, and what the
+ * icon's symbol id is built from, so it has to be unique and stable — the module
+ * refuses a duplicate rather than silently merging two things with one name.
+ */
+export async function createTechnology(input: {
+  key: string;
+  name: string;
+  hex: string;
+}): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
+  const existing = await db.technology.findUnique({ where: { key: input.key } });
+  if (existing) return { ok: false, reason: `Ya existe «${input.key}».` };
+
+  const row = await db.technology.create({
+    data: { key: input.key, name: input.name, hex: input.hex },
+  });
+  return { ok: true, id: row.id };
+}
+
+/**
+ * Deleting is refused while anything points at it.
+ *
+ * Same rule as `deleteMedia`, and for the same reason: a project's stack is a
+ * foreign key, so removing the row underneath it would either fail loudly at the
+ * database or quietly empty a chip. Saying how many is what makes the refusal
+ * actionable.
+ */
+export async function removeTechnology(
+  id: string,
+): Promise<{ ok: true; name: string } | { ok: false; reason: string }> {
+  const row = await db.technology.findUnique({
+    where: { id },
+    select: { name: true, _count: { select: { projects: true, experience: true } } },
+  });
+  if (!row) return { ok: false, reason: "Ya no existe." };
+
+  const uses = row._count.projects + row._count.experience;
+  if (uses > 0) {
+    return {
+      ok: false,
+      reason: `«${row.name}» se usa en ${uses} ${uses === 1 ? "sitio" : "sitios"}. Quítalo de ahí primero.`,
+    };
+  }
+
+  await db.technology.delete({ where: { id } });
+  return { ok: true, name: row.name };
+}
+
+export async function setIconMode(id: string, mode: "color" | "mono"): Promise<string> {
+  const row = await db.technology.update({
+    where: { id },
+    data: { iconMode: mode },
+    select: { name: true },
+  });
+  return row.name;
+}
+
+/** Puts a technology in a group, or takes it out. */
+export async function setGroupMembership(
+  technologyId: string,
+  groupId: string,
+  member: boolean,
+): Promise<void> {
+  if (!member) {
+    await db.skillGroupItem.deleteMany({ where: { technologyId, groupId } });
+    return;
+  }
+
+  // Appended at the end: a new member has no opinion about where it goes, and
+  // guessing would reshuffle an order somebody set on purpose.
+  const last = await db.skillGroupItem.findFirst({
+    where: { groupId },
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
+
+  await db.skillGroupItem.upsert({
+    where: { groupId_technologyId: { groupId, technologyId } },
+    create: { groupId, technologyId, position: (last?.position ?? -1) + 1 },
+    update: {},
+  });
 }

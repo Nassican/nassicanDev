@@ -31,6 +31,7 @@ export const formats: { value: BookFormat; label: string }[] = [
 ];
 
 export const statuses: { value: BookStatus; label: string; hint: string }[] = [
+  { value: "wishlist", label: "Lo quiero", hint: "Todavía no es tuyo" },
   { value: "backlog", label: "Sin empezar", hint: "Lo tienes y no lo has abierto" },
   { value: "reading", label: "Leyendo", hint: "En curso ahora mismo" },
   { value: "finished", label: "Terminado", hint: "Llegaste al final" },

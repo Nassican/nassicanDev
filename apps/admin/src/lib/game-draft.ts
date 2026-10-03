@@ -20,6 +20,8 @@ export type GameDraft = {
   id: string;
   title: string;
   platform: GamePlatform;
+  /** The store row id. Empty when you no longer remember, which is fine. */
+  store: string;
   status: GameStatus;
   /** Kept as the typed string so an empty field is not silently a zero. */
   hours: string;
@@ -36,10 +38,12 @@ export const platforms: { value: GamePlatform; label: string }[] = [
   { value: "epic", label: "Epic" },
   { value: "xbox", label: "Xbox" },
   { value: "playstation", label: "PlayStation" },
+  { value: "microsoft", label: "Microsoft / Mojang" },
   { value: "other", label: "Otra" },
 ];
 
 export const statuses: { value: GameStatus; label: string; hint: string }[] = [
+  { value: "wishlist", label: "Lo quiero", hint: "Todavía no es tuyo" },
   { value: "backlog", label: "Sin empezar", hint: "Comprado y nunca abierto" },
   { value: "playing", label: "Jugando", hint: "En curso ahora mismo" },
   { value: "finished", label: "Terminado", hint: "Llegaste al final" },
@@ -57,6 +61,7 @@ export function emptyGame(): GameDraft {
     id: "",
     title: "",
     platform: "other",
+    store: "",
     status: "backlog",
     hours: "",
     price: "",

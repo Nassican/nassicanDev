@@ -1,4 +1,4 @@
-import { buildIconSprite } from "@nassican/shared";
+import { buildIconSprite, monochromeSvg } from "@nassican/shared";
 import type { SkillGroupData } from "@/lib/data/technologies";
 
 /**
@@ -16,7 +16,10 @@ export default function IconSprite({ groups }: { groups: SkillGroupData[] }) {
   const seen = new Map<string, string>();
   for (const group of groups) {
     for (const item of group.items) {
-      if (item.iconSvg && !seen.has(item.key)) seen.set(item.key, item.iconSvg);
+      if (!item.iconSvg || seen.has(item.key)) continue;
+      // Applied here rather than stored twice: the mode is a column flip and
+      // never another fetch, and the original stays available to go back to.
+      seen.set(item.key, item.iconMono ? monochromeSvg(item.iconSvg) : item.iconSvg);
     }
   }
 

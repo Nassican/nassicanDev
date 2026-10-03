@@ -446,6 +446,9 @@ model Technology {
   deviconName    String? @map("devicon_name")
   /// "original" is the full-colour logo, "plain" the single-path monochrome one.
   deviconVariant String? @map("devicon_variant")
+  /// Applied when the sprite is built, not stored twice: switching is a column
+  /// update and never another fetch.
+  iconMode IconMode @default(color) @map("icon_mode")
 
   /// The prepared markup, inlined straight into the page.
   ///
@@ -1321,6 +1324,17 @@ model UptimeCheck {
 /// Where the game lives, which is the launcher and not the shop that sold it:
 /// a key bought on Eneba is played on Ubisoft Connect, and what you want to
 /// know later is where to click.
+/// How a technology logo is painted.
+///
+/// `color` is the brand mark with its own colours. `mono` strips them and lets it
+/// inherit `currentColor`, which is the only way a dark logo like Express stays
+/// visible on a dark background — and the way to keep a page from being a parade
+/// of clashing brand palettes.
+enum IconMode {
+  color
+  mono
+}
+
 enum GamePlatform {
   ubisoft
   gog
@@ -1328,6 +1342,7 @@ enum GamePlatform {
   epic
   xbox
   playstation
+  microsoft
   other
 }
 
@@ -1335,10 +1350,33 @@ enum GamePlatform {
 /// nobody tracks answers "what do I own", and the useful question is "what did
 /// I buy and never open".
 enum GameStatus {
+  /// Not owned yet. Kept apart from `backlog` because every money figure in
+  /// the module is about what was spent, and a wish has not been spent.
+  wishlist
   backlog
   playing
   finished
   dropped
+}
+
+/// Where a game was bought.
+///
+/// A table and not an enum, which is the difference between the two fields it
+/// sits next to. **Launchers are a closed set you do not invent** — Steam,
+/// Ubisoft Connect, GOG Galaxy, Epic — and adding one is a rare, deliberate act.
+/// **Stores are open**: Eneba, Humble, Fanatical, Instant Gaming and the next
+/// key reseller that appears. Making the operator deploy to record a purchase
+/// from a new shop is the kind of friction that ends with the field left empty.
+model GameStore {
+  id       String @id @default(uuid())
+  /// Stable and lowercase; what an import matches on.
+  key      String @unique
+  name     String
+  position Int    @default(0)
+
+  games Game[]
+
+  @@map("game_stores")
 }
 
 /// A game, entered by hand.
@@ -1355,8 +1393,15 @@ enum GameStatus {
 model Game {
   id       String       @id @default(uuid())
   title    String
+  /// Where it runs — the launcher you open.
   platform GamePlatform @default(other)
-  status   GameStatus   @default(backlog)
+  /// Where it was bought, which is a different question: 9 of these 96 were
+  /// bought on Steam and run on Ubisoft Connect. Keeping one field would have
+  /// forced a wrong answer on every one of those rows. Optional because the
+  /// honest answer is sometimes that nobody remembers.
+  storeId  String?       @map("store_id")
+  store    GameStore?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  status   GameStatus    @default(backlog)
 
   /// Hours played, as the launcher reports them. Null means "not recorded",
   /// which is a different thing from zero: zero is a game opened and quit.
@@ -1400,6 +1445,9 @@ enum BookFormat {
 /// module exists for: a shelf answers "what do I own", and the useful question
 /// is "what did I buy and never open".
 enum BookStatus {
+  /// A book you want to buy. Same reason as the games: it is not yours yet, so
+  /// it cannot count towards what the shelf cost.
+  wishlist
   backlog
   reading
   finished

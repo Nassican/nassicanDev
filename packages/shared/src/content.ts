@@ -149,3 +149,38 @@ export function extractMediaIds(body: ContentBlock[]): string[] {
     ),
   ];
 }
+
+export type TocEntry = { id: string; text: string };
+
+/**
+ * The headings of a body, with ids that are actually unique.
+ *
+ * `headingId` alone is not enough and the table of contents is what exposes it:
+ * two headings called «Resultado» both fold to `resultado`, the browser jumps to
+ * whichever came first, and the second entry in the list silently points at the
+ * wrong section. It looks like the anchor is broken rather than like a collision.
+ *
+ * So the suffix is added here, and **`Prose` has to render from this same
+ * function** rather than calling `headingId` per block — otherwise the list and
+ * the document disagree about what the second «Resultado» is called, which is a
+ * worse bug than the one being fixed.
+ */
+export function tableOfContents(blocks: ContentBlock[]): TocEntry[] {
+  const seen = new Map<string, number>();
+  const entries: TocEntry[] = [];
+
+  for (const block of blocks) {
+    if (block.type !== "heading") continue;
+
+    const base = headingId(block.text);
+    // A heading of only punctuation folds to nothing; it still needs an anchor.
+    const root = base || `seccion-${entries.length + 1}`;
+
+    const taken = seen.get(root) ?? 0;
+    seen.set(root, taken + 1);
+
+    entries.push({ id: taken === 0 ? root : `${root}-${taken + 1}`, text: block.text });
+  }
+
+  return entries;
+}

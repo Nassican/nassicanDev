@@ -1,11 +1,19 @@
 import Image from "next/image";
-import { headingId, type ContentBlock } from "@/lib/data";
+import { tableOfContents, type ContentBlock } from "@/lib/data";
 
 /**
  * Renders a typed content body. Blog posts and project case studies share
  * this component, so an article and a case study read the same way.
  */
 export default function Prose({ blocks }: { blocks: ContentBlock[] }) {
+  /*
+   * Ids come from the same function the table of contents uses, and in the same
+   * pass, so a repeated heading gets the same suffix in both. Calling
+   * `headingId` per block here instead would make the list point at anchors the
+   * document never rendered.
+   */
+  const anchors = tableOfContents(blocks);
+  let heading = 0;
   if (!blocks.length) return null;
 
   return (
@@ -16,7 +24,7 @@ export default function Prose({ blocks }: { blocks: ContentBlock[] }) {
             return (
               <h2
                 key={i}
-                id={headingId(block.text)}
+                id={anchors[heading++]?.id}
                 className="scroll-mt-28 pt-2 text-lg font-semibold tracking-tight"
               >
                 {block.text}

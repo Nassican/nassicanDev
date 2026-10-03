@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BsSearch, BsX } from "react-icons/bs";
+import { BsPlus, BsSearch, BsTrash, BsX } from "react-icons/bs";
 import Toast from "@/components/Toast";
+import { monochromeSvg } from "@nassican/shared";
 import { fold } from "@/lib/list-filters";
 import type { SkillsSummary, TechnologyRow } from "@/lib/skills";
 import type { ActionResult, IconChoice } from "@/app/(panel)/habilidades/actions";
@@ -41,6 +42,10 @@ export default function SkillsModule({
     choose: (id: string, key: string, name: string, variant: string) => Promise<ActionResult>;
     clear: (id: string) => Promise<ActionResult>;
     setColor: (id: string, hex: string) => Promise<ActionResult>;
+    add: (key: string, name: string, hex: string) => Promise<ActionResult>;
+    remove: (id: string) => Promise<ActionResult>;
+    setMode: (id: string, mode: "color" | "mono") => Promise<ActionResult>;
+    toggleGroup: (id: string, groupId: string, member: boolean) => Promise<ActionResult>;
   };
 }) {
   const router = useRouter();
@@ -48,6 +53,7 @@ export default function SkillsModule({
   const [pending, startTransition] = useTransition();
   const [picking, setPicking] = useState<TechnologyRow | null>(null);
   const [query, setQuery] = useState("");
+  const [adding, setAdding] = useState<{ key: string; hex: string } | null>(null);
 
   function run(action: () => Promise<ActionResult>, onOk?: () => void) {
     setResult(null);
@@ -84,14 +90,87 @@ export default function SkillsModule({
         </span>
       </header>
 
-      {summary.technologies.length > 6 ? (
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Escape" && setQuery("")}
-          placeholder="Buscar una tecnología…"
-          className={`${field} max-w-sm`}
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        {summary.technologies.length > 6 ? (
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setQuery("")}
+            placeholder="Buscar una tecnología…"
+            className={`${field} min-w-56 flex-1`}
+          />
+        ) : null}
+
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => setAdding({ key: "", hex: "#888888" })}
+          className="inline-flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-1.5 text-sm text-neutral-200 transition-colors hover:border-neutral-500 disabled:opacity-50"
+        >
+          <BsPlus className="h-4 w-4" aria-hidden />
+          Añadir tecnología
+        </button>
+      </div>
+
+      {adding ? (
+        <section className="flex flex-wrap items-end gap-3 rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+          <label className="flex flex-col gap-1.5">
+            <span className={labelClass}>Nombre</span>
+            <input
+              className={field}
+              autoFocus
+              value={adding.key}
+              placeholder="Astro"
+              onChange={(e) => setAdding({ ...adding, key: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setAdding(null);
+                if (e.key === "Enter" && adding.key.trim()) {
+                  run(
+                    () => actions.add(adding.key.trim(), adding.key.trim(), adding.hex),
+                    () => setAdding(null),
+                  );
+                }
+              }}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={labelClass}>Color de la ficha</span>
+            <input
+              type="color"
+              value={adding.hex}
+              onChange={(e) => setAdding({ ...adding, hex: e.target.value })}
+              className="h-9 w-16 cursor-pointer rounded border border-neutral-800 bg-transparent"
+            />
+          </label>
+
+          <button
+            type="button"
+            disabled={pending || !adding.key.trim()}
+            onClick={() =>
+              run(
+                () => actions.add(adding.key.trim(), adding.key.trim(), adding.hex),
+                () => setAdding(null),
+              )
+            }
+            className="inline-flex items-center rounded border border-green-800 bg-green-950/60 px-3 py-1.5 text-sm text-green-300 transition-colors hover:border-green-600 disabled:opacity-50"
+          >
+            Añadir
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdding(null)}
+            className="inline-flex items-center rounded border border-neutral-800 px-3 py-1.5 text-sm text-neutral-400 transition-colors hover:border-neutral-600"
+          >
+            Cancelar
+          </button>
+
+          <p className="w-full text-[11px] text-neutral-600">
+            El nombre es también la clave con la que los proyectos y la
+            experiencia la referencian, así que escríbelo como quieres verlo.
+            El logo se elige después.
+          </p>
+        </section>
       ) : null}
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -119,6 +198,33 @@ export default function SkillsModule({
                   : "sin logo · react-icons monocolor"}
                 {tech.uses > 0 ? ` · ${tech.uses} usos` : ""}
               </span>
+
+              {tech.iconSvg ? (
+                <span className="mt-1 flex gap-1">
+                  {/*
+                    Two buttons rather than a checkbox: the choice is between two
+                    named things, and «monocromo» is the answer for a logo that is
+                    black — Express disappears on a dark background in colour mode,
+                    because its mark *is* black and SVG defaults an unfilled path
+                    to it.
+                  */}
+                  {(["color", "mono"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      disabled={pending}
+                      onClick={() => run(() => actions.setMode(tech.id, mode))}
+                      className={`rounded border px-1.5 py-0.5 text-[10px] transition-colors ${
+                        (mode === "mono") === tech.iconMono
+                          ? "border-neutral-600 text-neutral-200"
+                          : "border-neutral-900 text-neutral-600 hover:border-neutral-700"
+                      }`}
+                    >
+                      {mode === "color" ? "a color" : "monocromo"}
+                    </button>
+                  ))}
+                </span>
+              ) : null}
             </span>
 
             <span className="flex shrink-0 items-center gap-1">
@@ -144,6 +250,28 @@ export default function SkillsModule({
                 className="rounded border border-neutral-800 px-2 py-1 text-[11px] text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-200"
               >
                 {tech.iconSvg ? "Cambiar" : "Elegir"}
+              </button>
+              {/*
+                Disabled while anything references it, with the count in the
+                tooltip. The action refuses it too — the button only saves the
+                operator a round trip to be told no.
+              */}
+              <button
+                type="button"
+                aria-label={`Eliminar ${tech.name}`}
+                disabled={pending || tech.uses > 0}
+                title={
+                  tech.uses > 0
+                    ? `Se usa en ${tech.uses}; quítalo de ahí primero`
+                    : undefined
+                }
+                onClick={() => {
+                  if (!confirm(`¿Eliminar «${tech.name}»?`)) return;
+                  run(() => actions.remove(tech.id));
+                }}
+                className="rounded p-1.5 text-neutral-600 transition-colors hover:text-red-400 disabled:opacity-30"
+              >
+                <BsTrash className="h-3.5 w-3.5" aria-hidden />
               </button>
             </span>
           </li>
@@ -207,12 +335,14 @@ function TechIcon({ tech }: { tech: TechnologyRow }) {
     );
   }
 
+  /*
+   * The same transform the public sprite applies, so the preview here is the
+   * answer and not a description of it.
+   */
+  const svg = tech.iconMono ? monochromeSvg(tech.iconSvg) : tech.iconSvg;
+
   return (
-    <span
-      aria-hidden
-      className="size-6"
-      dangerouslySetInnerHTML={{ __html: tech.iconSvg }}
-    />
+    <span aria-hidden className="size-6" dangerouslySetInnerHTML={{ __html: svg }} />
   );
 }
 

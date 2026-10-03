@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import GamesModule from "@/components/GamesModule";
 import { getGames } from "@/lib/games";
-import { deleteGame, saveGame, setGameStatus } from "./actions";
+import { addStore, deleteGame, deleteStore, saveGame, setGameStatus } from "./actions";
 
 export const metadata: Metadata = { title: "Juegos" };
 
@@ -11,7 +11,13 @@ export default async function JuegosPage() {
   return (
     <GamesModule
       summary={summary}
-      actions={{ save: saveGame, remove: deleteGame, setStatus: setGameStatus }}
+      actions={{
+        save: saveGame,
+        remove: deleteGame,
+        setStatus: setGameStatus,
+        addStore,
+        removeStore: deleteStore,
+      }}
     />
   );
 }

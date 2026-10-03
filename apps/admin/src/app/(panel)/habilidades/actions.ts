@@ -5,7 +5,14 @@ import { cacheTags } from "@nassican/shared";
 import { notifyPublicSite } from "@/lib/revalidate";
 import { logAudit } from "@/lib/audit";
 import { deviconIndex, fetchDeviconSvg, searchDevicons } from "@/lib/devicon";
-import { setTechnologyColor, setTechnologyIcon } from "@/lib/skills";
+import {
+  createTechnology,
+  removeTechnology,
+  setGroupMembership,
+  setIconMode,
+  setTechnologyColor,
+  setTechnologyIcon,
+} from "@/lib/skills";
 import { requireUser } from "@/lib/session";
 
 export type ActionResult =
@@ -127,4 +134,109 @@ export async function setColor(technologyId: string, hex: string): Promise<Actio
   revalidatePath("/habilidades");
   notifyPublicSite([cacheTags.skills]);
   return { ok: true, message: `${name}: color guardado.` };
+}
+
+/**
+ * Adds a technology.
+ *
+ * The module could only edit what the content migration had seeded, which made
+ * it a colour picker and not a module: the one thing you actually want from it
+ * is to put a new technology on the site without a deploy.
+ */
+export async function addTechnology(
+  key: string,
+  name: string,
+  hex: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+
+  const cleanKey = key.trim();
+  const cleanName = name.trim() || cleanKey;
+
+  if (!cleanKey) return { ok: false, message: "Falta la clave." };
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    return { ok: false, message: "El color tiene que ser un hex de seis dígitos." };
+  }
+
+  const result = await createTechnology({ key: cleanKey, name: cleanName, hex });
+  if (!result.ok) return { ok: false, message: result.reason };
+
+  await logAudit({
+    userId: user.id,
+    action: "create",
+    entityType: "technology",
+    entityId: result.id,
+    diff: { key: cleanKey, name: cleanName },
+  });
+
+  revalidatePath("/habilidades");
+  notifyPublicSite([cacheTags.skills]);
+  return { ok: true, message: `«${cleanName}» añadida. Elígele un logo.` };
+}
+
+export async function deleteTechnology(id: string): Promise<ActionResult> {
+  const user = await requireUser();
+
+  const result = await removeTechnology(id);
+  if (!result.ok) return { ok: false, message: result.reason };
+
+  await logAudit({
+    userId: user.id,
+    action: "delete",
+    entityType: "technology",
+    entityId: id,
+    diff: { name: result.name },
+  });
+
+  revalidatePath("/habilidades");
+  notifyPublicSite([cacheTags.skills]);
+  return { ok: true, message: `«${result.name}» eliminada.` };
+}
+
+/**
+ * Colour or monochrome.
+ *
+ * Not another fetch: the prepared original stays in the row and
+ * `monochromeSvg` is applied where the sprite is built, so switching back is
+ * free and nothing is lost on the way.
+ */
+export async function setIcon(id: string, mode: "color" | "mono"): Promise<ActionResult> {
+  const user = await requireUser();
+
+  const name = await setIconMode(id, mode);
+  await logAudit({
+    userId: user.id,
+    action: "update",
+    entityType: "technology",
+    entityId: id,
+    diff: { iconMode: mode },
+  });
+
+  revalidatePath("/habilidades");
+  notifyPublicSite([cacheTags.skills]);
+  return {
+    ok: true,
+    message: `${name}: ${mode === "mono" ? "monocromo" : "a color"}.`,
+  };
+}
+
+export async function toggleGroup(
+  technologyId: string,
+  groupId: string,
+  member: boolean,
+): Promise<ActionResult> {
+  const user = await requireUser();
+
+  await setGroupMembership(technologyId, groupId, member);
+  await logAudit({
+    userId: user.id,
+    action: "update",
+    entityType: "technology",
+    entityId: technologyId,
+    diff: { group: groupId, member },
+  });
+
+  revalidatePath("/habilidades");
+  notifyPublicSite([cacheTags.skills]);
+  return { ok: true, message: member ? "Añadida al grupo." : "Quitada del grupo." };
 }

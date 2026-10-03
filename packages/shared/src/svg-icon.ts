@@ -136,3 +136,49 @@ export function buildIconSprite(icons: { key: string; svg: string }[]): string {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden"><defs>${symbols}</defs></svg>`;
 }
+
+/**
+ * Repaints an icon in one colour, inherited from the text around it.
+ *
+ * Two different problems, one answer.
+ *
+ * **A logo can be invisible.** Express's mark is a single path with *no* `fill`
+ * attribute at all, and SVG's default fill is black — so on a dark background it
+ * is a black shape on near-black. The brand hex does not save it either: the
+ * brand colour *is* black.
+ *
+ * **And a page of brand palettes clashes.** Twenty-three logos in their own
+ * colours is twenty-three palettes arguing with the site's.
+ *
+ * So `mono` strips every colour and lets the glyph inherit `currentColor`, which
+ * already flips white-on-dark and black-on-light with the theme. `fill="none"`
+ * survives on purpose: it means *do not paint this*, which is structure and not
+ * colour — repainting it would fill in holes the logo needs.
+ */
+export function monochromeSvg(markup: string): string {
+  return (
+    markup
+      // Gradients and filters become unreferenced the moment their fills go.
+      .replace(/<defs\b[^>]*>[\s\S]*?<\/defs\s*>/gi, "")
+      .replace(/<(linearGradient|radialGradient|filter)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
+      // Colour attributes go; `none` stays, because it is shape and not colour.
+      .replace(/\s(fill|stroke)\s*=\s*"(?!none")[^"]*"/gi, "")
+      .replace(/\s(fill|stroke)\s*=\s*'(?!none')[^']*'/gi, "")
+      /*
+       * The same two properties written as inline style. The value is captured
+       * on its own: anchoring inside the whole `style="…"` attribute puts `^` on
+       * the `s` of `style`, so the first declaration never matched.
+       */
+      .replace(/style\s*=\s*"([^"]*)"/gi, (_, value: string) => {
+        const kept = value
+          .split(";")
+          .filter((part) => !/^\s*(fill|stroke)\s*:\s*(?!none)/i.test(part))
+          .filter((part) => part.trim() !== "")
+          .join(";");
+        return kept ? `style="${kept}"` : "";
+      })
+      // One declaration on the root, which every child without its own inherits.
+      .replace(/<svg\b([^>]*)>/i, (_, attrs: string) => `<svg${attrs} fill="currentColor">`)
+      .trim()
+  );
+}

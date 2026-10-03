@@ -110,6 +110,8 @@ export const es = {
 
   blog: {
     title: "Blog",
+    /** Heading above the list of a post's sections. */
+    toc: "Índice",
     listDescription:
       "Notas técnicas sobre desarrollo web: Next.js, TypeScript, arquitectura de frontend y backend.",
     metaDescription:

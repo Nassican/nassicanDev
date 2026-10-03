@@ -151,6 +151,7 @@ export default function Skills({
                             name={item.name}
                             itemKey={item.key}
                             hasIcon={item.iconSvg !== null}
+                            mono={item.iconMono}
                             className="h-7 w-7 transition-transform duration-300 group-hover:scale-110"
                           />
                           <span>{item.name}</span>
@@ -185,6 +186,7 @@ export default function Skills({
                         name={item.name}
                         itemKey={item.key}
                         hasIcon={item.iconSvg !== null}
+                        mono={item.iconMono}
                         className="h-5 w-5 transition-transform duration-300 group-hover:scale-110"
                       />
                       <span>{item.name}</span>

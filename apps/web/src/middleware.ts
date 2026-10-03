@@ -48,14 +48,21 @@ export const config = {
    * Everything except Next internals, /sitemap.xml, /robots.txt, the manifest
    * and any file in /public - all matched by the dot in their name.
    *
-   * `/llms.txt` is the exception: it is a real localized route living under
-   * `[locale]`, so it is listed explicitly to opt back into the rewrite. The
-   * prefixed `/en/llms.txt` needs no rule, since an unmatched path reaches
-   * the router unchanged.
+   * `/llms.txt` and `/rss.xml` are the exceptions: both are real localized
+   * routes living under `[locale]`, so they are listed explicitly to opt back
+   * into the rewrite. Their `/en/…` forms need no rule, since an unmatched path
+   * reaches the router unchanged.
+   *
+   * This is worth knowing before adding the next one: a dotted path is excluded
+   * by default so that `/media/<sha256>.webp` is never rewritten into the locale
+   * segment, and the cost is that a new dotted route 404s on the unprefixed
+   * Spanish URL while the English one works. `/rss.xml` did exactly that.
    */
   matcher: [
     "/((?!api/|_next/|_vercel/|.*\\..*).*)",
     "/llms.txt",
     "/es/llms.txt",
+    "/rss.xml",
+    "/es/rss.xml",
   ],
 };

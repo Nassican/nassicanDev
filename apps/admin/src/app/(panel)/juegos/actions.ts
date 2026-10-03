@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
 import { gameProblems, type GameDraft } from "@/lib/game-draft";
-import { createGame, removeGame, setStatus, updateGame } from "@/lib/games";
+import {
+  createGame,
+  createStore,
+  removeGame,
+  removeStore,
+  setStatus,
+  updateGame,
+} from "@/lib/games";
 import { requireUser } from "@/lib/session";
 
 export type ActionResult =
@@ -83,4 +90,54 @@ export async function setGameStatus(
 
   revalidatePath("/juegos");
   return { ok: true, message: `«${title}» actualizado.` };
+}
+
+/**
+ * Shops are rows, so adding one is a form and not a deploy.
+ *
+ * The launcher stays an enum on purpose: that is a closed set you do not invent.
+ * A shop is the opposite — Eneba, Humble, Instant Gaming and whatever appears
+ * next — and making a new purchase wait for a migration ends with the field left
+ * empty, which is how a field dies.
+ */
+export async function addStore(name: string): Promise<ActionResult> {
+  const user = await requireUser();
+
+  const result = await createStore(name);
+  if (!result.ok) return { ok: false, message: result.reason };
+
+  await logAudit({
+    userId: user.id,
+    action: "create",
+    entityType: "game-store",
+    entityId: result.id,
+    diff: { name: name.trim() },
+  });
+
+  revalidatePath("/juegos");
+  return { ok: true, message: `«${name.trim()}» añadida.` };
+}
+
+export async function deleteStore(id: string): Promise<ActionResult> {
+  const user = await requireUser();
+
+  const { name, orphaned } = await removeStore(id);
+  if (!name) return { ok: false, message: "Esa tienda ya no existe." };
+
+  await logAudit({
+    userId: user.id,
+    action: "delete",
+    entityType: "game-store",
+    entityId: id,
+    diff: { name, orphaned },
+  });
+
+  revalidatePath("/juegos");
+  return {
+    ok: true,
+    message:
+      orphaned > 0
+        ? `«${name}» eliminada. ${orphaned} ${orphaned === 1 ? "juego quedó" : "juegos quedaron"} sin tienda.`
+        : `«${name}» eliminada.`,
+  };
 }

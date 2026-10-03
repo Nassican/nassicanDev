@@ -22,12 +22,15 @@ export default function BrandIcon({
   name,
   itemKey,
   hasIcon,
+  mono = false,
   className = "w-6 h-6",
 }: {
   name: string;
   /** The technology's registry key, which is what the symbol id is built from. */
   itemKey: string;
   hasIcon: boolean;
+  /** Repainted in `currentColor`, so it must inherit instead of refusing to. */
+  mono?: boolean;
   className?: string;
 }) {
   if (!hasIcon) return <SkillIcon name={name} className={className} />;
@@ -37,7 +40,14 @@ export default function BrandIcon({
       aria-hidden
       focusable="false"
       className={className}
-      style={{ color: "initial" }}
+      /*
+       * The two modes want opposite things from the same property, which is the
+       * whole reason the mode exists as a field. A colour logo must *not*
+       * inherit, or the chip's tint flattens it to one hue — that was the Vite
+       * bug. A mono logo must inherit, or it falls back to SVG's default black
+       * and vanishes on a dark background — that is the Express bug.
+       */
+      style={mono ? undefined : { color: "initial" }}
     >
       <use href={`#${iconSymbolId(itemKey)}`} />
     </svg>
