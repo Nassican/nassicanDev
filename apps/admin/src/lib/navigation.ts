@@ -25,7 +25,10 @@ export type NavIcon =
   | "settings"
   | "users"
   | "system"
-  | "finance";
+  | "finance"
+  | "game"
+  | "book"
+  | "skills";
 
 export type NavEntry = {
   label: string;
@@ -54,6 +57,7 @@ export const navigation: NavSection[] = [
       { label: "Proyectos", href: "/contenido/proyectos", icon: "project", ready: true },
       { label: "Páginas", href: "/contenido/paginas", icon: "page", ready: true },
       { label: "Multimedia", href: "/contenido/multimedia", icon: "media", ready: true },
+      { label: "Habilidades", href: "/habilidades", icon: "skills", ready: true },
       { label: "Perfil", href: "/perfil", icon: "profile", ready: true },
     ],
   },
@@ -61,6 +65,13 @@ export const navigation: NavSection[] = [
     label: "Finanzas",
     entries: [
       { label: "Movimientos", href: "/finanzas", icon: "finance", ready: true },
+    ],
+  },
+  {
+    label: "Personal",
+    entries: [
+      { label: "Juegos", href: "/juegos", icon: "game", ready: true },
+      { label: "Libros", href: "/libros", icon: "book", ready: true },
     ],
   },
   {

@@ -2,6 +2,12 @@ import "server-only";
 
 import { db } from "@nassican/db";
 import { getStats } from "@/lib/stats";
+import {
+  sinceLabel,
+  sourceLabels,
+  syncProblems,
+  type SyncProblem,
+} from "@/lib/sync-health";
 
 /**
  * One thing worth doing, with somewhere to go and do it.
@@ -52,11 +58,31 @@ export type Dashboard = {
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
 
+/**
+ * Names the sources rather than counting them. «2 sincronizaciones fallaron» is
+ * not something anyone can act on; «Analítica: 403 de Google» is.
+ */
+function describe(problems: SyncProblem[]): string {
+  return problems
+    .slice(0, 2)
+    .map((problem) => {
+      const name = sourceLabels[problem.source];
+      if (problem.kind === "stale") {
+        return `${name}: última vez ${sinceLabel(problem.at)}`;
+      }
+      if (problem.kind === "abandoned") {
+        return `${name}: quedó a medias ${sinceLabel(problem.at)}`;
+      }
+      return `${name}: ${problem.error?.slice(0, 70) ?? "sin detalle"}`;
+    })
+    .join(" · ");
+}
+
 export async function getDashboard(): Promise<Dashboard> {
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 7);
 
-  const [stats, settings, audit, warnings, vercel, ga4] = await Promise.all([
+  const [stats, settings, audit, warnings, vercel, ga4, runs] = await Promise.all([
     getStats(),
     db.siteSettings.findUnique({ where: { id: 1 }, select: { maintenanceMode: true } }),
     db.auditLog.findMany({
@@ -73,6 +99,17 @@ export async function getDashboard(): Promise<Dashboard> {
       where: { dimension: "total", date: { gte: since } },
     }),
     db.analyticsDailyTotals.findMany({ where: { date: { gte: since } } }),
+    db.syncRun.findMany({
+      where: { startedAt: { gte: since } },
+      orderBy: { startedAt: "desc" },
+      select: {
+        source: true,
+        status: true,
+        startedAt: true,
+        finishedAt: true,
+        error: true,
+      },
+    }),
   ]);
 
   const pending: Pending[] = [];
@@ -87,6 +124,52 @@ export async function getDashboard(): Promise<Dashboard> {
       detail: "nassican.com muestra solo el aviso y no se indexa.",
       href: "/configuracion",
       action: "Desactivar",
+    });
+  }
+
+  /*
+   * Before the content warnings on purpose: when a sync has stopped, the traffic
+   * figures further down this page are stale and there is no way to tell from
+   * looking at them. Knowing the data is old changes how you read everything.
+   */
+  const problems = syncProblems(runs);
+  const stalled = problems.filter((p) => p.kind !== "failed");
+
+  if (stalled.length > 0) {
+    pending.push({
+      id: "sync-stalled",
+      // Urgent, and this is the one that earns it: while the cron is not
+      // running, the daily content snapshot is lost for good every day it does
+      // not happen. Everything else here can be caught up later.
+      tone: "urgent",
+      // One problem names what happened to it; several can only be counted.
+      // «Dejó de sincronizarse» and «quedó a medias» are different events —
+      // one never started, the other was killed mid-run — and the title saying
+      // the first while the detail said the second was simply wrong.
+      title:
+        stalled.length === 1
+          ? stalled[0].kind === "abandoned"
+            ? `La sincronización de ${sourceLabels[stalled[0].source]} quedó a medias`
+            : `${sourceLabels[stalled[0].source]} dejó de sincronizarse`
+          : `${stalled.length} sincronizaciones detenidas`,
+      detail: describe(stalled),
+      href: "/sistema",
+      action: "Revisar",
+    });
+  }
+
+  const failed = problems.filter((p) => p.kind === "failed");
+  if (failed.length > 0) {
+    pending.push({
+      id: "sync-failed",
+      tone: "warn",
+      title:
+        failed.length === 1
+          ? `${sourceLabels[failed[0].source]} falló al sincronizar`
+          : `${failed.length} sincronizaciones fallaron`,
+      detail: describe(failed),
+      href: "/sistema",
+      action: "Ver el error",
     });
   }
 

@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
 import SectionTitle from "@/components/ui/SectionTitle";
-import SkillIcon from "@/components/ui/SkillIcon";
+import BrandIcon from "@/components/ui/BrandIcon";
+import IconSprite from "@/components/ui/IconSprite";
 import Card from "@/components/ui/Card";
-import { skills, skillsRegistry } from "@/lib/data";
+import type { Locale } from "@/lib/i18n/config";
+import type { SkillGroupData, TechnologyBrand } from "@/lib/data/technologies";
 import type { Dictionary } from "@/lib/i18n";
 
 function hexToRgb(hex: string): string {
@@ -29,49 +31,63 @@ function parseColor(color: string, opacity?: number): string {
   return color;
 }
 
-function getBrandStyles(itemName: string): React.CSSProperties {
-  const config = skillsRegistry[itemName];
-  if (!config) {
-    return {
-      "--brand-bg": "rgba(128, 128, 128, 0.08)",
-      "--brand-text": "currentColor",
-      "--brand-border": "rgba(128, 128, 128, 0.2)",
-      "--brand-glow": "rgba(128, 128, 128, 0.15)",
-    } as React.CSSProperties;
-  }
-
-  const bgHex = config.bg || config.hex;
-  const textHex = config.text || config.hex;
-  const borderHex = config.border || config.hex;
-  const glowHex = config.glow || config.hex;
-  const glowOpacity = config.glowOpacity ?? 0.35;
-
+/**
+ * The chip's tint around the logo — never the logo itself.
+ *
+ * One hex per technology used to colour the glyph as well, which is why Vite came
+ * out entirely yellow: its mark is a cyan-to-purple gradient over a yellow bolt,
+ * and `--brand-text` painted all of it one colour. Now `BrandIcon` refuses to
+ * inherit when it has a real logo, so this decides the background, the border and
+ * the glow, and nothing else.
+ */
+function getBrandStyles(hex: string): React.CSSProperties {
   return {
-    "--brand-bg": parseColor(bgHex, 0.08),
-    "--brand-text": parseColor(textHex),
-    "--brand-border": parseColor(borderHex, 0.3),
-    "--brand-glow": parseColor(glowHex, glowOpacity),
+    "--brand-bg": parseColor(hex, 0.08),
+    "--brand-text": parseColor(hex),
+    "--brand-border": parseColor(hex, 0.3),
+    "--brand-glow": parseColor(hex, 0.35),
   } as React.CSSProperties;
 }
-export default function Skills({ t }: { t: Dictionary }) {
+
+export default function Skills({
+  t,
+  locale,
+  groups,
+}: {
+  t: Dictionary;
+  locale: Locale;
+  /**
+   * Read from the database by the page. The group labels come with it now: the
+   * dictionary seeded them once and stopped being their source, the same move
+   * Configuración made with the menu.
+   */
+  groups: SkillGroupData[];
+}) {
   const [viewMode, setViewMode] = useState<"marquee" | "grid">("marquee");
   // Generate perfect repeated list for seamless loop (even repeats & min length)
-  function getRepeatedList(list: string[]) {
+  function getRepeatedList(list: TechnologyBrand[]) {
     const minItems = 24;
-    const repeats = Math.max(2, Math.ceil(minItems / list.length));
+    const repeats = Math.max(2, Math.ceil(minItems / Math.max(1, list.length)));
     const evenRepeats = repeats % 2 === 0 ? repeats : repeats + 1;
-    const result: string[] = [];
+    const result: TechnologyBrand[] = [];
     for (let i = 0; i < evenRepeats; i++) {
       result.push(...list);
     }
     return result;
   }
-  // The keys of `skills` and of `t.skills.groups` are kept in sync by hand;
-  // an unknown group falls back to its raw key rather than rendering blank.
+
+  /**
+   * The row's own label, with the dictionary as the fallback and not the source.
+   * A group that exists in the table but has no translation yet reads as its key
+   * rather than as a blank heading.
+   */
   const groupTitles: Record<string, string> = t.skills.groups;
-  const getGroupTitle = (group: string) => groupTitles[group] ?? group;
+  const getGroupTitle = (group: SkillGroupData) =>
+    group.labels[locale] ?? groupTitles[group.key] ?? group.key;
   return (
     <section id="skills" className="w-full scroll-mt-24 px-0 py-12 md:scroll-mt-28">
+      {/* Defined once, referenced by every chip below. */}
+      <IconSprite groups={groups} />
       {/* Header Section: Title and View Selector */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 mx-auto max-w-5xl">
         <SectionTitle className="mb-0">{t.skills.title}</SectionTitle>
@@ -107,10 +123,10 @@ export default function Skills({ t }: { t: Dictionary }) {
       {viewMode === "marquee" ? (
         /* Dynamic Marquee View */
         <div className="space-y-8">
-          {Object.entries(skills).map(([group, list], idx) => {
-            const repeatedList = getRepeatedList(list);
+          {groups.map((group, idx) => {
+            const repeatedList = getRepeatedList(group.items);
             return (
-              <div key={group} className="space-y-3">
+              <div key={group.key} className="space-y-3">
                 {/* Section title positioned static, no fading */}
                 <div className="px-4 mx-auto max-w-5xl">
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
@@ -127,15 +143,17 @@ export default function Skills({ t }: { t: Dictionary }) {
                     {repeatedList.map((item, i) => {
                       return (
                         <span
-                          key={`${item}-${i}`}
-                          style={getBrandStyles(item)}
+                          key={`${item.key}-${i}`}
+                          style={getBrandStyles(item.hex)}
                           className="group relative mx-3 inline-flex items-center gap-3 rounded-full border border-black/10 px-5 py-2.5 text-sm text-zinc-700 transition-all duration-300 hover:bg-[var(--brand-bg)] hover:text-[var(--brand-text)] hover:border-[var(--brand-border)] hover:shadow-[0_0_15px_var(--brand-glow)] dark:border-white/10 dark:text-zinc-200"
                         >
-                          <SkillIcon
-                            name={item}
+                          <BrandIcon
+                            name={item.name}
+                            itemKey={item.key}
+                            hasIcon={item.iconSvg !== null}
                             className="h-7 w-7 transition-transform duration-300 group-hover:scale-110"
                           />
-                          <span>{item}</span>
+                          <span>{item.name}</span>
                         </span>
                       );
                     })}
@@ -148,26 +166,28 @@ export default function Skills({ t }: { t: Dictionary }) {
       ) : (
         /* Static Categorized Grid View */
         <div className="grid gap-6 px-4 mx-auto max-w-5xl sm:grid-cols-2">
-          {Object.entries(skills).map(([group, list]) => (
-            <Card key={group} className="flex flex-col gap-4 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-md">
+          {groups.map((group) => (
+            <Card key={group.key} className="flex flex-col gap-4 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-md">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
                   {getGroupTitle(group)}
                 </h3>
               </div>
               <div className="flex flex-wrap gap-2.5">
-                {list.map((item) => {
+                {group.items.map((item) => {
                   return (
                     <span
-                      key={item}
-                      style={getBrandStyles(item)}
+                      key={item.key}
+                      style={getBrandStyles(item.hex)}
                       className="group relative inline-flex items-center gap-2.5 rounded-full border border-black/10 px-4 py-2 text-xs text-zinc-700 transition-all duration-300 hover:bg-[var(--brand-bg)] hover:text-[var(--brand-text)] hover:border-[var(--brand-border)] hover:shadow-[0_0_12px_var(--brand-glow)] dark:border-white/10 dark:text-zinc-200"
                     >
-                      <SkillIcon
-                        name={item}
+                      <BrandIcon
+                        name={item.name}
+                        itemKey={item.key}
+                        hasIcon={item.iconSvg !== null}
                         className="h-5 w-5 transition-transform duration-300 group-hover:scale-110"
                       />
-                      <span>{item}</span>
+                      <span>{item.name}</span>
                     </span>
                   );
                 })}

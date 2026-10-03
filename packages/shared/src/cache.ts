@@ -20,6 +20,7 @@ export const cacheTags = {
   siteSettings: "site-settings",
   navigation: "navigation",
   homeSections: "home-sections",
+  skills: "skills",
 } as const;
 
 /**

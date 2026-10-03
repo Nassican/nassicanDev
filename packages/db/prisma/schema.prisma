@@ -441,6 +441,22 @@ model Technology {
   /// react-icons component name.
   iconSlug String? @map("icon_slug")
 
+  /// The devicon this came from, so the panel can show which one is selected and
+  /// refetch it if the upstream file changes.
+  deviconName    String? @map("devicon_name")
+  /// "original" is the full-colour logo, "plain" the single-path monochrome one.
+  deviconVariant String? @map("devicon_variant")
+
+  /// The prepared markup, inlined straight into the page.
+  ///
+  /// Stored rather than fetched at render time for the same reason the images
+  /// live in Postgres: the public site should not depend on a third party being
+  /// up to draw itself. And **prepared**, not raw: `prepareIconSvg` renames every
+  /// gradient id, because devicon numbers them `a`, `b`, `c` in every file and
+  /// two inlined icons would otherwise share them. Measured on the twelve icons
+  /// this project uses: 4 collisions out of 10 ids.
+  iconSvg String? @map("icon_svg")
+
   projects   ProjectTechnology[]
   experience ExperienceTechnology[]
   groups     SkillGroupItem[]
@@ -1296,4 +1312,134 @@ model UptimeCheck {
 
   @@index([url, checkedAt])
   @@map("uptime_checks")
+}
+
+// ---------------------------------------------------------------------------
+// Games
+// ---------------------------------------------------------------------------
+
+/// Where the game lives, which is the launcher and not the shop that sold it:
+/// a key bought on Eneba is played on Ubisoft Connect, and what you want to
+/// know later is where to click.
+enum GamePlatform {
+  ubisoft
+  gog
+  steam
+  epic
+  xbox
+  playstation
+  other
+}
+
+/// Four states, and `backlog` is the one the whole module exists for: a library
+/// nobody tracks answers "what do I own", and the useful question is "what did
+/// I buy and never open".
+enum GameStatus {
+  backlog
+  playing
+  finished
+  dropped
+}
+
+/// A game, entered by hand.
+///
+/// **Deliberately not derived from the Wallet mirror**, although the purchase
+/// notes there do name most of them. A library is not a payment log: a free Epic
+/// giveaway has no record in Wallet at all, so deriving the list would have made
+/// "games I never opened" wrong from the first row — and that is the number the
+/// module is for.
+///
+/// Not translated either. Nothing here reaches a visitor, and `apps/admin` is
+/// Spanish only; the bilingual rule covers what the site says, not what the
+/// operator tracks.
+model Game {
+  id       String       @id @default(uuid())
+  title    String
+  platform GamePlatform @default(other)
+  status   GameStatus   @default(backlog)
+
+  /// Hours played, as the launcher reports them. Null means "not recorded",
+  /// which is a different thing from zero: zero is a game opened and quit.
+  hours Float?
+
+  /// What it cost, typed by hand and in COP. Optional because a gift and a
+  /// giveaway are both real ways to own a game, and a 0 there would read as
+  /// free when it means unknown.
+  price Decimal? @db.Decimal(14, 2)
+
+  /// Kept as text, like the experience and education dates: "2024", "2024-08"
+  /// and "2024-08-13" are partial dates written as they were known, and parsing
+  /// them would invent a precision nobody had.
+  purchasedAt String? @map("purchased_at")
+  finishedAt  String? @map("finished_at")
+
+  note String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([platform])
+  @@map("games")
+}
+
+// ---------------------------------------------------------------------------
+// Books
+// ---------------------------------------------------------------------------
+
+/// How it is read, which changes what «páginas» means: an audiobook has none,
+/// and a physical copy cannot be searched. Not «where it was bought» — that is
+/// not something you need to know again later.
+enum BookFormat {
+  physical
+  ebook
+  audiobook
+}
+
+/// The same four states as the games library, and `backlog` is again the one the
+/// module exists for: a shelf answers "what do I own", and the useful question
+/// is "what did I buy and never open".
+enum BookStatus {
+  backlog
+  reading
+  finished
+  dropped
+}
+
+/// A book, entered by hand.
+///
+/// Its own table rather than a shared `LibraryItem` with a `kind`: the fields
+/// that matter genuinely differ — a book has an author and pages, a game has a
+/// launcher and hours — and a shared model would have been four nullable columns
+/// and a discriminator standing in for two honest tables. What they *do* share is
+/// the reading of their fields, which lives in `draft-fields.ts`.
+///
+/// Not translated, like the games: nothing here reaches a visitor.
+model Book {
+  id     String  @id @default(uuid())
+  title  String
+  author String?
+
+  format BookFormat @default(physical)
+  status BookStatus @default(backlog)
+
+  /// Total pages, and how many are read. Both optional, and both meaningless for
+  /// an audiobook — left blank there rather than given a unit that lies.
+  pages     Int?
+  pagesRead Int? @map("pages_read")
+
+  price Decimal? @db.Decimal(14, 2)
+
+  /// Partial dates kept as text, as everywhere else in this schema.
+  purchasedAt String? @map("purchased_at")
+  finishedAt  String? @map("finished_at")
+
+  note String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([author])
+  @@map("books")
 }

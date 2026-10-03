@@ -12,7 +12,7 @@ import type { Command } from "@/components/CommandPalette";
  * this is the function that changes — nothing in the component.
  */
 export async function listCommands(): Promise<Command[]> {
-  const [posts, projects, pages] = await Promise.all([
+  const [posts, projects, pages, games, books] = await Promise.all([
     db.post.findMany({
       take: 50,
       orderBy: { updatedAt: "desc" },
@@ -28,6 +28,8 @@ export async function listCommands(): Promise<Command[]> {
       orderBy: { route: "asc" },
       select: { id: true, route: true, translations: { select: { title: true } } },
     }),
+    db.game.findMany({ take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
+    db.book.findMany({ take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
   ]);
 
   return [
@@ -50,6 +52,23 @@ export async function listCommands(): Promise<Command[]> {
       label: page.translations.find((t) => t.title.trim())?.title ?? page.route,
       kind: "Página",
       href: `/contenido/paginas/${page.id}`,
+    })),
+    /*
+     * Games all point at the same page: there is no per-game route, and the
+     * module's own search is right there. What the palette is for here is
+     * «¿tengo este juego?» answered without leaving the keyboard.
+     */
+    ...games.map((game) => ({
+      id: `game:${game.id}`,
+      label: game.title,
+      kind: "Juego",
+      href: "/juegos",
+    })),
+    ...books.map((book) => ({
+      id: `book:${book.id}`,
+      label: book.title,
+      kind: "Libro",
+      href: "/libros",
     })),
   ];
 }

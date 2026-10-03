@@ -467,10 +467,11 @@ Las fechas de experiencia y formación se guardan **como texto**, no como
 escribieron, y esa precisión llega al atributo `datetime` del HTML. Parsearlas
 cambiaría el marcado.
 
-`skills.ts` está en un estado intermedio: sus datos ya viven en las tablas
-`technologies` y `skill_groups` —los proyectos referencian tecnologías por
-clave foránea—, pero la sección de Habilidades del sitio público sigue leyendo
-el módulo. Se cerrará cuando exista su módulo en el panel.
+`skills.ts` ya **no lo lee la sección de habilidades del sitio**: esa lee las
+tablas `technologies` y `skill_groups`, editables desde el módulo Habilidades. El
+archivo sigue ahí porque `lib/seo.ts` y `llms.txt` importan de él la lista de
+nombres; ver la sección de Habilidades para por qué eso no es una limpieza
+trivial.
 
 Las carpetas `projects/<slug>/` con los archivos `es.ts` y `en.ts` **siguen en
 el repositorio a propósito**: son la copia de seguridad de la migración y la
@@ -1008,6 +1009,70 @@ omitido, que es el comportamiento correcto y no un fallo. Si algún día interes
 historial de despliegues del panel en Sistema, lo que falta es un token con
 alcance de equipo y `VERCEL_TEAM_ID` puesto; no hay nada que cambiar en el código.
 
+#### El dashboard vigila al planificador
+
+El cron abrió un agujero el día que se encendió: mientras cada sincronización
+solo corría al abrir su módulo, el resultado estaba en pantalla un segundo
+después y nada podía pasar desapercibido. Corriendo a las 06:00 sin nadie
+delante, el único sitio donde aparece un fallo es Sistema — y a Sistema hay que
+ir. Un cron que falla en silencio deja análisis rancios y días sin instantánea
+acumulándose, que es exactamente el problema que el planificador vino a resolver.
+
+`lib/sync-health.ts` decide y `lib/dashboard.ts` lee, en el mismo `Promise.all`
+que todo lo demás. Hay **tres** señales, y la segunda es la que una versión
+ingenua no tiene:
+
+| señal | qué significa |
+| --- | --- |
+| `failed` | la **última** ejecución de la fuente falló |
+| `stale` | no hay ninguna ejecución en 48 h |
+| `abandoned` | quedó en `running` y nadie la terminó |
+
+**La ausencia es el modo de fallo que se escapa.** Una sincronización que falla
+escribe una fila diciéndolo; un cron que no se disparó no escribe nada. Buscar
+solo filas `failed` habría sido ciego justo a lo único que pierde la instantánea
+todos los días.
+
+**`abandoned` no lo nombraría nadie más.** Una fila atascada en `running` es una
+función que murió a mitad —`maxDuration`, o un cierre— y como no es un fallo,
+Sistema la muestra «en curso» para siempre.
+
+**Solo cuenta la última ejecución.** Un fallo de anteayer ya seguido de un éxito
+es historia, y reportar historia como problema es cómo un informe deja de leerse
+— el mismo motivo por el que Estadísticas mantiene el 999 de LinkedIn fuera del
+contador de roto.
+
+Cuatro decisiones más que el código no explica solo:
+
+- **48 h, no 24.** El cron es diario y Hobby lo dispara en cualquier momento de
+  la hora, así que entre dos ejecuciones correctas caben 26 h. La entrega es best
+  effort y se salta alguna. Avisar de un salto suelto es cómo se aprende a
+  ignorar el aviso; 48 h tolera uno y sigue cazando un cron que se paró de verdad.
+- **La ventana es una fecha, no un número de filas.** Con `take: 50`, una fuente
+  sin correr en una semana se caería de la lista detrás de cincuenta
+  sincronizaciones manuales de Wallet y saldría detenida por el motivo
+  equivocado.
+- **Qué se vigila y qué no está partido en dos listas**, y
+  `Exclude<SyncSource, Assigned> extends never` **rompe la compilación** si una
+  fuente nueva no se asigna a ninguna. Mismo truco que `localeParity` en
+  `packages/db`: olvidarse de decidir si algo se vigila sería un hueco en
+  silencio, y los huecos en silencio son lo que este módulo existe para cerrar.
+  No se vigilan `wallet` (manual), `uptime` (a demanda) ni `content_stats`, que
+  es un valor del enum que nada escribe — la instantánea viaja en la ejecución de
+  `link_check`, que es la que la precede.
+- **Los avisos van antes que los de contenido.** Cuando una sincronización se
+  paró, las cifras de tráfico de más abajo en esa misma página están viejas y no
+  hay forma de notarlo mirándolas. Saber que el dato es viejo cambia cómo se lee
+  todo lo demás.
+
+El módulo no lleva `server-only` **a propósito**: es puro, y `SyncSource` entra
+por `import type`, que se borra al compilar. Es la misma separación que
+`post-draft.ts` frente a `posts.ts` — leer vive en `dashboard.ts`, que sí lleva la
+guarda, y decidir vive aquí, donde se puede probar sin una petición alrededor.
+`sync-health.test.ts` cubre las tres señales, la tolerancia de las 26 h, que un
+éxito posterior gane a un fallo anterior, y que las fuentes manuales no se
+vigilen.
+
 #### Vercel
 
 `VERCEL_TOKEN`, `VERCEL_PROJECT_WEB` y, si el proyecto vive en un equipo,
@@ -1148,6 +1213,212 @@ Wallet**: este módulo no escribe.
 El token va en `WALLET_API_TOKEN` (requiere plan Premium) y solo en el entorno
 del panel. Se comprobó que su valor no aparece en ninguno de los 47 bundles de
 cliente.
+
+### Habilidades: el logo es el dibujo, el color solo tiñe la ficha
+
+En `app.nassican.com/habilidades`. El módulo que CLAUDE.md llevaba meses
+prometiendo, y existe por un síntoma concreto: **al pasar el ratón por Vite se
+ponía todo amarillo.**
+
+La causa estaba repartida en dos sitios. `SkillIcon` dibujaba cada tecnología con
+`react-icons/si`, que es **un solo path**, y la ficha lo teñía con
+`--brand-text` sacado del único `hex` de la fila. El logo de Vite es un degradado
+cian-a-morado sobre un rayo amarillo: un path y un color no pueden representarlo.
+
+**Devicon**, y no Simple Icons, por una razón medible: 578 tecnologías, **559 con
+variante `original` que es el logo real con sus degradados** y 388 con una `plain`
+monocolor. Simple Icons da un color de marca por logo — que es exactamente el
+problema. El propio manifiesto de devicon dice que Vite es `#ffdd35`.
+
+Resultado en la fila de Vite: el hex de la ficha sigue siendo `#646cff`, y dentro
+del logo hay **cinco colores** — `#41d1ff`, `#bd34fe`, `#ffea83`, `#ffdd35`,
+`#ffa800`.
+
+**No es una dependencia de runtime.** El panel busca en devicon, el operador ve el
+logo real antes de confirmar, y el markup preparado se guarda en
+`technologies.icon_svg`. El sitio público inyecta lo que hay en la fila: nunca
+pide nada a un tercero para dibujarse, por el mismo motivo por el que las
+imágenes viven en Postgres.
+
+#### Dos fallos que solo aparecen al inyectar varios logos juntos
+
+**El primero rompe los colores en silencio.** Devicon numera sus degradados `a`,
+`b`, `c` **en todos los archivos**, así que el `url(#a)` de Vite y el de Node son
+el mismo nombre. Con los dos en la misma página —que es la definición de la
+sección de habilidades— el segundo icono se pinta con el degradado del primero.
+Vite sale verde. Nada falla, nada avisa, y se lee como «los colores están mal» y
+no como una colisión de ids. Medido sobre los doce logos del proyecto:
+**4 colisiones de 10 ids**. `namespaceSvgIds` les pone la clave de la tecnología
+delante; después, 0.
+
+**El segundo lo introduje yo y lo encontró la báscula.** Inyectar el markup una
+vez por ficha dejó la portada en **53,7 % de SVG inline**: 371 KB, de los cuales
+275 KB eran los mismos logos repetidos, porque el carrusel duplica su lista para
+hacer el bucle. El icono de Docker aparecía **diez veces**. Un sprite define cada
+uno una vez y las fichas lo referencian con `<use>`:
+
+| | antes | después |
+| --- | --- | --- |
+| portada | 691.753 B | **453.665 B** |
+| ids duplicados | 35 | **0** |
+| símbolos / referencias | — | 23 / 116 |
+
+Diez copias de un icono también significaban diez elementos con `id="docker-a"`,
+que es HTML inválido y funcionaba solo porque `url(#docker-a)` resuelve contra la
+primera coincidencia del documento y las diez eran idénticas.
+
+El sprite se oculta con `width:0` y no con `display:none`, que en algunos
+navegadores impide que los degradados referenciados resuelvan.
+
+#### Lo que hace que el color no se pierda
+
+`BrandIcon` fija `color: initial` cuando tiene logo propio. Sin eso heredaría el
+`--brand-text` de la ficha y volveríamos al punto de partida — la ficha sigue
+tiñendo su fondo, su borde y su resplandor, y el glifo ya no.
+
+Con la variante `plain` pasa lo contrario y también a propósito: es una forma sola
+que **sí** debe teñirse, y para eso está el hex.
+
+#### Dónde quedó la migración de `skills.ts`
+
+Las tablas `technologies` y `skill_groups` ya tenían los datos desde la migración
+de contenido: 25 tecnologías, 4 grupos con sus etiquetas en los dos idiomas, sus
+posiciones y sus miembros ordenados. Lo único que faltaba era poder editarlo. Los
+títulos de grupo salen ahora de las filas y el diccionario pasó a ser el respaldo
+— el mismo movimiento que hizo Configuración con el menú.
+
+**`skills.ts` todavía no se puede borrar**, y conviene saber por qué para no
+intentarlo otra vez: lo importan `lib/seo.ts` y `llms.txt/route.ts` para la lista
+de nombres de tecnología. Borrarlo exige pasarles esos nombres como argumento, y
+`seo.ts` tiene que seguir siendo **puro y síncrono** — la misma razón por la que
+recibe los artículos y los proyectos en vez de consultarlos. Es un cambio
+deliberado, no una limpieza de cola. La sección de habilidades del sitio ya no lo
+lee.
+
+### Juegos: la biblioteca se escribe a mano, y es lo correcto
+
+En `app.nassican.com/juegos`. Sección «Personal» del menú, aparte de Finanzas.
+
+**No se deriva del espejo de Wallet, y esa decisión se tomó dos veces.** La
+primera propuesta fue derivarla: las notas de los 89 movimientos de la categoría
+*Software, apps, games* nombran casi todos los juegos, con precio y fecha, desde
+abril de 2020. Era tentador y estaba mal. **Una biblioteca no es un registro de
+pagos:** un juego regalado o de los que Epic da gratis no tiene movimiento
+ninguno, así que «juegos que no he abierto» —la única cifra de este módulo que
+puede cambiar una decisión— habría salido mal desde la primera fila.
+
+Tampoco hay API que lo automatice: no hay clave de Steam, y ni Ubisoft Connect ni
+GOG publican una API de biblioteca. Así que a mano no es una concesión, es lo
+único que existe.
+
+**Dos veces una agrupación ingenua dio una respuesta segura y falsa** sobre esos
+movimientos, y conviene que quede escrito porque es el argumento del diseño:
+
+1. Mirando 18 filas, la categoría parecía ser suscripciones. Son juegos: solo 5
+   de 89 son recurrentes de verdad.
+2. El detector marcó `assassin's` como recurrente — 11 meses, 230.473 en total— y
+   se interpretó como un diferido a 11 cuotas. Son **once juegos distintos de la
+   saga comprados en seis años**. Solo 5 de los 89 dicen «diferido».
+
+Cuatro decisiones que el esquema no explica solo:
+
+- **`platform` es el lanzador, no la tienda.** Una clave comprada en Eneba se
+  juega en Ubisoft Connect, y lo que quieres saber después es dónde hacer clic.
+- **Vacío no es cero**, ni en precio ni en horas. Cero horas es un juego que
+  abriste y cerraste; cero pesos diría que fue gratis. `null` dice «no lo sé», y
+  las dos cifras del módulo dependen de que esa diferencia exista.
+- **Las fechas se guardan como texto parcial** —`2024`, `2024-08`,
+  `2024-08-13`— por lo mismo que las de experiencia y formación: recuerdas haber
+  comprado algo en 2022 sin recordar el día, y un parser inventaría el 1 de enero.
+- **El coste por hora solo promedia los juegos que tienen las dos cifras.**
+  Dividir el gasto total entre las horas totales cobraría a los juegos que sí
+  jugaste los que nunca pusiste precio, y el número se movería cada vez que una
+  fila queda a medias. Comprobado: con un juego de 34.225 a 42,5 h y otro de
+  60.000 sin abrir, da 805,29 y no 2.216.
+
+**El estado se cambia desde la lista**, no desde el formulario: es el campo que
+más se mueve y abrir un editor para tocar un `select` son tres clics para una
+decisión.
+
+**Un fallo que encontró su propia prueba, y vale por el módulo entero.**
+`parseNumber` usaba `Number()` directo, y aquí **el punto agrupa miles**: `34.225`
+se leía como treinta y cuatro. Un juego de 34.225 pesos se habría guardado como
+34, en silencio, y en la dirección que hace parecer barato el montón de sin
+abrir. Lo peor: el módulo *imprime* los precios en formato es-CO, así que copiar
+una cifra de la pantalla al campo era la forma más probable de provocarlo. La
+lógica estaba además duplicada en `games.ts`, o sea que el fallo existía en dos
+sitios y se podía arreglar en uno solo; ahora hay una sola función y una prueba
+que comprueba que validar y guardar leen el número igual.
+
+#### La siembra desde Wallet, una sola vez
+
+```bash
+npm run games:import -- --dry   # informa sin escribir
+npm run games:import            # escribe
+```
+
+La biblioteca es independiente de Wallet, pero seis años de notas de compra ya
+nombraban casi todos los títulos y teclear cien a mano era trabajo para nada. El
+script corre **una vez**, escribe filas normales de `games`, y después es
+irrelevante: nada vuelve a leer Wallet. Es idempotente por título, así que una
+segunda pasada importa 0.
+
+Resultado: **93 juegos desde abril de 2020**, 38 líneas descartadas, y 869.194
+pesos en cosas sin abrir que no estaban contados en ningún sitio.
+
+Tres decisiones que el script explica con su salida:
+
+- **Un cargo con varios títulos no lleva precio**, y el total va a la nota. Hubo
+  15 cargos así, uno de ellos con **diecisiete** juegos de Valve por 13.131:
+  repartirlos a 772 cada uno inventaría una precisión que nadie tiene, y el
+  contrato del módulo es que un precio vacío significa «no sé». Una cifra real o
+  ninguna.
+- **Todo entra como «sin empezar»**, que es mentira y hay que decirlo: nada aquí
+  sabe qué se jugó. Es el punto de partida que se corrige desde la lista, donde
+  el estado es un select por fila.
+- **La lista de descarte se imprime entera, una línea por línea.** Esta categoría
+  guarda también las suscripciones —Claude, Netflix, Google One, Duolingo,
+  Hostinger— y dos agrupaciones ingenuas ya habían dado respuestas seguras y
+  falsas sobre estas filas. Nada se adivina en silencio: el `--dry` las enseña y
+  el operador las revisa.
+
+Un fallo que el `--dry` cazó antes de escribir: la lista de descarte solo miraba
+la nota, así que el cargo de Hostinger —anotado «Diferido a 1 mes» y nada más—
+iba a entrar como un juego llamado *Diferido a 1 mes*. Ahora se comprueba también
+la contraparte, y una línea que solo dice que el cobro fue diferido se descarta
+por sí sola.
+
+### Libros: la misma idea con otros sustantivos
+
+En `app.nassican.com/libros`, junto a Juegos en la sección «Personal».
+
+Misma forma que Juegos hasta en el orden de los campos, a propósito: dos
+bibliotecas que se comportan distinto sin motivo son dos cosas que recordar. Lo
+que cambia es lo que un libro de verdad tiene — autor, páginas, formato — y nada
+se dobla para que las dos tablas se parezcan.
+
+**Dos tablas y no un `LibraryItem` con un `kind`.** Un modelo compartido habrían
+sido cuatro columnas nulables y un discriminador haciendo de dos tablas honestas.
+Lo que sí comparten es **leer sus campos**, que vive en `draft-fields.ts` — y esa
+extracción tiene una razón concreta: la primera versión de `parseNumber` se
+desplegó con un fallo que existía en dos sitios y se podía arreglar en uno solo.
+
+Cuatro decisiones propias de los libros:
+
+- **`format` es cómo se lee** (físico, ebook, audiolibro), no dónde se compró. Lo
+  segundo no se necesita saber otra vez; lo primero cambia qué significan las
+  páginas.
+- **Un libro terminado cuenta su longitud entera**, leída o no. Nadie actualiza
+  `pagesRead` en la última página, así que fiarse de ese campo descontaría todos
+  los libros que alguien ha acabado en su vida. Para lo que no está terminado,
+  cuenta lo registrado.
+- **El porcentaje solo se muestra mientras significa algo.** Un libro terminado
+  es el 100 % por definición y decirlo es ruido.
+- **Leer más páginas de las que tiene se reporta con las dos cifras.** Casi
+  siempre es el total escrito en la casilla equivocada, y recortarlo en silencio
+  esconde justo eso. El promedio de longitud solo cuenta los terminados que
+  tienen páginas, por lo mismo que el coste por hora de los juegos solo cuenta
+  los que tienen las dos cifras.
 
 ### Usuarios: sesiones, roles y revocación
 
@@ -1381,6 +1652,7 @@ un protocolo por fila— e invalida su propia etiqueta de caché.
 Migración inicial:
 
 ```bash
+npm run games:import -- --dry   # siembra Juegos desde las notas de Wallet
 npm run profile:import -- --dry
 npm run profile:import
 ```

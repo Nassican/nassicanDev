@@ -6,6 +6,7 @@ import type { HomeSectionKey } from "@nassican/shared";
 import Hero from "@/components/sections/Hero";
 import About from "@/components/sections/About";
 import Skills from "@/components/sections/Skills";
+import { getSkillGroups } from "@/lib/data/technologies";
 import Experience from "@/components/sections/Experience";
 import Education from "@/components/sections/Education";
 import Projects from "@/components/sections/Projects";
@@ -37,10 +38,13 @@ export default async function Home({ params }: PageParams) {
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
 
-  const [projects, sections, settings] = await Promise.all([
+  // One Promise.all: the skills groups are independent of everything else here,
+  // so asking for them after would cost a whole round trip for nothing.
+  const [projects, sections, settings, skillGroups] = await Promise.all([
     getProjectsByDate(),
     getHomeSections(),
     getSiteSettings(),
+    getSkillGroups(),
   ]);
 
   /**
@@ -54,7 +58,9 @@ export default async function Home({ params }: PageParams) {
   const render: Record<HomeSectionKey, () => React.ReactNode> = {
     hero: () => <Hero key="hero" locale={locale as Locale} t={t} />,
     about: () => <About key="about" t={t} />,
-    skills: () => <Skills key="skills" t={t} />,
+    skills: () => (
+      <Skills key="skills" locale={locale as Locale} t={t} groups={skillGroups} />
+    ),
     experience: () => <Experience key="experience" locale={locale as Locale} t={t} />,
     education: () => <Education key="education" locale={locale as Locale} t={t} />,
     projects: () => <Projects key="projects" locale={locale as Locale} t={t} />,
