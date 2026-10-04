@@ -1,5 +1,6 @@
 import type { Prisma } from "../generated/prisma";
 import type { ContentBlock } from "@nassican/shared";
+import type { Snapshot } from "./backup";
 
 /**
  * Typed entry points for the `jsonb` columns.
@@ -16,6 +17,11 @@ export const prismaJson = {
 
   strings(values: string[]): Prisma.InputJsonValue {
     return values as unknown as Prisma.InputJsonValue;
+  },
+
+  /** A trash payload; `index.ts` gives it back its type on the way out. */
+  snapshot(value: Snapshot): Prisma.InputJsonValue {
+    return value as unknown as Prisma.InputJsonValue;
   },
 
   record(value: Record<string, unknown>): Prisma.InputJsonValue {

@@ -137,7 +137,7 @@ export default function PostEditor({
             type="button"
             disabled={pending}
             onClick={() => {
-              if (!confirm("¿Eliminar este artículo? No se puede deshacer.")) return;
+              if (!confirm("¿Mover este artículo a la papelera? Se puede restaurar durante 30 días.")) return;
               startTransition(() => actions.remove(draft.id));
             }}
             className={`${button} border-red-900/70 text-red-400 hover:border-red-600`}

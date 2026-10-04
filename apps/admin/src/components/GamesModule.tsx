@@ -550,7 +550,7 @@ export default function GamesModule({
                   aria-label={`Eliminar ${game.title}`}
                   disabled={pending}
                   onClick={() => {
-                    if (!confirm(`¿Eliminar «${game.title}»? No se puede deshacer.`)) return;
+                    if (!confirm(`¿Mover «${game.title}» a la papelera? Se puede restaurar durante 30 días.`)) return;
                     run(() => actions.remove(game.id, game.title));
                   }}
                   className="rounded p-1.5 text-neutral-600 transition-colors hover:text-red-400"

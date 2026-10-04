@@ -937,7 +937,8 @@ bajo demanda — que es justo el caso que vale la pena medir.
 
 `apps/admin/vercel.json` dispara `GET /api/cron/daily` a las 06:00 UTC. Hace lo
 que antes solo ocurría si alguien abría el módulo: comprobar enlaces, tomar la
-instantánea de contenido, y sincronizar GA4, Search Console y Vercel.
+instantánea de contenido, sincronizar GA4, Search Console y Vercel, y vaciar de
+la papelera lo que lleva más de 30 días.
 
 Medido en producción local: **18 s de reloj** la primera vez, 12 s la segunda.
 Los cuatro externos van en paralelo porque son cuatro servicios distintos, así
@@ -1124,6 +1125,202 @@ Dos cosas que el código no explica solo:
 Antes que nada, Web Analytics tiene que estar **activado en el proyecto de
 Vercel**: `@vercel/analytics` ya está en el sitio, pero con el interruptor
 apagado no se guarda nada y la API responde vacío.
+
+### Copias de seguridad y papelera
+
+Dos módulos en «Administración» que responden a la misma pregunta —cómo no perder
+lo que hay— desde lados opuestos: la copia protege de perder la base entera, la
+papelera de perder una fila por un clic.
+
+#### La copia: toda la base en un archivo, menos lo que no debe salir
+
+En `app.nassican.com/copias`, solo para propietarios. `GET /api/backup` genera un
+`.json.gz` en el momento: **2.324 filas en 64 tablas, 1,27 MB de JSON y 274 KB
+comprimido**, en 1,8 s desde Bogotá.
+
+**Las tablas salen del propio esquema** (`Prisma.dmmf`), no de una lista. Un
+modelo añadido mañana entra en la siguiente copia sin que nadie se acuerde, y una
+copia que se salta en silencio la tabla más nueva se descubre el único día en que
+importa. Lo que sí se escribe a mano es lo contrario, en `lib/backup.ts`:
+
+| | qué | por qué |
+| --- | --- | --- |
+| fuera | `Session` | cada fila es un inicio de sesión vivo; restaurarlas devolvería el acceso a quien lo tuviera |
+| fuera | `Verification` | códigos de un solo uso que caducan en minutos |
+| fuera | `RestorePoint` | los puntos de restauración; una copia con copias dentro crecería en cada restauración |
+| en blanco | tokens y `password` de `Account` | un refresh token es permiso permanente para leer Analytics; la fila se queda para que Google te reconozca al entrar |
+
+**Comprimido por un límite, no por gusto.** Una función de Vercel no puede
+responder más de 4,5 MB. Comprime 4,6 veces y no diez porque las imágenes ya son
+WebP, así que el techo queda unas dieciséis veces por encima del tamaño actual.
+
+Cada tipo que JSON no sabe llevar tiene una forma fija y reversible
+(`packages/db/src/backup-codec.ts`, puro y con prueba): fechas en ISO, `numeric`
+como cadena con `toFixed()` —un float es como el dinero gana un céntimo—, `bigint`
+como cadena, bytes en base64, y el `NULL` de una columna `jsonb` vuelve como
+`Prisma.DbNull`, porque Prisma rechaza un `null` a secas preguntando cuál de los
+dos se quiso decir.
+
+**No hay copia automática, y no es un olvido**: el cron no tiene dónde dejarla.
+Guardarla en la misma base no protege de nada, y no hay almacén de objetos. Por
+eso el dashboard avisa cuando la última descarga tiene **30 días** o no existe:
+ese aviso es todo el mecanismo. La fecha sale de la auditoría (`export` sobre
+`backup`), porque una descarga es una decisión de alguien.
+
+#### Restaurar, y la trampa del `search_path`
+
+```bash
+RESTORE_DATABASE_URL=postgres://… npm run backup:restore -- copia.json.gz --dry
+RESTORE_DATABASE_URL=postgres://… npm run backup:restore -- copia.json.gz
+```
+
+Tres negativas que hacen que un destino equivocado falle sin tocar nada:
+
+- **La variable es propia.** Leer `DATABASE_URL` haría de producción el destino por
+  defecto de una restauración.
+- **Solo escribe en una base vacía.** Nunca mezcla ni sobrescribe.
+- **Exige la misma migración que la copia.** Filas escritas para una forma de tabla
+  no caben en otra, y descubrirlo en la tabla cuarenta es peor que no empezar.
+
+Va por TCP con un `PrismaClient` corriente y no por el adaptador de Neon, así que
+el mismo comando restaura en Neon, en una VPS o en un portátil. Inserta en orden de
+claves foráneas (`tableOrder`), dentro de **una** transacción —morir en la tabla
+cuarenta deja una base vacía, no una a medias que parece buena—, mueve las
+secuencias `autoincrement()` más allá de los ids restaurados y vuelve a contar
+tabla por tabla al final.
+
+**Cómo se verificó**, y es el método a repetir: un esquema temporal
+`restore_check` en la misma base de Neon, migrado con `prisma migrate deploy` y
+`?schema=restore_check`, restaurado, comparado **valor por valor** contra la copia
+—64 tablas idénticas, la imagen con sus bytes `RIFF`— y borrado.
+
+Esa prueba encontró la trampa: **el SQL crudo no sigue al `?schema=`.** Prisma lo
+aplica calificando sus propias consultas y deja `search_path` en `public`, así que
+el `setval` cayó sobre la secuencia de `public` y la restaurada siguió en 1: la
+primera auditoría tras restaurar habría chocado con la más vieja. En producción no
+hizo daño —la dejó en `max(id) + 1`—, pero es exactamente el tipo de fallo que no
+avisa. `schemaOf()` saca el esquema de la URL y `resetSerials` y
+`latestMigration` califican con él. La comprobación de migración **también** leía
+el `_prisma_migrations` de `public`, y pasó solo porque los dos estaban en la misma.
+
+#### Restaurar desde el panel: reemplazar, no rellenar
+
+El comando restaura en una base vacía. El panel resuelve el otro caso —«déjalo como
+estaba el martes»— sobre la base en la que él mismo corre, así que no puede
+restaurarlo todo: tiene que elegir. La línea es **lo que hiciste frente a lo que
+pasó**, y vive en `packages/db/src/backup.ts`:
+
+| | tablas | por qué |
+| --- | --- | --- |
+| se reemplazan | contenido, perfil, multimedia, SEO, menú, configuración, juegos, libros | es lo que se escribe a mano |
+| se conservan | usuarios, cuentas, sesiones | restaurar una tabla de usuarios vieja es cómo una restauración deja fuera a su propio operador, sin vuelta atrás desde el panel |
+| se conservan | auditoría, sincronizaciones, eventos, papelera, puntos | una historia que se rebobina no es historia, y la restauración misma tiene que quedar en ella |
+| se conservan | GA4, Search Console, Vercel, Wallet, enlaces, disponibilidad | son espejos de datos ajenos; la próxima sincronización es más nueva que cualquier copia |
+
+**Ninguna tabla puede quedar sin decidir.** `restorePolicyComplete` usa el mismo
+truco que `localeParity`: una tabla nueva en ninguna de las dos listas **no
+compila**, y el error la nombra —se comprobó quitando `Book`—. Y `backup.test.ts`
+fija lo que el tipo no ve: ninguna tabla en las dos listas, y **nada conservado
+apunta a algo reemplazado**. Si apuntara, vaciar la tabla reemplazada arrastraría
+en cascada filas que se prometió no tocar.
+
+Tres cosas entre un clic y el resultado:
+
+1. **Vista previa antes de nada**, por tabla: cuántas filas hay hoy, cuántas trae la
+   copia, **cuántas se pierden y cuántas vuelven**. Los totales solos esconden el
+   caso que importa: una copia con tantos juegos como hoy puede igualmente dejar
+   fuera el que se compró ayer.
+2. **Escribir `RESTAURAR`**, que el servidor vuelve a comprobar.
+3. **Un punto de restauración** con el estado actual, tomado antes de escribir y
+   restaurable igual. Volver a un punto toma otro, así que deshacer también se
+   deshace. Se guardan los cinco últimos, se pueden descargar, y quedan **fuera de
+   la copia descargada**: una copia con copias dentro crecería en cada restauración
+   y no protegería de nada nuevo.
+
+Solo se restaura desde el panel una copia **de la migración actual**: las filas de
+otra forma de tabla no caben. La vista previa lo dice y el reemplazo se niega
+igualmente.
+
+Todo ocurre en **una** transacción: se vacían las tablas en orden inverso de claves
+y se llenan en orden. Las referencias hacia lo conservado —el autor de un artículo,
+quien subió una imagen— se comprueban contra la base tal como está, y se vacían si
+ese usuario ya no existe. Al terminar se invalidan todas las etiquetas de colección
+del sitio, que cubren también cada lectura por slug.
+
+**Cómo se verificó**, en `restore_check` y nunca sobre producción: restaurada la
+copia, se añadió un juego, se borró un libro, se renombró un proyecto y se escribió
+una entrada de auditoría. La vista previa dijo «juegos: se pierde 1» y «libros:
+vuelve 1»; restaurar dejó las 43 tablas **idénticas fila por fila** a la copia y la
+auditoría intacta; volver al punto devolvió el juego, quitó el libro y repuso el
+nombre. Contra producción solo se probó lo que no escribe: vista previa, archivo
+basura, confirmación incorrecta y acceso sin sesión. **La primera restauración real
+desde el panel no se ha hecho todavía**; el punto que toma es la red para ella.
+
+#### La papelera: una copia de la fila, no una columna `deletedAt`
+
+En `app.nassican.com/papelera`. Artículos, proyectos, páginas, imágenes, juegos y
+libros van ahí durante **30 días** antes de borrarse; el cron los purga.
+
+**Un `DELETE` sigue siendo un `DELETE`**, y esa es la decisión. Con una columna
+`deletedAt` habría que filtrarla en cada consulta de las dos aplicaciones, y la
+primera que se olvidara en el sitio público serviría un artículo borrado sin que
+nada avisara. Aquí las filas se copian a `trash_items` y se borran **en la misma
+transacción**: nada que lea el contenido puede ver lo que está en la papelera,
+porque no hay fila.
+
+`takeSnapshot` encuentra lo que se llevaría el borrado **leyendo el esquema**: toda
+tabla que cae en cascada, recursivamente. Escribirlas a mano es cómo una tabla
+`*Translation` nueva se borraría algún día con su padre y faltaría al restaurar.
+Lo que la cascada no puede ver va aparte:
+
+- **`media_usages`**, que nombra su entidad por tipo e id sin clave foránea. Dejarlas
+  atrás era un fallo previo a la papelera: `deletePost` y `deleteProject` no las
+  borraban —`deletePage` sí—, así que las imágenes de un artículo borrado quedaban
+  «en uso» para siempre y la biblioteca se negaba a borrarlas.
+- **Las claves `ON DELETE SET NULL` que apuntaban a la fila** —el menú a una página,
+  una página hija, el avatar a una imagen—. Borrar las vacía; restaurar las
+  **vuelve a apuntar**, solo si siguen vacías. Una página que vuelve está otra vez
+  en el menú, no solo en la base.
+
+Restaurar es deshacer, así que **un artículo publicado vuelve publicado** y el sitio
+se entera en el acto; el mensaje lo dice.
+
+**Lo que pudo desaparecer mientras esperaba se reporta, no hace fallar.** Una
+referencia opcional que ya no existe —la tienda de un juego, la portada— se vacía;
+una obligatoria —la etiqueta de un artículo— deja fuera su fila. Las dos cosas se
+listan bajo la papelera, aparte del toast, porque el toast se va solo y esas notas
+son trabajo pendiente. Lo único que **no** hace es sobrescribir: si otra fila tomó
+el slug, la ruta o el checksum de la imagen, no escribe nada y lo nombra.
+
+Fuera de la papelera, a propósito: tecnologías y tiendas (se niegan a borrarse
+mientras algo las use, y vacías no hay qué perder), redirecciones y las listas del
+perfil (se guardan enteras, y deshacer ahí es volver a escribir), y usuarios.
+
+**Cómo se verificó**: filas desechables contra la base real, creadas y borradas
+por el propio script. Un juego cuya tienda se borró mientras esperaba (vuelve con
+la tienda vacía y precio `34225.5` intacto), un artículo cuya etiqueta desapareció
+y cuyo slug ocupó otro (se niega y no escribe; liberado, vuelve sin la etiqueta),
+una página enlazada desde el menú (se reapunta) y una imagen (bytes idénticos).
+Una trampa de la prueba, no del código: `jsonb` reordena las claves de un objeto,
+así que comparar cuerpos con `JSON.stringify` da distinto aunque sean iguales.
+
+#### Salud del sitio público: dos rutas, porque una cuesta dinero
+
+- **`/api/health`** — el proceso responde. **No toca la base.** Admite `HEAD`.
+- **`/api/health/db`** — además llega a Postgres. 503 si no, con el error en los
+  registros y no en la respuesta: un mensaje del driver puede nombrar el host.
+
+La separación es una decisión de coste antes que técnica. Un balanceador o un
+monitor preguntan cada minuto, y Neon suspende su cómputo tras unos minutos sin
+consultas: una sonda que consultara la base cada sesenta segundos lo mantendría
+despierto día y noche, pagando horas de cómputo por preguntar si el sitio vive.
+La de base es para un monitor lento o para una persona.
+
+Viven en el **sitio público**, `www.nassican.com/api/health` y `/api/health/db`. El
+panel tiene su propio `/api/health` y ningún `/db`: preguntar por ella en
+`app.nassican.com` da 404, y no porque nada esté caído.
+
+Las dos quedan fuera del proxy de idiomas porque su matcher ya excluye `/api/`.
 
 ### Personal: lo que no es el sitio
 
@@ -1682,6 +1879,33 @@ Cuatro decisiones propias de los libros:
   tienen páginas, por lo mismo que el coste por hora de los juegos solo cuenta
   los que tienen las dos cifras.
 
+#### El ISBN completa lo vacío, nunca lo escrito
+
+«Completar» busca el ISBN y rellena título, autor y páginas **solo en los campos
+vacíos**. El título del catálogo para una edición española suele ser el inglés, o
+trae un subtítulo que nadie dice en voz alta; sustituir algo que el operador eligió
+es lo único que un autocompletado no puede hacer nunca. `fillFromFacts` es puro y
+la prueba lo fija.
+
+**Solo Open Library, y Google Books se quitó a propósito.** Estuvo de respaldo y
+sin clave respondió 429 a todas las peticiones: la cuota anónima es compartida por
+todo el que llama sin clave, y está gastada. Con clave era otro proyecto de Cloud y
+otra factura que vigilar, para un respaldo que en la práctica bebe de los mismos
+catálogos: cuando Open Library no conocía una edición, Google tampoco. Una fuente
+que responde vale más que dos donde la segunda solo añade una forma de fallar.
+«No está en el catálogo» y «el catálogo falló» son respuestas distintas, y el
+mensaje las separa: una significa escribirlo a mano, la otra reintentar luego.
+
+**Se guarda como ISBN-13 y el dígito de control se comprueba.** Un ISBN-10 y su
+ISBN-13 son la misma edición, y dos grafías harían de un libro dos. Un ISBN mal
+tecleado sigue teniendo trece dígitos, y buscarlo rellenaría el formulario con el
+libro de otro. El prefijo «ISBN-13:» se quita entero: si no, su «13» se leería
+como los dos primeros dígitos.
+
+El borrador se construía desde la fila **en dos sitios** —el botón de editar y la
+base de «sin guardar»—, así que añadir `isbn` en uno solo habría dejado el marcador
+encendido en todo formulario abierto. Ahora los dos usan `toDraft`.
+
 ### Usuarios: sesiones, roles y revocación
 
 En `app.nassican.com/usuarios`. Muestra los tres cerrojos de la sección de
@@ -1991,6 +2215,23 @@ cabe se reporte. Se comprobó además contra **los cuerpos reales de la base**,
 que es donde apareció lo de `ordered`: un ejemplo inventado nunca lo habría
 enseñado.
 
+#### Pegar una captura
+
+Ctrl+V con una imagen en el portapapeles, en cualquier bloque o en el texto
+Markdown, la sube y la convierte igual que el botón: entra justo después del
+bloque, o donde esté el cursor.
+
+**Solo si el portapapeles no trae texto.** Word y Excel ponen una imagen de la
+selección junto a su texto, y lo que se quería era el texto: pegar una tabla de una
+hoja de cálculo y recibir un PNG de ella sería la sorpresa. Una herramienta de
+capturas o «Copiar imagen» del navegador no dejan texto plano.
+
+**La inserción lee el cuerpo de después de subir, no el de antes.** La subida tarda
+uno o dos segundos, y pegar y seguir escribiendo es justo para lo que sirve.
+Insertar sobre el `blocks` capturado al empezar —que es lo que hacía el botón desde
+siempre— habría tirado lo escrito mientras subía. Un `ref` guarda el último cuerpo
+confirmado y la inserción parte de ahí.
+
 ### Artículos: se escriben en el panel, no en el repositorio
 
 Ya no hay carpetas por artículo. Se crean y publican desde
@@ -2173,11 +2414,12 @@ npm run dev:admin    # plataforma de gestión en :3001
 npm run build        # build de producción de todos los workspaces
 npm run lint         # ESLint en las dos aplicaciones
 npm run typecheck    # tsc --noEmit en todos los workspaces
-npm test             # runner de Node: packages/shared, apps/web/src/lib,
-                     # apps/admin/src/lib. Sin dependencias nuevas.
+npm test             # runner de Node: packages/shared, packages/db/src,
+                     # apps/web/src/lib, apps/admin/src/lib. Sin dependencias nuevas.
 npm run db:generate  # regenera el cliente de Prisma
 npm run db:migrate   # crea y aplica una migración
 npm run db:studio    # Prisma Studio
+npm run backup:restore -- copia.json.gz --dry   # ver «Copias de seguridad»
 ```
 
 Tras editar `schema.prisma` hay que ejecutar `npm run db:generate` antes de que

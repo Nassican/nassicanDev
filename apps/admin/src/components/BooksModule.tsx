@@ -8,6 +8,7 @@ import Unsaved from "@/components/Unsaved";
 import { fold } from "@/lib/list-filters";
 import {
   bookProblems,
+  fillFromFacts,
   emptyBook,
   formatLabel,
   formats,
@@ -18,7 +19,7 @@ import {
 import { PARTIAL_DATE_HINT } from "@/lib/draft-fields";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import type { BooksSummary } from "@/lib/books";
-import type { ActionResult } from "@/app/(panel)/libros/actions";
+import type { ActionResult, LookupOutcome } from "@/app/(panel)/libros/actions";
 
 const field =
   "rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
@@ -46,6 +47,7 @@ export default function BooksModule({
     save: (draft: BookDraft) => Promise<ActionResult>;
     remove: (id: string, title: string) => Promise<ActionResult>;
     setStatus: (id: string, status: BookDraft["status"]) => Promise<ActionResult>;
+    lookup: (isbn: string) => Promise<LookupOutcome>;
   };
 }) {
   const router = useRouter();
@@ -72,14 +74,49 @@ export default function BooksModule({
     });
   }
 
+  /*
+   * Kept out of `pending` on purpose: a lookup is not a save, and greying out
+   * «Guardar» while a catalogue thinks would read as the form being busy with
+   * something it is not.
+   */
+  const [looking, setLooking] = useState(false);
+
+  async function complete(current: BookDraft) {
+    setResult(null);
+    setLooking(true);
+    const outcome = await actions.lookup(current.isbn);
+    setLooking(false);
+
+    if (!outcome.ok) {
+      setResult(outcome);
+      return;
+    }
+
+    // Applied to the form as it is *now*, not as it was on the click: anything
+    // typed while the catalogue answered is the operator's, and wins. The
+    // message is worked out from the click, since an updater must stay pure.
+    const { filled } = fillFromFacts(current, outcome.facts);
+    setDraft((open) => (open ? fillFromFacts(open, outcome.facts).draft : open));
+    setResult({
+      ok: true,
+      message:
+        filled.length > 0
+          ? `${outcome.facts.source}: rellenado ${filled.join(", ")}.`
+          : `${outcome.facts.source} lo conoce, pero ya tenías escrito lo que sabe.`,
+    });
+  }
+
   const shown = useMemo(() => {
     const needle = fold(query);
+    // An ISBN is searched as digits, however it was pasted.
+    const digits = query.replace(/[\s-]/g, "");
     return summary.books.filter((book) => {
       if (onlyStatus && book.status !== onlyStatus) return false;
       if (!needle) return true;
       return (
         fold(book.title).includes(needle) ||
         fold(book.author ?? "").includes(needle) ||
+        (digits.length >= 4 && (book.isbn ?? "").includes(digits)) ||
         fold(book.note ?? "").includes(needle)
       );
     });
@@ -163,6 +200,33 @@ export default function BooksModule({
           </header>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Labelled label="ISBN" className="sm:col-span-2 lg:col-span-3">
+              <div className="flex gap-2">
+                <input
+                  className={`${field} min-w-0 flex-1 font-mono`}
+                  value={draft.isbn}
+                  inputMode="numeric"
+                  placeholder="978-84-376-0494-7 — opcional; con él se rellena lo demás"
+                  onChange={(e) => setDraft({ ...draft, isbn: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && draft.isbn.trim()) {
+                      e.preventDefault();
+                      complete(draft);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={looking || !draft.isbn.trim()}
+                  title="Busca el ISBN en Open Library y rellena solo los campos vacíos"
+                  onClick={() => complete(draft)}
+                  className={`${button} shrink-0 border-neutral-700 text-neutral-300 hover:border-neutral-500`}
+                >
+                  {looking ? "Buscando…" : "Completar"}
+                </button>
+              </div>
+            </Labelled>
+
             <Labelled label="Título" className="sm:col-span-2">
               <input
                 className={field}
@@ -380,21 +444,7 @@ export default function BooksModule({
                   <button
                     type="button"
                     aria-label={`Editar ${book.title}`}
-                    onClick={() =>
-                      setDraft({
-                        id: book.id,
-                        title: book.title,
-                        author: book.author ?? "",
-                        format: book.format,
-                        status: book.status,
-                        pages: book.pages === null ? "" : String(book.pages),
-                        pagesRead: book.pagesRead === null ? "" : String(book.pagesRead),
-                        price: book.price === null ? "" : String(book.price),
-                        purchasedAt: book.purchasedAt ?? "",
-                        finishedAt: book.finishedAt ?? "",
-                        note: book.note ?? "",
-                      })
-                    }
+                    onClick={() => setDraft(toDraft(book))}
                     className="rounded p-1.5 text-neutral-500 transition-colors hover:text-neutral-200"
                   >
                     <BsPencil className="h-3.5 w-3.5" aria-hidden />
@@ -404,7 +454,7 @@ export default function BooksModule({
                     aria-label={`Eliminar ${book.title}`}
                     disabled={pending}
                     onClick={() => {
-                      if (!confirm(`¿Eliminar «${book.title}»? No se puede deshacer.`)) return;
+                      if (!confirm(`¿Mover «${book.title}» a la papelera? Se puede restaurar durante 30 días.`)) return;
                       run(() => actions.remove(book.id, book.title));
                     }}
                     className="rounded p-1.5 text-neutral-600 transition-colors hover:text-red-400"
@@ -430,17 +480,13 @@ export default function BooksModule({
   );
 }
 
-/** What the draft looked like when the editor opened, read from the row itself. */
-function baselineFor(draft: BookDraft, summary: BooksSummary): BookDraft {
-  if (!draft.id) return emptyBook();
-
-  const row = summary.books.find((b) => b.id === draft.id);
-  if (!row) return draft;
-
+/** One mapping from a stored row to a form, for opening and for comparing. */
+function toDraft(row: BooksSummary["books"][number]): BookDraft {
   return {
     id: row.id,
     title: row.title,
     author: row.author ?? "",
+    isbn: row.isbn ?? "",
     format: row.format,
     status: row.status,
     pages: row.pages === null ? "" : String(row.pages),
@@ -450,6 +496,17 @@ function baselineFor(draft: BookDraft, summary: BooksSummary): BookDraft {
     finishedAt: row.finishedAt ?? "",
     note: row.note ?? "",
   };
+}
+
+/**
+ * What the open form is compared against. The same mapping that opened it, so
+ * a field added to one cannot be missing from the other — which would leave the
+ * «sin guardar» marker lit on a form nobody touched.
+ */
+function baselineFor(draft: BookDraft, summary: BooksSummary): BookDraft {
+  if (!draft.id) return emptyBook();
+  const row = summary.books.find((b) => b.id === draft.id);
+  return row ? toDraft(row) : draft;
 }
 
 function Labelled({

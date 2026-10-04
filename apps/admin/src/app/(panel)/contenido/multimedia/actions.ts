@@ -5,6 +5,7 @@ import { db } from "@nassican/db";
 import { cacheTags, locales, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
+import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 import { notifyPublicSite } from "@/lib/revalidate";
 import type { MediaText } from "@/lib/media-library";
 
@@ -86,8 +87,10 @@ export async function deleteMedia(mediaId: string): Promise<ActionResult> {
     };
   }
 
-  // The blob cascades from the schema.
-  await db.media.delete({ where: { id: mediaId } });
+  // The bytes go with it. They exist nowhere else, which is why an image is
+  // the deletion the trash matters most for.
+  const trashed = await moveToTrash("media", mediaId, actor.id);
+  if (!trashed) return { ok: false, message: "La imagen ya no existe." };
 
   revalidatePath("/contenido/multimedia");
   notifyPublicSite([cacheTags.posts, cacheTags.projects]);
@@ -96,7 +99,8 @@ export async function deleteMedia(mediaId: string): Promise<ActionResult> {
     action: "delete",
     entityType: "media",
     entityId: mediaId,
+    diff: { label: trashed.label, trash: true },
   });
 
-  return { ok: true, message: "Imagen eliminada." };
+  return { ok: true, message: `Movida a la papelera. Se puede restaurar durante ${TRASH_DAYS} días.` };
 }

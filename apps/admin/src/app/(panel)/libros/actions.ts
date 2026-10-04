@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
-import { bookProblems, type BookDraft } from "@/lib/book-draft";
-import { createBook, removeBook, setStatus, updateBook } from "@/lib/books";
+import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
+import { bookProblems, normaliseIsbn, type BookDraft, type BookFacts } from "@/lib/book-draft";
+import { lookupIsbn } from "@/lib/isbn-lookup";
+import { createBook, setStatus, updateBook } from "@/lib/books";
 import { requireUser } from "@/lib/session";
 
 export type ActionResult =
@@ -44,17 +46,17 @@ export async function saveBook(draft: BookDraft): Promise<ActionResult> {
 export async function deleteBook(id: string, title: string): Promise<ActionResult> {
   const user = await requireUser();
 
-  await removeBook(id);
+  await moveToTrash("book", id, user.id);
   await logAudit({
     userId: user.id,
     action: "delete",
     entityType: "book",
     entityId: id,
-    diff: { title },
+    diff: { title, trash: true },
   });
 
   revalidatePath("/libros");
-  return { ok: true, message: `«${title}» eliminado.` };
+  return { ok: true, message: `«${title}» está en la papelera durante ${TRASH_DAYS} días.` };
 }
 
 /** Status from the list, which is where it changes most. */
@@ -76,4 +78,21 @@ export async function setBookStatus(
 
   revalidatePath("/libros");
   return { ok: true, message: `«${title}» actualizado.` };
+}
+
+export type LookupOutcome =
+  | { ok: true; facts: BookFacts }
+  | { ok: false; message: string };
+
+/**
+ * «Completar»: what the catalogues know about an ISBN. Fills nothing by itself
+ * — the form decides, and only touches blank fields.
+ */
+export async function findBookByIsbn(raw: string): Promise<LookupOutcome> {
+  await requireUser();
+
+  const isbn = normaliseIsbn(raw);
+  if (!isbn) return { ok: false, message: "El ISBN no cuadra: revisa los dígitos." };
+
+  return lookupIsbn(isbn);
 }

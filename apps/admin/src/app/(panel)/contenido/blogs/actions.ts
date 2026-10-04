@@ -6,6 +6,7 @@ import { db, prismaJson } from "@nassican/db";
 import { postTags, type ContentBlock, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
+import { moveToTrash } from "@/lib/trash";
 import { notifyPublicSite } from "@/lib/revalidate";
 import { syncMediaUsage } from "@/lib/media-usage";
 import {
@@ -186,17 +187,19 @@ export async function unpublishPost(id: string): Promise<ActionResult> {
 export async function deletePost(id: string): Promise<never> {
   const actor = await requireUser();
 
-  // Translations, tags and revisions cascade from the schema.
-  const post = await db.post.delete({ where: { id }, select: { slug: true } });
+  // Translations, tags and revisions go with it, into the trash.
+  const trashed = await moveToTrash("post", id, actor.id);
 
-  notifyPublicSite(postTags(post.slug));
-  await logAudit({
-    userId: actor.id,
-    action: "delete",
-    entityType: "post",
-    entityId: id,
-    diff: { label: post.slug },
-  });
+  if (trashed) {
+    notifyPublicSite(postTags(String(trashed.root.slug)));
+    await logAudit({
+      userId: actor.id,
+      action: "delete",
+      entityType: "post",
+      entityId: id,
+      diff: { label: trashed.label, trash: true },
+    });
+  }
   revalidatePath("/contenido/blogs");
   redirect("/contenido/blogs");
 }

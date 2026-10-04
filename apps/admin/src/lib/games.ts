@@ -158,10 +158,6 @@ export async function updateGame(draft: GameDraft): Promise<void> {
   await db.game.update({ where: { id: draft.id }, data: toRow(draft) });
 }
 
-export async function removeGame(id: string): Promise<void> {
-  await db.game.delete({ where: { id } });
-}
-
 /**
  * Titles already in the library, folded for comparison.
  *

@@ -8,6 +8,7 @@ import "server-only";
 
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient, type Locale as DbLocale } from "../generated/prisma";
+import type { Snapshot } from "./backup";
 import {
   isContentBody,
   type ContentBlock,
@@ -16,6 +17,8 @@ import {
 
 export * from "../generated/prisma";
 export { prismaJson } from "./json";
+export * from "./backup";
+export * from "./backup-codec";
 export {
   readImageByChecksum,
   mediaPath,
@@ -55,6 +58,22 @@ function parseNullableBody(value: unknown, where: string): ContentBlock[] | null
   return parseBody(value, where);
 }
 
+
+/**
+ * A trash payload, given back its shape. Written only by `moveToTrash` through
+ * `prismaJson.snapshot`, so anything else here is a bug and is said loudly.
+ */
+function parseSnapshot(value: unknown, where: string): Snapshot {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    Array.isArray((value as { parts?: unknown }).parts) &&
+    Array.isArray((value as { backlinks?: unknown }).backlinks)
+  ) {
+    return value as Snapshot;
+  }
+  throw new Error(`Malformed trash snapshot in ${where}`);
+}
 function parseStringArray(value: unknown): string[] | null {
   if (value === null || value === undefined) return null;
   if (Array.isArray(value) && value.every((v) => typeof v === "string")) {
@@ -133,6 +152,12 @@ function extend(base: PrismaClient) {
           needs: { body: true, pageId: true, locale: true },
           compute: (t) =>
             parseNullableBody(t.body, `page ${t.pageId} (${t.locale})`),
+        },
+      },
+      trashItem: {
+        payload: {
+          needs: { payload: true, id: true },
+          compute: (t) => parseSnapshot(t.payload, `trash item ${t.id}`),
         },
       },
       profileTranslation: {

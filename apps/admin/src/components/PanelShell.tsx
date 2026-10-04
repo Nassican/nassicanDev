@@ -22,6 +22,8 @@ import {
   BsBook,
   BsChevronDown,
   BsStars,
+  BsArchive,
+  BsTrash3,
   BsGraphUp,
   BsX,
 } from "react-icons/bs";
@@ -53,6 +55,8 @@ const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
   game: BsController,
   book: BsBook,
   skills: BsStars,
+  backup: BsArchive,
+  trash: BsTrash3,
 };
 
 type PanelUser = {

@@ -55,6 +55,8 @@ export type Dashboard = {
   traffic: Traffic;
 };
 
+const BACKUP_REMINDER_DAYS = 30;
+
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
 
@@ -82,7 +84,7 @@ export async function getDashboard(): Promise<Dashboard> {
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 7);
 
-  const [stats, settings, audit, warnings, vercel, ga4, runs] = await Promise.all([
+  const [stats, settings, audit, warnings, vercel, ga4, runs, lastBackup] = await Promise.all([
     getStats(),
     db.siteSettings.findUnique({ where: { id: 1 }, select: { maintenanceMode: true } }),
     db.auditLog.findMany({
@@ -109,6 +111,11 @@ export async function getDashboard(): Promise<Dashboard> {
         finishedAt: true,
         error: true,
       },
+    }),
+    db.auditLog.findFirst({
+      where: { entityType: "backup", action: "export" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
     }),
   ]);
 
@@ -240,6 +247,28 @@ export async function getDashboard(): Promise<Dashboard> {
       detail: warnings[0].message.slice(0, 90),
       href: "/sistema",
       action: "Ver",
+    });
+  }
+
+  /*
+   * Nothing can download a backup for you — there is nowhere outside Neon for
+   * the cron to put one — so the reminder is the whole mechanism. A month is
+   * about how much editing anyone is willing to redo by hand.
+   */
+  const backupDays = lastBackup
+    ? Math.floor((Date.now() - lastBackup.createdAt.getTime()) / 86_400_000)
+    : null;
+  if (backupDays === null || backupDays >= BACKUP_REMINDER_DAYS) {
+    pending.push({
+      id: "backup",
+      tone: "warn",
+      title:
+        backupDays === null
+          ? "Nunca se ha descargado una copia de seguridad"
+          : `La última copia de seguridad tiene ${backupDays} días`,
+      detail: "Fuera de Neon no hay ninguna otra copia de los artículos, las imágenes ni las bibliotecas.",
+      href: "/copias",
+      action: "Descargar",
     });
   }
 

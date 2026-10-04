@@ -6,6 +6,7 @@ import { db, prismaJson } from "@nassican/db";
 import { cacheTags, type ContentBlock, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
+import { moveToTrash } from "@/lib/trash";
 import { notifyPublicSite } from "@/lib/revalidate";
 import { syncMediaUsage } from "@/lib/media-usage";
 import {
@@ -201,19 +202,18 @@ export async function unpublishProject(id: string): Promise<ActionResult> {
 export async function deleteProject(id: string): Promise<never> {
   const actor = await requireUser();
 
-  const project = await db.project.delete({
-    where: { id },
-    select: { slug: true },
-  });
+  const trashed = await moveToTrash("project", id, actor.id);
 
-  notifyPublicSite(tagsFor(project.slug));
-  await logAudit({
-    userId: actor.id,
-    action: "delete",
-    entityType: "project",
-    entityId: id,
-    diff: { label: project.slug },
-  });
+  if (trashed) {
+    notifyPublicSite(tagsFor(String(trashed.root.slug)));
+    await logAudit({
+      userId: actor.id,
+      action: "delete",
+      entityType: "project",
+      entityId: id,
+      diff: { label: trashed.label, trash: true },
+    });
+  }
   revalidatePath("/contenido/proyectos");
   redirect("/contenido/proyectos");
 }

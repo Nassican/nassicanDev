@@ -3,7 +3,7 @@ import "server-only";
 import { db } from "@nassican/db";
 import type { BookFormat, BookStatus } from "@nassican/db";
 import { blankToNull, parseNumber } from "@/lib/draft-fields";
-import type { BookDraft } from "@/lib/book-draft";
+import { normaliseIsbn, type BookDraft } from "@/lib/book-draft";
 
 /**
  * Reading and writing the books library. Same shape as `games.ts`: one query,
@@ -14,6 +14,7 @@ export type BookRow = {
   id: string;
   title: string;
   author: string | null;
+  isbn: string | null;
   format: BookFormat;
   status: BookStatus;
   pages: number | null;
@@ -44,6 +45,7 @@ export async function getBooks(): Promise<BooksSummary> {
     id: row.id,
     title: row.title,
     author: row.author,
+    isbn: row.isbn,
     format: row.format,
     status: row.status,
     pages: row.pages,
@@ -120,6 +122,8 @@ function toRow(draft: BookDraft) {
   return {
     title: draft.title.trim(),
     author: blankToNull(draft.author),
+    // Already checked by bookProblems, so null here only means it was blank.
+    isbn: normaliseIsbn(draft.isbn),
     format: draft.format,
     status: draft.status,
     pages: whole(draft.pages),
@@ -138,10 +142,6 @@ export async function createBook(draft: BookDraft): Promise<string> {
 
 export async function updateBook(draft: BookDraft): Promise<void> {
   await db.book.update({ where: { id: draft.id }, data: toRow(draft) });
-}
-
-export async function removeBook(id: string): Promise<void> {
-  await db.book.delete({ where: { id } });
 }
 
 /** Status alone, for the list. */

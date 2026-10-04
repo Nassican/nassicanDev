@@ -22,7 +22,9 @@ export type AuditAction =
   | "publish"
   | "unpublish"
   | "delete"
-  | "sync";
+  | "sync"
+  | "export"
+  | "restore";
 
 export async function logAudit(entry: {
   userId: string;

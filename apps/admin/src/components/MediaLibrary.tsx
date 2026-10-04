@@ -210,7 +210,7 @@ function Details({
             disabled={pending || inUse}
             title={inUse ? "Está en uso; quítala de ahí primero" : undefined}
             onClick={() => {
-              if (!confirm("¿Eliminar esta imagen? No se puede deshacer.")) return;
+              if (!confirm("¿Mover esta imagen a la papelera? Se puede restaurar durante 30 días.")) return;
               setResult(null);
               startTransition(async () => {
                 const outcome = await actions.remove(item.id);

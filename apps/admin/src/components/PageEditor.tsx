@@ -132,7 +132,7 @@ export default function PageEditor({
                 type="button"
                 disabled={pending}
                 onClick={() => {
-                  if (!confirm("¿Eliminar esta página? No se puede deshacer.")) return;
+                  if (!confirm("¿Mover esta página a la papelera? Se puede restaurar durante 30 días.")) return;
                   run(() => actions.remove(draft.id));
                 }}
                 className={`${button} border-red-900/70 text-red-400 hover:border-red-600`}

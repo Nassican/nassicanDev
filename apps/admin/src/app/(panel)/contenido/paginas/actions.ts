@@ -6,6 +6,7 @@ import { db, prismaJson } from "@nassican/db";
 import { cacheTags, locales, type ContentBlock, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
+import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 import { notifyPublicSite } from "@/lib/revalidate";
 import { syncMediaUsage } from "@/lib/media-usage";
 import {
@@ -196,17 +197,19 @@ export async function deletePage(id: string): Promise<ActionResult> {
     };
   }
 
-  await db.page.delete({ where: { id } });
-  await db.mediaUsage.deleteMany({ where: { entityType: "page", entityId: id } });
+  // Its media usages go with it; the trash takes and restores both.
+  const trashed = await moveToTrash("page", id, actor.id);
+  if (!trashed) return { ok: false, message: "La página ya no existe." };
+
   notifyPublicSite(tagsFor(page.route));
   await logAudit({
     userId: actor.id,
     action: "delete",
     entityType: "page",
     entityId: id,
-    diff: { label: page.route },
+    diff: { label: page.route, trash: true },
   });
 
   revalidatePath("/contenido/paginas");
-  return { ok: true, message: "Página eliminada." };
+  return { ok: true, message: `Movida a la papelera. Se puede restaurar durante ${TRASH_DAYS} días.` };
 }

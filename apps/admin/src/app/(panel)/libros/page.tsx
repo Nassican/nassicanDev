@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import BooksModule from "@/components/BooksModule";
 import { getBooks } from "@/lib/books";
-import { deleteBook, saveBook, setBookStatus } from "./actions";
+import { deleteBook, findBookByIsbn, saveBook, setBookStatus } from "./actions";
 
 export const metadata: Metadata = { title: "Libros" };
 
@@ -11,7 +11,12 @@ export default async function LibrosPage() {
   return (
     <BooksModule
       summary={summary}
-      actions={{ save: saveBook, remove: deleteBook, setStatus: setBookStatus }}
+      actions={{
+        save: saveBook,
+        remove: deleteBook,
+        setStatus: setBookStatus,
+        lookup: findBookByIsbn,
+      }}
     />
   );
 }

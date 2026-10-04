@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import {
   blocksToMarkdown,
   contentBlockTypes,
@@ -85,6 +85,17 @@ export default function BlockEditor({
    */
   const [known, setKnown] = useState(() => imageIndex(blocks));
 
+  /*
+   * An upload takes a second or two, and the body changes meanwhile — pasting a
+   * screenshot and carrying on typing is the whole point. Inserting into the
+   * `blocks` captured when the upload started would throw away everything typed
+   * during it, so the insert reads the latest committed body instead.
+   */
+  const latest = useRef({ blocks, markdown, known });
+  useEffect(() => {
+    latest.current = { blocks, markdown, known };
+  });
+
   const editing = markdown !== null;
 
   function openMarkdown() {
@@ -101,7 +112,11 @@ export default function BlockEditor({
     onChange(parsed.blocks);
   }
 
-  async function addImage(file: File) {
+  /**
+   * Uploads an image and inserts it: after block `position` in the block view,
+   * at character `position` in the Markdown one, or at the end without one.
+   */
+  async function addImage(file: File, position?: number) {
     setUploading(true);
     setUploadError(null);
     setSaving(null);
@@ -125,14 +140,21 @@ export default function BlockEditor({
       height: result.media.height ?? undefined,
     };
 
-    if (markdown !== null) {
+    // Read after the await: see `latest`.
+    const now = latest.current;
+
+    if (now.markdown !== null) {
       // Registered before the line is written, or the very next parse would
       // not recognise it and would report it as an unknown image.
-      const next = new Map(known);
+      const next = new Map(now.known);
       next.set(result.media.url, block);
       setKnown(next);
 
-      const text = `${markdown.trimEnd()}\n\n![](${result.media.url})\n`;
+      const at = Math.min(position ?? now.markdown.length, now.markdown.length);
+      const before = now.markdown.slice(0, at).trimEnd();
+      const after = now.markdown.slice(at).trimStart();
+      const text = `${before}${before ? "\n\n" : ""}![](${result.media.url})\n${after ? `\n${after}` : ""}`;
+
       setMarkdown(text);
       const parsed = markdownToBlocks(text, next);
       setLosses(parsed.losses);
@@ -140,7 +162,31 @@ export default function BlockEditor({
       return;
     }
 
-    onChange([...blocks, block]);
+    const at = Math.min(position ?? now.blocks.length, now.blocks.length);
+    onChange([...now.blocks.slice(0, at), block, ...now.blocks.slice(at)]);
+  }
+
+  /**
+   * A screenshot pasted anywhere in the editor becomes an image, uploaded and
+   * converted exactly like one from the file picker.
+   *
+   * **Only when the clipboard holds no text.** Word and Excel put a picture of
+   * the selection next to its text, and the text is what was meant: pasting a
+   * table from a spreadsheet and getting a PNG of it would be the surprise.
+   * A screenshot tool or «Copiar imagen» in a browser leave no plain text.
+   */
+  function pasteImage(event: ClipboardEvent, position?: number) {
+    // Already handled by a block further in; this is the same event bubbling.
+    if (event.defaultPrevented) return;
+
+    const data = event.clipboardData;
+    if (data.getData("text/plain").trim()) return;
+
+    const file = [...data.files].find((f) => f.type.startsWith("image/"));
+    if (!file) return;
+
+    event.preventDefault();
+    void addImage(file, position);
   }
 
   function replace(index: number, block: ContentBlock) {
@@ -158,7 +204,7 @@ export default function BlockEditor({
   const tab = "rounded px-2.5 py-1 text-xs transition-colors";
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" onPaste={(e) => pasteImage(e)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 rounded border border-neutral-800 p-0.5">
           <button
@@ -191,6 +237,7 @@ export default function BlockEditor({
           <textarea
             value={markdown}
             onChange={(e) => editMarkdown(e.target.value)}
+            onPaste={(e) => pasteImage(e, e.currentTarget.selectionStart)}
             spellCheck={false}
             rows={22}
             className="w-full rounded border border-neutral-800 bg-neutral-950 px-3 py-2 font-mono text-[13px] leading-relaxed text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none"
@@ -230,7 +277,8 @@ export default function BlockEditor({
             </button>
             <p className="text-[11px] text-neutral-600">
               Encabezados, párrafos, listas, citas, código e imágenes ya
-              subidas. El texto se conserva siempre; lo que no cabe en un bloque
+              subidas, y una captura se pega con Ctrl+V donde esté el cursor. El
+              texto se conserva siempre; lo que no cabe en un bloque
               se avisa arriba en vez de desaparecer.
             </p>
           </div>
@@ -247,6 +295,7 @@ export default function BlockEditor({
         <article
           key={index}
           className="rounded border border-neutral-800 bg-neutral-950/60"
+          onPaste={(e) => pasteImage(e, index + 1)}
         >
           <header className="flex items-center justify-between gap-2 border-b border-neutral-900 px-3 py-2">
             <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">
@@ -430,7 +479,9 @@ export default function BlockEditor({
             </button>
           ),
         )}
-
+        <span className="text-[11px] text-neutral-600">
+          o pega una captura con Ctrl+V en cualquier bloque: entra justo después.
+        </span>
       </div>
         </>
       )}

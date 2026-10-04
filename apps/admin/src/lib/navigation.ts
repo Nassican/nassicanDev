@@ -28,7 +28,9 @@ export type NavIcon =
   | "finance"
   | "game"
   | "book"
-  | "skills";
+  | "skills"
+  | "backup"
+  | "trash";
 
 export type NavEntry = {
   label: string;
@@ -102,6 +104,8 @@ export const navigation: NavSection[] = [
       { label: "Configuración", href: "/configuracion", icon: "settings", ready: true },
       { label: "Usuarios", href: "/usuarios", icon: "users", ready: true },
       { label: "Sistema", href: "/sistema", icon: "system", ready: true },
+      { label: "Copias de seguridad", href: "/copias", icon: "backup", ready: true },
+      { label: "Papelera", href: "/papelera", icon: "trash", ready: true },
     ],
   },
 ];

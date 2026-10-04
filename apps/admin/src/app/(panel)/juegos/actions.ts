@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
+import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 import { gameProblems, type GameDraft } from "@/lib/game-draft";
 import {
   createGame,
   createStore,
-  removeGame,
   removeStore,
   setStatus,
   updateGame,
@@ -54,17 +54,17 @@ export async function saveGame(draft: GameDraft): Promise<ActionResult> {
 export async function deleteGame(id: string, title: string): Promise<ActionResult> {
   const user = await requireUser();
 
-  await removeGame(id);
+  await moveToTrash("game", id, user.id);
   await logAudit({
     userId: user.id,
     action: "delete",
     entityType: "game",
     entityId: id,
-    diff: { title },
+    diff: { title, trash: true },
   });
 
   revalidatePath("/juegos");
-  return { ok: true, message: `«${title}» eliminado.` };
+  return { ok: true, message: `«${title}» está en la papelera durante ${TRASH_DAYS} días.` };
 }
 
 /**

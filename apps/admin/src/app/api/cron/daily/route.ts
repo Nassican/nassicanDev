@@ -4,6 +4,7 @@ import { syncAnalytics } from "@/lib/analytics";
 import { checkOutboundLinks } from "@/lib/link-check";
 import { syncSearchConsole } from "@/lib/search-console";
 import { snapshotStats } from "@/lib/stats";
+import { TRASH_DAYS, purgeTrash } from "@/lib/trash";
 import { syncDeployments, syncVercelAnalytics } from "@/lib/vercel";
 
 /**
@@ -97,6 +98,13 @@ export async function GET(request: Request) {
   steps.push(await step("snapshot", async () => {
     const { date } = await snapshotStats();
     return date;
+  }));
+
+  // Its own step so a failure is named, and after the snapshot so it can never
+  // be the reason the one unrecoverable step did not run.
+  steps.push(await step("trash_purge", async () => {
+    const removed = await purgeTrash();
+    return `${removed} ${removed === 1 ? "elemento" : "elementos"} de más de ${TRASH_DAYS} días`;
   }));
 
   // Four different services, so these wait on each other for no reason.
