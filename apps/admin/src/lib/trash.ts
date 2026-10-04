@@ -32,6 +32,8 @@ const roots: Record<TrashKind, ModelName> = {
   media: "Media",
   game: "Game",
   book: "Book",
+  subscription: "Subscription",
+  journal: "JournalEntry",
 };
 
 export const kindLabels: Record<TrashKind, string> = {
@@ -41,6 +43,8 @@ export const kindLabels: Record<TrashKind, string> = {
   media: "Imagen",
   game: "Juego",
   book: "Libro",
+  subscription: "Suscripción",
+  journal: "Nota de bitácora",
 };
 
 /**
@@ -81,6 +85,10 @@ function labelOf(kind: TrashKind, snapshot: Snapshot): string {
       return `${spanish("PageTranslation", "title") ?? "Página"} (${String(root.route)})`;
     case "media":
       return spanish("MediaTranslation", "alt") ?? `Imagen ${String(root.checksum ?? root.id).slice(0, 12)}`;
+    case "subscription":
+      return String(root.name);
+    case "journal":
+      return String(root.text).slice(0, 80);
     default:
       return String(root.title);
   }
@@ -121,6 +129,10 @@ function remove(kind: TrashKind, id: string) {
       return dbBase.game.delete({ where: { id } });
     case "book":
       return dbBase.book.delete({ where: { id } });
+    case "subscription":
+      return dbBase.subscription.delete({ where: { id } });
+    case "journal":
+      return dbBase.journalEntry.delete({ where: { id } });
   }
 }
 

@@ -30,7 +30,9 @@ export type NavIcon =
   | "book"
   | "skills"
   | "backup"
-  | "trash";
+  | "trash"
+  | "subscription"
+  | "journal";
 
 export type NavEntry = {
   label: string;
@@ -84,8 +86,10 @@ export const navigation: NavSection[] = [
     collapsible: true,
     entries: [
       { label: "Movimientos", href: "/finanzas", icon: "finance", ready: true },
+      { label: "Suscripciones", href: "/suscripciones", icon: "subscription", ready: true },
       { label: "Juegos", href: "/juegos", icon: "game", ready: true },
       { label: "Libros", href: "/libros", icon: "book", ready: true },
+      { label: "Bitácora", href: "/bitacora", icon: "journal", ready: true },
     ],
   },
   {

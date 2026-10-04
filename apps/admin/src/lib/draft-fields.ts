@@ -59,10 +59,69 @@ export function blankToNull(value: string): string | null {
  * reason — you remember reading something in 2022 without remembering the day,
  * and a parser would either reject that or invent the first of January.
  */
-const PARTIAL_DATE = /^\d{4}(-\d{2}(-\d{2})?)?$/;
+const PARTIAL_DATE = /^(\d{4})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}))?)?)?$/;
 
+/**
+ * A partial date, and — only on a full day — an optional time:
+ * "2024-08-13T21:30". A time on «2024-08» would be a precision about the hour
+ * with none about the day, so it is not a shape this accepts.
+ *
+ * The parts are checked for being a real calendar date, not only for having
+ * the right number of digits: «2024-02-30» is eight digits and no day.
+ */
 export function isPartialDate(value: string): boolean {
-  return PARTIAL_DATE.test(value.trim());
+  const match = PARTIAL_DATE.exec(value.trim());
+  if (!match) return false;
+
+  const [, , month, day, hour, minute] = match.map(Number);
+  if (match[2] && (month < 1 || month > 12)) return false;
+  if (match[3]) {
+    const days = new Date(Date.UTC(Number(match[1]), month, 0)).getUTCDate();
+    if (day < 1 || day > days) return false;
+  }
+  if (match[4] && (hour > 23 || minute > 59)) return false;
+  return true;
+}
+
+/** True for a full day — the only shape a time can be added to. */
+export function isFullDay(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && isPartialDate(value);
+}
+
+/** "2024-08-13T21:30" → { date: "2024-08-13", time: "21:30" }. */
+export function splitDateTime(value: string): { date: string; time: string } {
+  const [date, time = ""] = value.trim().split("T");
+  return { date, time };
+}
+
+/**
+ * The inverse, and the one place the rule lives: a time survives only next to a
+ * full day. Typing «2024-08» over «2024-08-13T21:30» drops the hour rather than
+ * storing a time against a month.
+ */
+export function joinDateTime(date: string, time: string): string {
+  const day = date.trim();
+  return time && isFullDay(day) ? `${day}T${time}` : day;
+}
+
+const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"];
+
+/**
+ * How a partial date reads in a list: «2024», «ago 2024», «13 ago 2024»,
+ * «13 ago 2024, 21:30». Built by hand rather than through `Date`, which would
+ * invent the missing day and then move it across midnight by timezone.
+ */
+export function formatPartialDate(value: string | null | undefined): string {
+  if (!value) return "";
+  const match = PARTIAL_DATE.exec(value.trim());
+  if (!match) return value;
+
+  const [, year, month, day, hour, minute] = match;
+  if (!month) return year;
+  const name = MONTHS[Number(month) - 1] ?? month;
+  if (!day) return `${name} ${year}`;
+  const date = `${Number(day)} ${name} ${year}`;
+  return hour ? `${date}, ${hour}:${minute}` : date;
 }
 
 export const PARTIAL_DATE_HINT = "2024 · 2024-08 · 2024-08-13";

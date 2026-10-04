@@ -15,6 +15,8 @@ import {
   type GameDraft,
 } from "@/lib/game-draft";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
+import DateField from "@/components/DateField";
+import { formatPartialDate } from "@/lib/draft-fields";
 import type { GamesSummary } from "@/lib/games";
 import type { ActionResult } from "@/app/(panel)/juegos/actions";
 
@@ -254,20 +256,20 @@ export default function GamesModule({
             </Labelled>
 
             <Labelled label="Comprado">
-              <input
-                className={field}
+              <DateField
+                label="de compra"
+                allowTime
                 value={draft.purchasedAt}
-                placeholder="2024 · 2024-08 · 2024-08-13"
-                onChange={(e) => setDraft({ ...draft, purchasedAt: e.target.value })}
+                onChange={(v) => setDraft({ ...draft, purchasedAt: v })}
               />
             </Labelled>
 
             <Labelled label="Terminado">
-              <input
-                className={field}
+              <DateField
+                label="de fin"
+                allowTime
                 value={draft.finishedAt}
-                placeholder="2024 · 2024-08 · 2024-08-13"
-                onChange={(e) => setDraft({ ...draft, finishedAt: e.target.value })}
+                onChange={(v) => setDraft({ ...draft, finishedAt: v })}
               />
             </Labelled>
 
@@ -486,12 +488,10 @@ export default function GamesModule({
                     platformLabel(game.platform),
                     // Only worth saying when the two differ, which is the case
                     // this field exists for.
-                    // Only worth saying when the two differ, which is the case
-                    // this field exists for.
                     game.storeName && game.storeName !== platformLabel(game.platform)
                       ? `comprado en ${game.storeName}`
                       : null,
-                    game.purchasedAt,
+                    formatPartialDate(game.purchasedAt),
                     game.price !== null ? money(game.price) : null,
                     game.hours !== null ? `${game.hours} h` : null,
                     game.note,

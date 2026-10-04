@@ -499,6 +499,7 @@ export const REPLACED_ON_RESTORE = [
   "SeoSettings", "SeoSettingsTranslation", "Redirect",
   "SiteSettings", "NavigationItem", "NavigationItemTranslation", "HomeSection",
   "GameStore", "Game", "Book",
+  "Subscription", "SubscriptionPayment", "JournalEntry", "JournalWeek",
 ] as const satisfies readonly ModelName[];
 
 /**

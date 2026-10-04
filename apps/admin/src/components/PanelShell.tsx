@@ -24,6 +24,8 @@ import {
   BsStars,
   BsArchive,
   BsTrash3,
+  BsArrowRepeat,
+  BsJournalText,
   BsGraphUp,
   BsX,
 } from "react-icons/bs";
@@ -57,6 +59,8 @@ const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
   skills: BsStars,
   backup: BsArchive,
   trash: BsTrash3,
+  subscription: BsArrowRepeat,
+  journal: BsJournalText,
 };
 
 type PanelUser = {

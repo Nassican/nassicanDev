@@ -16,7 +16,8 @@ import {
   statuses,
   type BookDraft,
 } from "@/lib/book-draft";
-import { PARTIAL_DATE_HINT } from "@/lib/draft-fields";
+import DateField from "@/components/DateField";
+import { formatPartialDate } from "@/lib/draft-fields";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import type { BooksSummary } from "@/lib/books";
 import type { ActionResult, LookupOutcome } from "@/app/(panel)/libros/actions";
@@ -306,20 +307,20 @@ export default function BooksModule({
             </Labelled>
 
             <Labelled label="Comprado">
-              <input
-                className={field}
+              <DateField
+                label="de compra"
+                allowTime
                 value={draft.purchasedAt}
-                placeholder={PARTIAL_DATE_HINT}
-                onChange={(e) => setDraft({ ...draft, purchasedAt: e.target.value })}
+                onChange={(v) => setDraft({ ...draft, purchasedAt: v })}
               />
             </Labelled>
 
             <Labelled label="Terminado">
-              <input
-                className={field}
+              <DateField
+                label="de fin"
+                allowTime
                 value={draft.finishedAt}
-                placeholder={PARTIAL_DATE_HINT}
-                onChange={(e) => setDraft({ ...draft, finishedAt: e.target.value })}
+                onChange={(v) => setDraft({ ...draft, finishedAt: v })}
               />
             </Labelled>
 
@@ -414,7 +415,7 @@ export default function BooksModule({
                       ratio !== null && book.status === "reading"
                         ? `${Math.round(ratio * 100)}% leído`
                         : null,
-                      book.purchasedAt,
+                      formatPartialDate(book.purchasedAt),
                       book.price !== null ? money(book.price) : null,
                       book.note,
                     ]

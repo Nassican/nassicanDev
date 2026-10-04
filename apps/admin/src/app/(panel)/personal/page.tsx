@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BsArrowRight } from "react-icons/bs";
 import { getPersonalOverview } from "@/lib/personal";
+import { formatPartialDate } from "@/lib/draft-fields";
+import { getSubscriptions } from "@/lib/subscriptions";
 
 export const metadata: Metadata = { title: "Personal" };
 
@@ -19,7 +21,15 @@ const label = "font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500
  * deciding which module to open.
  */
 export default async function PersonalPage() {
-  const { games, books, money: wallet } = await getPersonalOverview();
+  const [{ games, books, money: wallet }, subs] = await Promise.all([
+    getPersonalOverview(),
+    getSubscriptions(),
+  ]);
+
+  // The soonest active renewal: the one thing on that panel worth acting on.
+  const nextRenewal = subs.subscriptions
+    .filter((s) => s.status === "active" && s.nextRenewal)
+    .sort((a, b) => (a.nextRenewal! < b.nextRenewal! ? -1 : 1))[0];
 
   const wishlist = games.wishlist + books.wishlist;
   const backlogSpend = games.backlogSpend + books.backlogSpend;
@@ -62,7 +72,7 @@ export default async function PersonalPage() {
         />
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Panel
           title="Movimientos"
           href="/finanzas"
@@ -129,6 +139,30 @@ export default async function PersonalPage() {
               ? `Sincronizado ${wallet.lastSync.toLocaleDateString("es-CO")}. Wallet se actualiza a mano.`
               : "Wallet se sincroniza a mano desde Movimientos."}
           </p>
+        </Panel>
+
+        <Panel
+          title="Suscripciones"
+          href="/suscripciones"
+          action="Abrir"
+          empty={subs.subscriptions.length === 0}
+          emptyNote="Todavía no hay ninguna."
+        >
+          <Line
+            label="Al mes"
+            value={
+              subs.monthlyCop !== null
+                ? money(subs.monthlyCop)
+                : // Without a rate for every currency, no total: a partial sum
+                  // labelled as one is the figure this page must not show.
+                  "sin TRM"
+            }
+            strong
+          />
+          <Line label="Activas" value={String(subs.counts.active)} />
+          {nextRenewal ? (
+            <Line label={`Próxima: ${nextRenewal.name}`} value={formatPartialDate(nextRenewal.nextRenewal)} />
+          ) : null}
         </Panel>
 
         <Panel title="Juegos" href="/juegos" action="Abrir" empty={games.total === 0} emptyNote="Todavía no hay nada.">

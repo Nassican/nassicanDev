@@ -1324,8 +1324,9 @@ Las dos quedan fuera del proxy de idiomas porque su matcher ya excluye `/api/`.
 
 ### Personal: lo que no es el sitio
 
-En `app.nassican.com/personal`, con Movimientos, Juegos y Libros debajo. Las tres
-cosas que comparten el login con el panel sin tener nada que ver con la web.
+En `app.nassican.com/personal`, con Movimientos, Suscripciones, Juegos, Libros y
+Bitácora debajo. Las cosas que comparten el login con el panel sin tener nada que
+ver con la web.
 
 **Es la única sección que se pliega, y la única con página propia.** Las dos
 cosas describen la misma diferencia: «Contenido» y «Medición» son *tipos de
@@ -1906,6 +1907,80 @@ El borrador se construía desde la fila **en dos sitios** —el botón de editar
 base de «sin guardar»—, así que añadir `isbn` en uno solo habría dejado el marcador
 encendido en todo formulario abierto. Ahora los dos usan `toDraft`.
 
+### Suscripciones: a mano, y por meses pagados
+
+En `app.nassican.com/suscripciones`, en «Personal».
+
+**No se deriva de Wallet, por decisión del operador y con los números detrás.**
+Agrupar los cargos repetidos del espejo dio Netflix y Tigo junto a D1 y Mercado
+Libre, partió Tigo en dos nombres, y no encontró ni Claude ni Google One —que se
+cobran en dólares, al año o desde otra cuenta—. Es la tercera vez que una
+agrupación ingenua de esos movimientos daría una respuesta segura y falsa.
+
+**Un pago es un mes, no un día.** `subscription_payments` tiene clave
+`(suscripción, periodo)` con `periodo = "2026-09"`: «¿pagué septiembre?» es la
+pregunta, y un cobro del 31 de agosto por septiembre tiene que responderla. El
+día, si se sabe, va en `paidAt`. La cuadrícula del año marca cada mes como
+pagado, esperado y ya pasado (ámbar, con «?»), próximo, o nada esperado. Los
+esperados salen del ciclo contado desde la próxima renovación, y nunca antes del
+inicio: un plan empezado en junio no debe marzo. El ámbar **pregunta, no acusa**:
+un mes pagado y no marcado se ve igual que uno sin pagar.
+
+Tres decisiones que el código no explica solo:
+
+- **«Pagado» mueve la renovación solo si el pago era para ella.** Marca el mes de
+  la renovación y la adelanta un ciclo; marcar un mes viejo en la cuadrícula no
+  empuja la próxima fecha al futuro por accidente.
+- **Un mes marcado a posteriori no inventa fecha.** Se guarda con el precio de
+  lista y `paidAt` vacío; el monto real y el día se rellenan después, y lo
+  pagado del año suma lo cobrado de verdad, no el precio de lista.
+- **Avanzar un mes respeta la precisión y ajusta el día** que el mes no tiene: el
+  31 de enero más un mes es el 28 o 29 de febrero, que es lo que hace la tarjeta.
+  Una renovación escrita como mes se juzga por mes: vence «este mes», no «hace un
+  día» desde un 1 inventado.
+
+**El ciclo es un número de meses, no un enum**, así que un plan semestral es un
+valor y no una migración.
+
+**Los dólares se convierten con la TRM oficial** (`lib/trm.ts`, datos abiertos de
+la Superintendencia Financiera: sin clave, con caché de 12 h en el propio
+`fetch`). Si no hay tasa para todas las monedas —euros, o la API caída— **no hay
+total en pesos**: cada moneda por separado. Una suma parcial con la etiqueta de
+total es la cifra que este módulo no puede mostrar.
+
+El dashboard avisa de lo vencido sin marcar y de lo que se renueva en 7 días, y
+borrar una suscripción la lleva a la papelera **con sus pagos**.
+
+### Bitácora: la semana que pasó, y lo que escribiste de ella
+
+En `app.nassican.com/bitacora`, en «Personal». La semana vive en la URL
+(`?semana=2026-09-28`), así que una semana pasada es un enlace y «atrás» funciona.
+
+**La mitad automática no se guarda: se lee.** Sale de la auditoría al dibujar la
+página. Guardar un resumen junto a su fuente sería una segunda respuesta
+esperando a discrepar de la primera. `describeAudit` convierte cada fila en una
+frase, y los **cambios de estado son las frases que importan**: «Editaste el
+juego» no dice nada, «Terminaste Geometry Dash» es para lo que existe la
+biblioteca. Las repeticiones del mismo día se pliegan («×30»), y se dejan fuera
+las sesiones y las propias notas de la bitácora.
+
+Algunas filas viejas de auditoría guardaban solo el estado y no el título —el
+`setStatus` de Juegos registraba `{status}`—, así que el nombre se busca por id
+para esas, en una sola consulta por tipo.
+
+**Las semanas son locales.** Una edición a las nueve de la noche del domingo en
+Bogotá son las dos del lunes en UTC, y agrupar por UTC la archivaba en la semana
+siguiente: el mismo error que ya cometió la instantánea diaria. `zonedMidnight`
+calcula el instante de la medianoche local con el desplazamiento de la propia
+zona, y la prueba lo fija también para una con horario de verano.
+
+**Escribir una nota no se audita**: la bitácora acabaría describiéndose a sí misma
+con «añadiste una nota». Moverla a la papelera sí, como todo borrado. Una nota
+exige un día completo —pertenece a una semana, y «2026-10» no dice a cuál—; la
+hora es opcional, y las notas sin hora encabezan su día. Las notas se ven en
+blanco y lo automático en gris: son dos clases de verdad, el registro y tu
+versión de él.
+
 ### Usuarios: sesiones, roles y revocación
 
 En `app.nassican.com/usuarios`. Muestra los tres cerrojos de la sección de
@@ -1974,7 +2049,7 @@ que nadie lee entero de un vistazo.
 
 ### Las piezas que atraviesan el panel
 
-Cuatro cosas que no son de ningún módulo y están en todos. Se construyeron
+Cosas que no son de ningún módulo y están en todos. Las cuatro primeras se construyeron
 juntas porque las cuatro responden a lo mismo: el panel lo usa una sola persona,
 muchas veces, y lo que se paga en una sesión larga no son los milisegundos sino
 los clics y el trabajo perdido.
@@ -2078,6 +2153,24 @@ pestaña, recargar y escribir otra dirección. El App Router no ofrece forma
 documentada de interceptar una navegación de cliente, así que pulsar «Blogs» con
 cambios sin guardar los pierde igual. Prometer lo contrario en un comentario
 sería peor que no tenerlo.
+
+**Fechas: escribir o elegir.** `components/DateField.tsx` en Juegos, Libros,
+Suscripciones, Bitácora y Perfil. **El texto se queda** porque estas fechas son
+parciales a propósito —«2022» es una respuesta real a «¿cuándo lo compraste?», y
+un calendario solo sabe decir días—, así que el calendario del navegador es una
+forma de escribirlo, abierto desde un botón con `showPicker()`, sin librería. Se
+abre en el mes o el año ya escrito, no en hoy.
+
+La hora es la misma idea un paso más allá: escondida hasta que se pide, solo
+ofrecida junto a un día completo, y guardada como `"2024-08-13T21:30"`.
+`joinDateTime` es el único sitio de la regla: escribir «2024-08» encima de un día
+con hora **suelta la hora** en vez de guardar una hora contra un mes. En Perfil no
+hay hora, porque esas fechas llegan al atributo `datetime` del sitio público.
+
+`isPartialDate` ahora comprueba que los dígitos sean un día de verdad
+—«2024-02-30» son ocho dígitos y ningún día— y `formatPartialDate` las lee en las
+listas como se dicen («13 ago 2024, 21:30»), construido a mano y no con `Date`,
+que inventaría el día que falta y luego lo movería de medianoche por la zona.
 
 **Toasts: el aviso ya no empuja la página.** `components/Toast.tsx`. El banner
 anterior se insertaba sobre el formulario, así que cada guardado bajaba todo una

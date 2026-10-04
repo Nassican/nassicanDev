@@ -1510,6 +1510,8 @@ enum TrashKind {
   media
   game
   book
+  subscription
+  journal
 }
 
 /// What a deletion took away, kept for thirty days so it can be put back.
@@ -1568,4 +1570,115 @@ model RestorePoint {
 
   @@index([createdAt])
   @@map("restore_points")
+}
+
+// ---------------------------------------------------------------------------
+// Subscriptions
+// ---------------------------------------------------------------------------
+
+enum Currency {
+  COP
+  USD
+  EUR
+}
+
+/// Whether it is still being paid. `cancelled` keeps its history: knowing what
+/// you used to pay for, and for how long, is half of deciding the next one.
+enum SubscriptionStatus {
+  active
+  paused
+  cancelled
+}
+
+/// Something paid again and again, entered by hand.
+///
+/// **Not derived from the Wallet mirror**, by the operator's decision and with
+/// the numbers to back it: grouping repeated charges found Netflix and Tigo next
+/// to D1 and Mercado Libre, split Tigo under two names, and missed Claude and
+/// Google One entirely — billed in dollars, yearly, or from another account.
+model Subscription {
+  id             String             @id @default(uuid())
+  name           String
+  /// Free text with suggestions — «Streaming», «Infraestructura» — because the
+  /// useful groups are the operator's, not a fixed list.
+  category       String?
+  price          Decimal            @db.Decimal(14, 2)
+  currency       Currency           @default(COP)
+  /// 1 monthly, 3 quarterly, 12 yearly. A number and not an enum, so a
+  /// six-monthly plan is a value and not a migration.
+  intervalMonths Int                @default(1) @map("interval_months")
+  status         SubscriptionStatus @default(active)
+  /// Partial date text, optionally with a time: "2026-11", "2026-11-03",
+  /// "2026-11-03T09:00". The same convention as every hand-typed date here.
+  nextRenewal    String?            @map("next_renewal")
+  startedAt      String?            @map("started_at")
+  /// Which card or account pays it — what you need to know to cancel it.
+  paymentMethod  String?            @map("payment_method")
+  /// Where to manage or cancel it.
+  url            String?
+  note           String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  payments SubscriptionPayment[]
+
+  @@index([status])
+  @@map("subscriptions")
+}
+
+/// One period marked as paid.
+///
+/// Keyed by the month it covers, not by the day it was charged: «¿pagué
+/// septiembre?» is the question, and a charge on the 31st of August for
+/// September has to answer it. The day, if known, is `paidAt`.
+model SubscriptionPayment {
+  id             String    @id @default(uuid())
+  subscriptionId String    @map("subscription_id")
+  /// "2026-09": the month this payment covers.
+  period         String
+  /// What was actually charged, which drifts from the list price.
+  amount         Decimal?  @db.Decimal(14, 2)
+  currency       Currency?
+  /// Partial date text with optional time, as above.
+  paidAt         String?   @map("paid_at")
+  note           String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, period])
+  @@map("subscription_payments")
+}
+
+// ---------------------------------------------------------------------------
+// Journal
+// ---------------------------------------------------------------------------
+
+/// A line written by hand in the weekly log.
+///
+/// The automatic half of the week — what was published, finished, paid — is
+/// read from the audit log and the modules at render time, never copied here:
+/// a summary stored next to its sources is a second answer waiting to disagree.
+model JournalEntry {
+  id        String   @id @default(uuid())
+  /// "2026-10-04" or "2026-10-04T21:30". A full day is required: an entry
+  /// belongs to one week, and «2026-10» does not say which.
+  at        String
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([at])
+  @@map("journal_entries")
+}
+
+/// The note on a week as a whole: what went well, what comes next.
+model JournalWeek {
+  /// The Monday that starts it, "2026-09-28".
+  week      String   @id
+  summary   String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("journal_weeks")
 }

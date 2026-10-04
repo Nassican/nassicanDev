@@ -16,6 +16,7 @@ import {
   type ProfileDraft,
 } from "@/lib/profile-draft";
 import type { ActionResult } from "@/app/(panel)/perfil/actions";
+import DateField from "@/components/DateField";
 
 const field =
   "w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
@@ -351,17 +352,17 @@ export default function ProfileModule({
                 placeholder="Organización"
                 onChange={(e) => setExperience(patch(experience, i, { org: e.target.value }))}
               />
-              <input
-                className={field}
-                value={item.start}
+              <DateField
+                label="de inicio"
                 placeholder="Inicio: 2024-08"
-                onChange={(e) => setExperience(patch(experience, i, { start: e.target.value }))}
+                value={item.start}
+                onChange={(v) => setExperience(patch(experience, i, { start: v }))}
               />
-              <input
-                className={field}
-                value={item.end}
+              <DateField
+                label="de fin"
                 placeholder="Fin (vacío = actual)"
-                onChange={(e) => setExperience(patch(experience, i, { end: e.target.value }))}
+                value={item.end}
+                onChange={(v) => setExperience(patch(experience, i, { end: v }))}
               />
             </div>
 
@@ -446,10 +447,10 @@ export default function ProfileModule({
             <div className="grid gap-2 sm:grid-cols-4">
               <input className={`${field} sm:col-span-2`} value={item.org} placeholder="Institución"
                 onChange={(e) => setEducation(patch(education, i, { org: e.target.value }))} />
-              <input className={field} value={item.start} placeholder="Inicio: 2020"
-                onChange={(e) => setEducation(patch(education, i, { start: e.target.value }))} />
-              <input className={field} value={item.end} placeholder="Fin: 2026-09-25"
-                onChange={(e) => setEducation(patch(education, i, { end: e.target.value }))} />
+              <DateField label="de inicio" placeholder="Inicio: 2020" value={item.start}
+                onChange={(v) => setEducation(patch(education, i, { start: v }))} />
+              <DateField label="de fin" placeholder="Fin: 2026-09-25" value={item.end}
+                onChange={(v) => setEducation(patch(education, i, { end: v }))} />
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">

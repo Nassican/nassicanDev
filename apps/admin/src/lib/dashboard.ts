@@ -2,6 +2,8 @@ import "server-only";
 
 import { db } from "@nassican/db";
 import { getStats } from "@/lib/stats";
+import { formatPartialDate } from "@/lib/draft-fields";
+import { subscriptionAlerts } from "@/lib/subscriptions";
 import {
   sinceLabel,
   sourceLabels,
@@ -84,7 +86,7 @@ export async function getDashboard(): Promise<Dashboard> {
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 7);
 
-  const [stats, settings, audit, warnings, vercel, ga4, runs, lastBackup] = await Promise.all([
+  const [stats, settings, audit, warnings, vercel, ga4, runs, lastBackup, renewals] = await Promise.all([
     getStats(),
     db.siteSettings.findUnique({ where: { id: 1 }, select: { maintenanceMode: true } }),
     db.auditLog.findMany({
@@ -117,6 +119,7 @@ export async function getDashboard(): Promise<Dashboard> {
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     }),
+    subscriptionAlerts(),
   ]);
 
   const pending: Pending[] = [];
@@ -269,6 +272,42 @@ export async function getDashboard(): Promise<Dashboard> {
       detail: "Fuera de Neon no hay ninguna otra copia de los artículos, las imágenes ni las bibliotecas.",
       href: "/copias",
       action: "Descargar",
+    });
+  }
+
+  /*
+   * Overdue before upcoming: a renewal date that passed without a payment
+   * marked is either a charge you did not notice or a tick you forgot, and
+   * both are cheaper to settle now than at the end of the month.
+   */
+  if (renewals.overdue.length > 0) {
+    pending.push({
+      id: "subscriptions-overdue",
+      tone: "warn",
+      title: plural(renewals.overdue.length, "suscripción vencida sin marcar", "suscripciones vencidas sin marcar"),
+      detail: renewals.overdue
+        .slice(0, 3)
+        .map((s) => `${s.name} (${formatPartialDate(s.nextRenewal)})`)
+        .join(" · "),
+      href: "/suscripciones",
+      action: "Revisar",
+    });
+  }
+
+  if (renewals.soon.length > 0) {
+    const first = renewals.soon[0];
+    const when =
+      first.days === null ? "este mes" : first.days === 0 ? "hoy" : first.days === 1 ? "mañana" : `en ${first.days} días`;
+    pending.push({
+      id: "subscriptions-soon",
+      tone: "info",
+      title:
+        renewals.soon.length === 1
+          ? `${first.name} se renueva ${when}`
+          : `${renewals.soon.length} renovaciones en los próximos 7 días`,
+      detail: renewals.soon.map((s) => `${s.name} · ${formatPartialDate(s.nextRenewal)}`).join(" · "),
+      href: "/suscripciones",
+      action: "Ver",
     });
   }
 

@@ -20,6 +20,8 @@ const listPaths: Record<TrashKind, string> = {
   media: "/contenido/multimedia",
   game: "/juegos",
   book: "/libros",
+  subscription: "/suscripciones",
+  journal: "/bitacora",
 };
 
 export async function restoreItem(id: string): Promise<ActionResult> {
