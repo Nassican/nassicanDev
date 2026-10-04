@@ -40,10 +40,20 @@ export const configTags: string[] = ["site-settings", "navigation", "home-sectio
  * site briefly down. Without it a failed invalidation leaves the site stale
  * indefinitely, because `.next/cache` survives even a redeploy.
  *
- * Five minutes: short enough that nothing looks broken, long enough that the
- * pages stay effectively static.
+ * **One hour, and it was five minutes.** Five minutes was the wrong trade, and
+ * the usage numbers said so: 38K ISR writes against 25K reads in thirty days,
+ * pages regenerated more often than they were served. Crawlers do not run
+ * JavaScript, so GA4 never saw the traffic that was causing it — and every
+ * regeneration is a full render plus its queries, billed as Active CPU.
+ *
+ * The backstop does not need to be short, because it is not the path a change
+ * takes: publishing invalidates the tag at once, and a notice that fails lands
+ * in `system_events` and on the dashboard. One hour cuts regenerations twelve
+ * times over. Twenty-four would save only a little more and leave a failed
+ * notice — or maintenance mode switched off without the notice arriving — stale
+ * for a whole day instead of an hour.
  */
-export const CACHE_SECONDS = 300;
+export const CACHE_SECONDS = 3600;
 
 /** Every tag affected by a change to one post. */
 export function postTags(slug: string): string[] {

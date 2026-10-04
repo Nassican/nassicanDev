@@ -17,7 +17,9 @@ import { localeUrl } from "@/lib/seo";
  * the one every reader handles without a thought. The interesting choice here is
  * not the format.
  */
-export const revalidate = 300;
+// Must be a literal: Next reads segment config statically, so it cannot import
+// CACHE_SECONDS. Kept equal to it by hand.
+export const revalidate = 3600;
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -104,7 +106,7 @@ export async function GET(
       "content-type": "application/rss+xml; charset=utf-8",
       // Same window as the pages it describes, so a published article reaches
       // the feed by the same tag invalidation and not on its own schedule.
-      "cache-control": "public, max-age=0, s-maxage=300, stale-while-revalidate=600",
+      "cache-control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=7200",
     },
   });
 }

@@ -879,8 +879,19 @@ propiedad, y eso no se puede cambiar desde aquí.
 corre en el edge y no alcanza a Prisma. Consecuencia: un layout no puede
 devolver un 503, así que lo que mantiene el aviso fuera del índice es
 `robots.index`, que se apaga con él. Y al apagarlo, el contenido puede tardar
-hasta cinco minutos en volver si falla el aviso de caché — el mismo respaldo de
+hasta una hora en volver si falla el aviso de caché — el mismo respaldo de
 `CACHE_SECONDS` que protege a todo lo demás.
+
+**`CACHE_SECONDS` pasó de 5 minutos a 1 hora**, y lo decidieron los números de
+consumo: 38K escrituras ISR frente a 25K lecturas en treinta días, o sea páginas
+regeneradas más veces de las que se servían. Los rastreadores no ejecutan
+JavaScript, así que GA4 nunca vio el tráfico que lo causaba, y cada regeneración
+es un render completo con sus consultas, facturado como Active CPU. Como el
+camino real de un cambio es la invalidación por etiqueta, el respaldo no necesita
+ser corto: una hora recorta las regeneraciones doce veces, y veinticuatro apenas
+ahorraría más a cambio de un día entero de contenido rancio si un aviso falla. El
+`revalidate` de `rss.xml` tiene que ser un literal —Next lee esa configuración
+estáticamente y no puede importar la constante— y se mantiene igual a mano.
 
 **Cómo se verificó**, con el método de la migración de proyectos: capturar el
 sitio en producción —que todavía servía el menú cableado— y compararlo contra
