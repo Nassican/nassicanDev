@@ -88,6 +88,16 @@ export function dayLabel(date: string): string {
   return `${WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d} ${MONTHS[m - 1]}`;
 }
 
+
+const LONG_MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const LONG_WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+/** «Lunes 29 de septiembre», for a day's own heading. */
+export function longDayLabel(date: string): string {
+  const [y, m, d] = parts(date);
+  return `${LONG_WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d} de ${LONG_MONTHS[m - 1]}`;
+}
+
 // ---------------------------------------------------------------------------
 // Reading the audit trail
 // ---------------------------------------------------------------------------
@@ -98,6 +108,57 @@ export type AuditFact = {
   diff: Record<string, unknown> | null;
   /** The entity's current name, for rows whose diff did not record one. */
   name?: string | null;
+  /** The local day the row was written, "2026-10-04". */
+  on?: string;
+  /** For games and books: the finish date as it stands now, if any. */
+  finishedAt?: string | null;
+};
+
+/**
+ * Whether a finish date says the thing was finished around `on`.
+ *
+ * Marking a game finished is two different acts that write the same audit row:
+ * finishing it, and bringing an old library up to date. The first week of the
+ * log counted «25 juegos terminados» from an afternoon of the second — 24 with
+ * no end date and one from 2025. So the claim needs evidence: a full day within
+ * a week of the mark, or the same month when only the month is known.
+ */
+function finishedAround(finishedAt: string | null | undefined, on: string | undefined): boolean {
+  if (!finishedAt || !on) return false;
+  const date = finishedAt.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const days = (Date.parse(on) - Date.parse(date)) / 86_400_000;
+    return days >= -1 && days <= 7;
+  }
+  return /^\d{4}-\d{2}$/.test(date) && date === on.slice(0, 7);
+}
+
+/** What a line is about, for its icon and for grouping a week's highlights. */
+export type LineKind = "content" | "games" | "books" | "subscriptions" | "data" | "note";
+
+/**
+ * Highlights worth counting across a week. A line carries one when it is the
+ * kind of thing you would mention if asked how the week went.
+ */
+export type Tally =
+  | "game-finished"
+  | "game-started"
+  | "book-finished"
+  | "book-started"
+  | "payment"
+  | "published"
+  | "added";
+
+export type AuditLine = {
+  text: string;
+  kind: LineKind;
+  /**
+   * True for what changed something — finished, published, paid, added — and
+   * false for routine edits. A week has a hundred of the second and a handful
+   * of the first, and showing them at the same weight buried the handful.
+   */
+  highlight: boolean;
+  tally?: Tally;
 };
 
 const nouns: Record<string, string> = {
@@ -118,6 +179,17 @@ const nouns: Record<string, string> = {
   user: "un usuario",
 };
 
+const kinds: Record<string, LineKind> = {
+  game: "games",
+  "game-store": "games",
+  book: "books",
+  subscription: "subscriptions",
+  backup: "data",
+  wallet: "data",
+  trash: "data",
+  user: "data",
+};
+
 const verbs: Record<string, string> = {
   create: "Añadiste",
   update: "Editaste",
@@ -130,6 +202,9 @@ const verbs: Record<string, string> = {
 /** What belongs to the operator's week and not to the machinery. */
 const SKIPPED = new Set(["session", "journal"]);
 
+/** Adding one of these is a decision about your life, not a maintenance edit. */
+const PERSONAL = new Set(["game", "book", "subscription"]);
+
 const quoted = (name: string | null) => (name ? ` «${name}»` : "");
 
 /**
@@ -139,7 +214,7 @@ const quoted = (name: string | null) => (name ? ` «${name}»` : "");
  * Status changes are the interesting rows: «Editaste el juego» says nothing,
  * «Terminaste Geometry Dash» is the whole point of keeping the library.
  */
-export function describeAudit(fact: AuditFact): string | null {
+export function describeAudit(fact: AuditFact): AuditLine | null {
   const { action, entityType } = fact;
   if (SKIPPED.has(entityType)) return null;
 
@@ -147,52 +222,74 @@ export function describeAudit(fact: AuditFact): string | null {
   const pick = (key: string) => (typeof diff[key] === "string" ? (diff[key] as string) : null);
   const name = pick("label") ?? pick("title") ?? pick("name") ?? fact.name ?? null;
   const status = pick("status");
+  const kind: LineKind = kinds[entityType] ?? "content";
+  const line = (text: string, highlight: boolean, tally?: Tally): AuditLine => ({ text, kind, highlight, tally });
 
   if (entityType === "game" && action === "update" && status) {
-    const said: Record<string, string> = {
-      finished: "Terminaste",
-      playing: "Empezaste a jugar",
-      dropped: "Abandonaste",
-      backlog: "Dejaste pendiente",
-      wishlist: "Apuntaste en «lo quiero»",
-    };
-    if (said[status]) return `${said[status]}${quoted(name)}`;
+    if (status === "finished") {
+      return finishedAround(fact.finishedAt, fact.on)
+        ? line(`Terminaste${quoted(name)}`, true, "game-finished")
+        : line(`Marcaste como terminado${quoted(name)}${when(fact.finishedAt)}`, false);
+    }
+    if (status === "playing") return line(`Empezaste a jugar${quoted(name)}`, true, "game-started");
+    if (status === "dropped") return line(`Abandonaste${quoted(name)}`, true);
+    if (status === "backlog") return line(`Dejaste pendiente${quoted(name)}`, false);
+    if (status === "wishlist") return line(`Apuntaste en «lo quiero»${quoted(name)}`, false);
   }
 
   if (entityType === "book" && action === "update" && status) {
-    const said: Record<string, string> = {
-      finished: "Terminaste de leer",
-      reading: "Empezaste a leer",
-      dropped: "Dejaste",
-      backlog: "Dejaste pendiente",
-      wishlist: "Apuntaste en «lo quiero»",
-    };
-    if (said[status]) return `${said[status]}${quoted(name)}`;
+    if (status === "finished") {
+      return finishedAround(fact.finishedAt, fact.on)
+        ? line(`Terminaste de leer${quoted(name)}`, true, "book-finished")
+        : line(`Marcaste como leído${quoted(name)}${when(fact.finishedAt)}`, false);
+    }
+    if (status === "reading") return line(`Empezaste a leer${quoted(name)}`, true, "book-started");
+    if (status === "dropped") return line(`Dejaste${quoted(name)}`, true);
+    if (status === "backlog") return line(`Dejaste pendiente${quoted(name)}`, false);
+    if (status === "wishlist") return line(`Apuntaste en «lo quiero»${quoted(name)}`, false);
   }
 
   if (entityType === "subscription") {
     const paid = pick("paid");
-    if (paid) return `Pagaste${quoted(name)} (${formatPeriod(paid)})`;
+    if (paid) {
+      // A payment made now, from «Pagado» or for this month on — or the record of
+      // an old one, ticked in the grid. Six months ticked in one sitting are not
+      // six payments this week.
+      const current = diff.now === true || (fact.on !== undefined && paid >= fact.on.slice(0, 7));
+      return current
+        ? line(`Pagaste${quoted(name)} (${formatPeriod(paid)})`, true, "payment")
+        : line(`Registraste el pago de${quoted(name)} (${formatPeriod(paid)})`, false);
+    }
     if (pick("unpaid")) return null;
-    if (status === "cancelled") return `Cancelaste${quoted(name)}`;
-    if (status === "paused") return `Pausaste${quoted(name)}`;
+    if (status === "cancelled") return line(`Cancelaste${quoted(name)}`, true);
+    if (status === "paused") return line(`Pausaste${quoted(name)}`, true);
   }
 
   if (entityType === "backup") {
-    if (action === "export") return "Descargaste una copia de seguridad";
-    if (action === "restore") return "Restauraste una copia de seguridad";
+    if (action === "export") return line("Descargaste una copia de seguridad", true);
+    if (action === "restore") return line("Restauraste una copia de seguridad", true);
   }
 
-  if (entityType === "wallet" && action === "sync") return "Sincronizaste Wallet";
-  if (entityType === "trash") return `Vaciaste de la papelera${quoted(name)}`;
+  if (entityType === "wallet" && action === "sync") return line("Sincronizaste Wallet", false);
+  if (entityType === "trash") return line(`Vaciaste de la papelera${quoted(name)}`, false);
 
   if (action === "delete" && diff.trash === true) {
-    return `Moviste a la papelera ${nouns[entityType] ?? entityType}${quoted(name)}`;
+    return line(`Moviste a la papelera ${nouns[entityType] ?? entityType}${quoted(name)}`, false);
   }
 
   const verb = verbs[action];
   if (!verb) return null;
-  return `${verb} ${nouns[entityType] ?? entityType}${quoted(name)}`;
+  const text = `${verb} ${nouns[entityType] ?? entityType}${quoted(name)}`;
+
+  if (action === "publish") return line(text, true, "published");
+  if (action === "unpublish" || action === "restore") return line(text, true);
+  if (action === "create" && PERSONAL.has(entityType)) return line(text, true, "added");
+  return line(text, false);
+}
+
+/** « (2025)» — when an old finish is recorded, the year it happened. */
+function when(finishedAt: string | null | undefined): string {
+  return finishedAt ? ` (${finishedAt.slice(0, 4)})` : "";
 }
 
 function formatPeriod(period: string): string {
@@ -204,6 +301,9 @@ export type DayItem = {
   /** "21:30", or null for a note without an hour. */
   time: string | null;
   text: string;
+  kind: LineKind;
+  highlight: boolean;
+  tally?: Tally;
   /** How many times the same sentence happened that day. */
   count: number;
   /** Set for the operator's own notes, which can be edited. */
@@ -233,4 +333,43 @@ export function collapse(items: DayItem[]): DayItem[] {
     }
   }
   return out;
+}
+
+const tallyWords: Record<Tally, [string, string]> = {
+  "game-finished": ["juego terminado", "juegos terminados"],
+  "game-started": ["juego empezado", "juegos empezados"],
+  "book-finished": ["libro terminado", "libros terminados"],
+  "book-started": ["libro empezado", "libros empezados"],
+  payment: ["pago", "pagos"],
+  published: ["publicación", "publicaciones"],
+  added: ["cosa nueva en Personal", "cosas nuevas en Personal"],
+};
+
+const tallyKinds: Record<Tally, LineKind> = {
+  "game-finished": "games",
+  "game-started": "games",
+  "book-finished": "books",
+  "book-started": "books",
+  payment: "subscriptions",
+  published: "content",
+  added: "data",
+};
+
+/**
+ * The week in a sentence of counts — «2 juegos terminados · 3 pagos» — in a
+ * fixed order, so two weeks side by side read the same way. A tally that did
+ * not happen is left out rather than shown as zero.
+ */
+export function weekHighlights(items: DayItem[]): { kind: LineKind; label: string; count: number }[] {
+  const counts = new Map<Tally, number>();
+  for (const item of items) {
+    if (item.tally) counts.set(item.tally, (counts.get(item.tally) ?? 0) + item.count);
+  }
+  return (Object.keys(tallyWords) as Tally[])
+    .filter((t) => counts.has(t))
+    .map((t) => {
+      const count = counts.get(t)!;
+      const [one, many] = tallyWords[t];
+      return { kind: tallyKinds[t], label: count === 1 ? one : many, count };
+    });
 }

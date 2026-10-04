@@ -72,7 +72,8 @@ export async function changeStatus(id: string, status: SubscriptionStatus): Prom
 export async function payNow(id: string): Promise<ActionResult> {
   const user = await requireUser();
   const { name, period, next } = await markPaid(id);
-  await logAudit({ userId: user.id, action: "update", entityType: "subscription", entityId: id, diff: { name, paid: period } });
+  // `now` tells the journal this was a payment made today, not an old month ticked.
+  await logAudit({ userId: user.id, action: "update", entityType: "subscription", entityId: id, diff: { name, paid: period, now: true } });
   refresh();
   return {
     ok: true,

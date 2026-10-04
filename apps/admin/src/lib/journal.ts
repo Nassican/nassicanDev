@@ -9,9 +9,11 @@ import {
   describeAudit,
   mondayOf,
   weekDays,
+  weekHighlights,
   weekLabel,
   zonedMidnight,
   type DayItem,
+  type LineKind,
 } from "@/lib/journal-draft";
 import { getTimezone } from "@/lib/site-config";
 
@@ -37,7 +39,9 @@ export type JournalWeekView = {
   isCurrent: boolean;
   days: JournalDay[];
   summary: string;
-  counts: { done: number; notes: number; activeDays: number };
+  /** «2 juegos terminados · 3 pagos», in a fixed order. */
+  highlights: { kind: LineKind; label: string; count: number }[];
+  counts: { highlights: number; routine: number; notes: number; activeDays: number };
 };
 
 /** Rows whose diff did not name the thing — `setStatus` once logged only the status. */
@@ -72,8 +76,8 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
     ),
   ];
   const [games, books, subscriptions] = await Promise.all([
-    ids("game").length ? db.game.findMany({ where: { id: { in: ids("game") } }, select: { id: true, title: true } }) : [],
-    ids("book").length ? db.book.findMany({ where: { id: { in: ids("book") } }, select: { id: true, title: true } }) : [],
+    ids("game").length ? db.game.findMany({ where: { id: { in: ids("game") } }, select: { id: true, title: true, finishedAt: true } }) : [],
+    ids("book").length ? db.book.findMany({ where: { id: { in: ids("book") } }, select: { id: true, title: true, finishedAt: true } }) : [],
     ids("subscription").length
       ? db.subscription.findMany({ where: { id: { in: ids("subscription") } }, select: { id: true, name: true } })
       : [],
@@ -84,20 +88,26 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
     ...subscriptions.map((s): [string, string] => [s.id, s.name]),
   ]);
 
+  const finishes = new Map<string, string | null>([
+    ...games.map((g): [string, string | null] => [g.id, g.finishedAt]),
+    ...books.map((b): [string, string | null] => [b.id, b.finishedAt]),
+  ]);
   const byDay = new Map<string, DayItem[]>(weekDays(monday).map((d) => [d, []]));
 
   for (const row of audit) {
     const diff = typeof row.diff === "object" && row.diff !== null && !Array.isArray(row.diff) ? row.diff : null;
-    const text = describeAudit({
+    const line = describeAudit({
       action: row.action,
       entityType: row.entityType,
       diff,
       name: row.entityId ? names.get(row.entityId) : null,
+      on: calendarDate(timezone, row.createdAt),
+      finishedAt: row.entityId ? finishes.get(row.entityId) : null,
     });
-    if (!text) continue;
+    if (!line) continue;
     byDay.get(calendarDate(timezone, row.createdAt))?.push({
       time: calendarTime(timezone, row.createdAt),
-      text,
+      ...line,
       count: 1,
     });
   }
@@ -106,6 +116,8 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
     byDay.get(entry.at.slice(0, 10))?.push({
       time: entry.at.length > 10 ? entry.at.slice(11, 16) : null,
       text: entry.text,
+      kind: "note",
+      highlight: true,
       count: 1,
       noteId: entry.id,
       at: entry.at,
@@ -121,7 +133,8 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
     ),
   }));
 
-  const done = days.reduce((n, d) => n + d.items.filter((i) => !i.noteId).reduce((m, i) => m + i.count, 0), 0);
+  const all = days.flatMap((d) => d.items);
+  const weigh = (pick: (i: DayItem) => boolean) => all.filter(pick).reduce((n, i) => n + i.count, 0);
 
   return {
     monday,
@@ -133,8 +146,10 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
     isCurrent: monday === mondayOf(today),
     days,
     summary: week?.summary ?? "",
+    highlights: weekHighlights(all),
     counts: {
-      done,
+      highlights: weigh((i) => !i.noteId && i.highlight),
+      routine: weigh((i) => !i.noteId && !i.highlight),
       notes: entries.length,
       activeDays: days.filter((d) => d.items.length > 0).length,
     },

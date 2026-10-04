@@ -1981,6 +1981,28 @@ hora es opcional, y las notas sin hora encabezan su día. Las notas se ven en
 blanco y lo automático en gris: son dos clases de verdad, el registro y tu
 versión de él.
 
+**Tres pesos, a propósito.** Tus notas son lo más visible, porque son lo único
+escrito por ti. Lo que cambió algo —terminaste, publicaste, pagaste, añadiste
+algo en Personal— va después, con su icono, y se resume arriba en cuentas («2
+libros empezados · 2 pagos»). Las ediciones de rutina van en gris y se pliegan
+pasadas tres por día: una semana real tuvo 170 de estas y 18 de las otras, y con
+el mismo peso las 18 se perdían entre las 170.
+
+**Una afirmación necesita evidencia.** Marcar un juego como terminado escribe la
+misma fila de auditoría al terminarlo que al poner al día una biblioteca vieja, y
+la primera semana real contó «25 juegos terminados» de una tarde de lo segundo:
+24 sin fecha de fin y uno de 2025. Así que «Terminaste» solo se dice —y solo
+cuenta— cuando la fecha de fin del juego o libro cae a una semana de la marca, o
+en el mismo mes si solo se sabe el mes. Si no, «Marcaste como terminado», en
+rutina. Igual con los pagos: «Pagaste» solo para el botón «Pagado» (que registra
+`now: true`) o para un mes actual o posterior; marcar mayo en octubre es
+«Registraste el pago», y seis meses marcados de una sentada no son seis pagos de
+esta semana.
+
+**No es la auditoría.** Se arma con ella, pero pliega repeticiones, deja fuera lo
+rutinario y sus notas se editan; el registro completo, con quién y desde dónde,
+sigue en Sistema, y la propia página lo dice con un enlace a `/sistema#auditoria`.
+
 ### Usuarios: sesiones, roles y revocación
 
 En `app.nassican.com/usuarios`. Muestra los tres cerrojos de la sección de

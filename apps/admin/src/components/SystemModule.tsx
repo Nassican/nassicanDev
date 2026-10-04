@@ -43,18 +43,21 @@ const entityWords: Record<string, string> = {
 };
 
 function Section({
+  id,
   title,
   note,
   action,
   children,
 }: {
+  /** An anchor, so other modules can link straight to this section. */
+  id?: string;
   title: string;
   note?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-neutral-900 p-5">
+    <section id={id} className="flex scroll-mt-6 flex-col gap-4 rounded-lg border border-neutral-900 p-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">{title}</h2>
@@ -412,6 +415,7 @@ export default function SystemModule({
 
       {/* ----------------------------- Auditoría ----------------------------- */}
       <Section
+        id="auditoria"
         title="Auditoría"
         note="Qué se cambió y cuándo. Registra la decisión —publicar, borrar, guardar—, no cada fila escrita: cuatro upserts de un mismo guardado son un solo hecho."
       >

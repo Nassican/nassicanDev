@@ -4,10 +4,12 @@ import {
   addDays,
   collapse,
   dayLabel,
+  longDayLabel,
   describeAudit,
   mondayOf,
   weekDays,
   weekLabel,
+  weekHighlights,
   zonedMidnight,
 } from "./journal-draft";
 
@@ -38,26 +40,26 @@ test("las etiquetas nombran el mes una sola vez cuando pueden", () => {
 
 test("un cambio de estado se lee como lo que pasó, no como una edición", () => {
   assert.equal(
-    describeAudit({ action: "update", entityType: "game", diff: { title: "Geometry Dash", status: "finished" } }),
+    describeAudit({ action: "update", entityType: "game", diff: { title: "Geometry Dash", status: "finished" }, on: "2026-10-04", finishedAt: "2026-10-03" })?.text,
     "Terminaste «Geometry Dash»",
   );
   assert.equal(
-    describeAudit({ action: "update", entityType: "book", diff: { status: "reading" }, name: "Control" }),
+    describeAudit({ action: "update", entityType: "book", diff: { status: "reading" }, name: "Control" })?.text,
     "Empezaste a leer «Control»",
   );
   assert.equal(
-    describeAudit({ action: "update", entityType: "subscription", diff: { name: "Netflix", paid: "2026-09" } }),
+    describeAudit({ action: "update", entityType: "subscription", diff: { name: "Netflix", paid: "2026-09", now: true }, on: "2026-10-04" })?.text,
     "Pagaste «Netflix» (sept 2026)",
   );
 });
 
 test("lo demás usa verbo y sustantivo, y la papelera se nombra", () => {
-  assert.equal(describeAudit({ action: "publish", entityType: "post", diff: { label: "Hola" } }), "Publicaste el artículo «Hola»");
+  assert.equal(describeAudit({ action: "publish", entityType: "post", diff: { label: "Hola" } })?.text, "Publicaste el artículo «Hola»");
   assert.equal(
-    describeAudit({ action: "delete", entityType: "book", diff: { title: "X", trash: true } }),
+    describeAudit({ action: "delete", entityType: "book", diff: { title: "X", trash: true } })?.text,
     "Moviste a la papelera el libro «X»",
   );
-  assert.equal(describeAudit({ action: "export", entityType: "backup", diff: null }), "Descargaste una copia de seguridad");
+  assert.equal(describeAudit({ action: "export", entityType: "backup", diff: null })?.text, "Descargaste una copia de seguridad");
 });
 
 test("lo que no es de tu semana se queda fuera", () => {
@@ -68,12 +70,65 @@ test("lo que no es de tu semana se queda fuera", () => {
 
 test("las repeticiones del mismo día se pliegan; las notas nunca", () => {
   const items = collapse([
-    { time: "10:00", text: "Editaste la tecnología «Vite»", count: 1 },
-    { time: "10:05", text: "Editaste la tecnología «Vite»", count: 1 },
-    { time: "11:00", text: "Una nota", count: 1, noteId: "a" },
-    { time: "11:01", text: "Una nota", count: 1, noteId: "b" },
+    { time: "10:00", text: "Editaste la tecnología «Vite»", count: 1, kind: "content", highlight: false },
+    { time: "10:05", text: "Editaste la tecnología «Vite»", count: 1, kind: "content", highlight: false },
+    { time: "11:00", text: "Una nota", count: 1, kind: "note", highlight: true, noteId: "a" },
+    { time: "11:01", text: "Una nota", count: 1, kind: "note", highlight: true, noteId: "b" },
   ]);
   assert.equal(items.length, 3);
   assert.equal(items[0].count, 2);
   assert.equal(items[0].time, "10:00");
+});
+
+test("lo que cambió algo destaca; las ediciones de rutina no", () => {
+  const finished = describeAudit({ action: "update", entityType: "game", diff: { title: "X", status: "finished" }, on: "2026-10-04", finishedAt: "2026-10" });
+  assert.deepEqual(finished, { text: "Terminaste «X»", kind: "games", highlight: true, tally: "game-finished" });
+  assert.equal(describeAudit({ action: "update", entityType: "technology", diff: { name: "Vite" } })?.highlight, false);
+  assert.equal(describeAudit({ action: "publish", entityType: "post", diff: { label: "Hola" } })?.tally, "published");
+  // Adding a game is a decision; adding a technology is maintenance.
+  assert.equal(describeAudit({ action: "create", entityType: "game", diff: { title: "X" } })?.highlight, true);
+  assert.equal(describeAudit({ action: "create", entityType: "technology", diff: { name: "Bun" } })?.highlight, false);
+});
+
+test("la semana se resume en cuentas, en orden fijo y sin ceros", () => {
+  const item = (tally: Parameters<typeof weekHighlights>[0][number]["tally"], count = 1) => ({
+    time: null, text: "x", kind: "games" as const, highlight: true, tally, count,
+  });
+  assert.deepEqual(weekHighlights([item("payment", 3), item("game-finished"), item("game-finished")]), [
+    { kind: "games", label: "juegos terminados", count: 2 },
+    { kind: "subscriptions", label: "pagos", count: 3 },
+  ]);
+  assert.deepEqual(weekHighlights([item(undefined)]), []);
+});
+
+test("el encabezado de un día se lee entero", () => {
+  assert.equal(longDayLabel("2026-09-28"), "Lunes 28 de septiembre");
+  assert.equal(longDayLabel("2026-10-04"), "Domingo 4 de octubre");
+});
+
+/**
+ * The first real week counted «25 juegos terminados» from an afternoon spent
+ * updating an old library: 24 with no end date, one from 2025.
+ */
+test("poner al día la biblioteca no se cuenta como terminar juegos", () => {
+  const mark = (finishedAt: string | null) =>
+    describeAudit({ action: "update", entityType: "game", diff: { title: "X", status: "finished" }, on: "2026-10-04", finishedAt });
+  assert.deepEqual(mark(null), { text: "Marcaste como terminado «X»", kind: "games", highlight: false, tally: undefined });
+  assert.equal(mark("2025-03-12")?.text, "Marcaste como terminado «X» (2025)");
+  assert.equal(mark("2025")?.highlight, false);
+  // A finish dated around the mark is the real thing.
+  assert.equal(mark("2026-09-30")?.tally, "game-finished");
+  assert.equal(mark("2026-10")?.tally, "game-finished");
+  assert.equal(mark("2026-09-20")?.highlight, false);
+});
+
+test("marcar meses viejos registra pagos; no los cuenta como de esta semana", () => {
+  const tick = (paid: string, now?: boolean) =>
+    describeAudit({ action: "update", entityType: "subscription", diff: { name: "N", paid, ...(now ? { now } : {}) }, on: "2026-10-04" });
+  assert.equal(tick("2026-05")?.text, "Registraste el pago de «N» (may 2026)");
+  assert.equal(tick("2026-05")?.tally, undefined);
+  assert.equal(tick("2026-10")?.tally, "payment");
+  assert.equal(tick("2026-11")?.tally, "payment");
+  // «Pagado» on an overdue September renewal is a payment made today.
+  assert.equal(tick("2026-09", true)?.tally, "payment");
 });
