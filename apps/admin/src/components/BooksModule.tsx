@@ -388,14 +388,14 @@ export default function BooksModule({
           Ningún libro coincide con el filtro.
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-neutral-900 border-y border-neutral-900">
+        <ul className="flex flex-col divide-y divide-neutral-900 overflow-hidden rounded-lg border border-neutral-900">
           {shown.map((book) => {
             const ratio = progressRatio(book.pages, book.pagesRead);
 
             return (
               <li
                 key={book.id}
-                className="flex flex-wrap items-center gap-3 py-3 sm:flex-nowrap"
+                className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-neutral-200">

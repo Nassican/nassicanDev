@@ -82,7 +82,7 @@ export default async function BlogsPage({ searchParams }: PageProps) {
           Ningún artículo coincide con el filtro.
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-neutral-900 border-y border-neutral-900">
+        <ul className="flex flex-col divide-y divide-neutral-900 overflow-hidden rounded-lg border border-neutral-900">
           {posts.map((post) => {
             const missing = incompleteLocales(post);
             const title =
@@ -93,7 +93,7 @@ export default async function BlogsPage({ searchParams }: PageProps) {
               <li key={post.id}>
                 <Link
                   href={`/contenido/blogs/${post.id}`}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-2 py-3 transition-colors hover:bg-neutral-900/60"
+                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-neutral-900/60"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm">
                     {title}
