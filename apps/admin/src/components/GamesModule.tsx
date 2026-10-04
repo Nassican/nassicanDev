@@ -56,6 +56,7 @@ export default function GamesModule({
   const [onlyStatus, setOnlyStatus] = useState<GameDraft["status"] | "">("");
   const [onlyStore, setOnlyStore] = useState("");
   const [onlyPlatform, setOnlyPlatform] = useState("");
+  const [onlyPrice, setOnlyPrice] = useState<"" | "missing" | "set">("");
   const [managing, setManaging] = useState(false);
   const [newStore, setNewStore] = useState("");
 
@@ -84,6 +85,8 @@ export default function GamesModule({
       if (onlyStatus && game.status !== onlyStatus) return false;
       if (onlyStore && game.storeId !== onlyStore) return false;
       if (onlyPlatform && game.platform !== onlyPlatform) return false;
+      if (onlyPrice === "missing" && game.price !== null) return false;
+      if (onlyPrice === "set" && game.price === null) return false;
       if (!needle) return true;
       return (
         fold(game.title).includes(needle) ||
@@ -91,7 +94,7 @@ export default function GamesModule({
         fold(game.note ?? "").includes(needle)
       );
     });
-  }, [summary.games, query, onlyStatus, onlyStore, onlyPlatform]);
+  }, [summary.games, query, onlyStatus, onlyStore, onlyPlatform, onlyPrice]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -300,6 +303,7 @@ export default function GamesModule({
                 setOnlyStatus("");
                 setOnlyStore("");
                 setOnlyPlatform("");
+                setOnlyPrice("");
               }
             }}
             placeholder="Buscar por título, plataforma o nota…"
@@ -334,6 +338,26 @@ export default function GamesModule({
                 {platformLabel(p.platform)} ({p.count})
               </option>
             ))}
+          </select>
+
+          {/*
+            «Sin precio» means `null`, never zero: the module keeps those apart
+            on purpose — empty is «no lo sé», zero would claim it was free — so
+            this finds exactly the rows still waiting to be filled in, and a gift
+            recorded at 0 is not one of them.
+          */}
+          <select
+            className={field}
+            value={onlyPrice}
+            onChange={(e) => setOnlyPrice(e.target.value as typeof onlyPrice)}
+          >
+            <option value="">Cualquier precio</option>
+            <option value="missing">
+              Sin precio ({summary.games.filter((g) => g.price === null).length})
+            </option>
+            <option value="set">
+              Con precio ({summary.games.filter((g) => g.price !== null).length})
+            </option>
           </select>
 
           {stores.length > 0 ? (
