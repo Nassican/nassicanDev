@@ -34,6 +34,7 @@ const roots: Record<TrashKind, ModelName> = {
   book: "Book",
   subscription: "Subscription",
   journal: "JournalEntry",
+  task: "Task",
 };
 
 export const kindLabels: Record<TrashKind, string> = {
@@ -45,6 +46,7 @@ export const kindLabels: Record<TrashKind, string> = {
   book: "Libro",
   subscription: "Suscripción",
   journal: "Nota de bitácora",
+  task: "Pendiente",
 };
 
 /**
@@ -89,6 +91,8 @@ function labelOf(kind: TrashKind, snapshot: Snapshot): string {
       return String(root.name);
     case "journal":
       return String(root.text).slice(0, 80);
+    case "task":
+      return String(root.title);
     default:
       return String(root.title);
   }
@@ -133,6 +137,8 @@ function remove(kind: TrashKind, id: string) {
       return dbBase.subscription.delete({ where: { id } });
     case "journal":
       return dbBase.journalEntry.delete({ where: { id } });
+    case "task":
+      return dbBase.task.delete({ where: { id } });
   }
 }
 

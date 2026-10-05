@@ -17,6 +17,13 @@ export type Command = {
 /** Prepared once per list, so a keystroke only compares. */
 type Searchable = { command: Command; label: string; kind: string };
 
+/** Opening without a keyboard — a phone has no ⌘K, and this is how it gets one. */
+const OPEN_EVENT = "command-palette:open";
+
+export function openCommandPalette() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
 /**
  * Jump anywhere with the keyboard.
  *
@@ -35,12 +42,22 @@ type Searchable = { command: Command; label: string; kind: string };
  */
 export default function CommandPalette({
   load,
+  capture,
 }: {
   load: () => Promise<Command[]>;
+  /**
+   * «+ pagar la luz mañana» files a task without leaving the page you are on.
+   * Capturing has to cost two seconds or it does not happen, and the palette is
+   * already one keystroke away from everywhere.
+   */
+  capture?: (raw: string) => Promise<{ ok: boolean; message: string }>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [notice, setNotice] = useState<{ ok: boolean; message: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const capturing = Boolean(capture) && query.trimStart().startsWith("+");
   const [active, setActive] = useState(0);
   const [content, setContent] = useState<Command[] | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -100,28 +117,32 @@ export default function CommandPalette({
   const selected = Math.min(active, Math.max(0, results.length - 1));
 
   useEffect(() => {
+    const toggle = () => {
+      setOpen((value) => !value);
+      setQuery("");
+      setActive(0);
+
+      // Fired from the handler, not from an effect watching `open`: the fetch
+      // is a consequence of the keypress, and once per tab.
+      if (!fetching.current) {
+        fetching.current = true;
+        load()
+          .then(setContent)
+          // A palette that still lists every module is worth keeping; retry
+          // on the next open rather than reporting a failure nobody asked for.
+          .catch(() => {
+            fetching.current = false;
+          });
+      }
+    };
+
     const onKey = (event: KeyboardEvent) => {
       const isToggle =
         (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
 
       if (isToggle) {
         event.preventDefault();
-        setOpen((value) => !value);
-        setQuery("");
-        setActive(0);
-
-        // Fired from the handler, not from an effect watching `open`: the fetch
-        // is a consequence of the keypress, and once per tab.
-        if (!fetching.current) {
-          fetching.current = true;
-          load()
-            .then(setContent)
-            // A palette that still lists every module is worth keeping; retry
-            // on the next open rather than reporting a failure nobody asked for.
-            .catch(() => {
-              fetching.current = false;
-            });
-        }
+        toggle();
         return;
       }
 
@@ -129,7 +150,11 @@ export default function CommandPalette({
     };
 
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener(OPEN_EVENT, toggle);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener(OPEN_EVENT, toggle);
+    };
   }, [load]);
 
   useEffect(() => {
@@ -142,6 +167,19 @@ export default function CommandPalette({
     setOpen(false);
     router.push(href);
   };
+
+  async function file() {
+    if (!capture || saving || !query.replace(/^\s*\+/, "").trim()) return;
+    setSaving(true);
+    const outcome = await capture(query);
+    setSaving(false);
+    setNotice(outcome);
+    // The palette stays open: capturing comes in bursts, three things at once.
+    if (outcome.ok) {
+      setQuery("");
+      router.refresh();
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[90] flex items-start justify-center p-4 pt-[12vh]">
@@ -172,8 +210,16 @@ export default function CommandPalette({
           onChange={(e) => {
             setQuery(e.target.value);
             setActive(0);
+            setNotice(null);
           }}
           onKeyDown={(e) => {
+            if (capturing) {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void file();
+              }
+              return;
+            }
             if (e.key === "ArrowDown") {
               e.preventDefault();
               setActive((i) => Math.min(i + 1, results.length - 1));
@@ -187,11 +233,34 @@ export default function CommandPalette({
               go(results[selected].href);
             }
           }}
-          placeholder="Ir a un módulo, artículo, proyecto o página…"
+          placeholder="Ir a un módulo, artículo o página… o «+» para apuntar"
           className="w-full border-b border-neutral-900 bg-transparent px-4 py-3 text-sm text-neutral-100 placeholder:text-neutral-600 focus:outline-none"
         />
 
-        {results.length === 0 ? (
+        {notice ? (
+          <p
+            role={notice.ok ? "status" : "alert"}
+            className={`border-b border-neutral-900 px-4 py-2 text-xs ${notice.ok ? "text-green-400" : "text-red-400"}`}
+          >
+            {notice.message}
+          </p>
+        ) : null}
+
+        {capturing ? (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void file()}
+            className="flex w-full flex-col gap-0.5 bg-neutral-900 px-4 py-3 text-left"
+          >
+            <span className="text-sm text-neutral-100">
+              {saving ? "Apuntando…" : `Apuntar «${query.replace(/^\s*\+\s*/, "") || "…"}» en Pendientes`}
+            </span>
+            <span className="text-[11px] text-neutral-500">
+              Termina en «hoy» o «mañana» para planificarlo de una vez.
+            </span>
+          </button>
+        ) : results.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-neutral-500">
             {/*
               While the content is still in flight, «nada coincide» would be a
@@ -199,7 +268,7 @@ export default function CommandPalette({
             */}
             {content === null
               ? "Buscando en el contenido…"
-              : `Nada coincide con «${query}».`}
+              : `Nada coincide con «${query}».${capture ? " Escribe «+» delante para apuntarlo como pendiente." : ""}`}
           </p>
         ) : (
           <ul className="max-h-[50vh] overflow-y-auto py-1">
@@ -226,7 +295,7 @@ export default function CommandPalette({
         )}
 
         <p className="border-t border-neutral-900 px-4 py-2 font-mono text-[10px] text-neutral-600">
-          ↑↓ moverse · ⏎ abrir · esc cerrar
+          ↑↓ moverse · ⏎ abrir{capture ? " · + apuntar un pendiente" : ""} · esc cerrar
         </p>
       </div>
     </div>

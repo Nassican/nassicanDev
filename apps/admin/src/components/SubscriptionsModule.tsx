@@ -343,7 +343,7 @@ export default function SubscriptionsModule({
 
       <div className="flex flex-wrap items-center gap-2">
         <input
-          className={`${field} w-64`}
+          className={`${field} w-full sm:w-64`}
           value={query}
           placeholder="Buscar por nombre, categoría o tarjeta"
           onChange={(e) => setQuery(e.target.value)}
@@ -490,7 +490,7 @@ function Row({
         </p>
       </div>
 
-      <div className="text-right">
+      <div className="sm:text-right">
         <p className="font-mono text-sm text-neutral-200">
           {money(sub.price, sub.currency)} <span className="text-[11px] text-neutral-500">{cycleShort(sub.intervalMonths)}</span>
         </p>
@@ -501,7 +501,7 @@ function Row({
         ) : null}
       </div>
 
-      <div className="w-40 text-right">
+      <div className="sm:w-40 sm:text-right">
         <RenewalBadge sub={sub} today={summary.today} />
       </div>
 

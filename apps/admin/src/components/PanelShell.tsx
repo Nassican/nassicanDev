@@ -26,10 +26,11 @@ import {
   BsTrash3,
   BsArrowRepeat,
   BsJournalText,
+  BsCheck2Square,
   BsGraphUp,
   BsX,
 } from "react-icons/bs";
-import CommandPalette, { type Command } from "@/components/CommandPalette";
+import CommandPalette, { openCommandPalette, type Command } from "@/components/CommandPalette";
 import SignOutButton from "@/components/SignOutButton";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -61,6 +62,7 @@ const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
   trash: BsTrash3,
   subscription: BsArrowRepeat,
   journal: BsJournalText,
+  task: BsCheck2Square,
 };
 
 type PanelUser = {
@@ -284,6 +286,7 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
 export default function PanelShell({
   user,
   loadCommands,
+  captureTask,
   children,
 }: {
   user: PanelUser;
@@ -293,6 +296,7 @@ export default function PanelShell({
    * showed.
    */
   loadCommands: () => Promise<Command[]>;
+  captureTask: (raw: string) => Promise<{ ok: boolean; message: string }>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -326,7 +330,7 @@ export default function PanelShell({
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
-      <CommandPalette load={loadCommands} />
+      <CommandPalette load={loadCommands} capture={captureTask} />
 
       {/* ----------------------------- escritorio ------------------------- */}
       <aside className="hidden shrink-0 border-r border-neutral-900 lg:block lg:w-60">
@@ -405,6 +409,24 @@ export default function PanelShell({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {/*
+              The palette's only door used to be ⌘K, which a phone does not
+              have. On a small screen it is also the fastest way around: the
+              menu means opening a drawer and scrolling.
+            */}
+            <button
+              type="button"
+              onClick={openCommandPalette}
+              aria-label="Buscar (Ctrl K)"
+              title="Buscar (Ctrl K)"
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-neutral-800 px-2.5 text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-200"
+            >
+              <BsSearch className="h-4 w-4" aria-hidden />
+              <span className="hidden text-xs md:inline">Buscar</span>
+              <kbd className="hidden rounded border border-neutral-800 px-1 font-mono text-[10px] text-neutral-500 lg:inline">
+                Ctrl K
+              </kbd>
+            </button>
             <ThemeToggle />
             <SignOutButton />
           </div>

@@ -4,6 +4,8 @@ import { db } from "@nassican/db";
 import { getStats } from "@/lib/stats";
 import { formatPartialDate } from "@/lib/draft-fields";
 import { subscriptionAlerts } from "@/lib/subscriptions";
+import { taskAlerts } from "@/lib/tasks";
+import { missingReview } from "@/lib/journal";
 import {
   sinceLabel,
   sourceLabels,
@@ -86,7 +88,7 @@ export async function getDashboard(): Promise<Dashboard> {
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 7);
 
-  const [stats, settings, audit, warnings, vercel, ga4, runs, lastBackup, renewals] = await Promise.all([
+  const [stats, settings, audit, warnings, vercel, ga4, runs, lastBackup, renewals, tasks, review] = await Promise.all([
     getStats(),
     db.siteSettings.findUnique({ where: { id: 1 }, select: { maintenanceMode: true } }),
     db.auditLog.findMany({
@@ -120,6 +122,8 @@ export async function getDashboard(): Promise<Dashboard> {
       select: { createdAt: true },
     }),
     subscriptionAlerts(),
+    taskAlerts(),
+    missingReview(),
   ]);
 
   const pending: Pending[] = [];
@@ -272,6 +276,39 @@ export async function getDashboard(): Promise<Dashboard> {
       detail: "Fuera de Neon no hay ninguna otra copia de los artículos, las imágenes ni las bibliotecas.",
       href: "/copias",
       action: "Descargar",
+    });
+  }
+
+  if (tasks.overdue.length > 0) {
+    pending.push({
+      id: "tasks-overdue",
+      tone: "warn",
+      title: plural(tasks.overdue.length, "pendiente atrasado", "pendientes atrasados"),
+      detail: `${tasks.overdue.slice(0, 3).join(" · ")}. Vuelve a planificarlos o descártalos.`,
+      href: "/pendientes",
+      action: "Replanificar",
+    });
+  }
+
+  if (tasks.today.length > 0) {
+    pending.push({
+      id: "tasks-today",
+      tone: "info",
+      title: plural(tasks.today.length, "pendiente para hoy", "pendientes para hoy"),
+      detail: tasks.today.slice(0, 3).join(" · "),
+      href: "/pendientes",
+      action: "Ver",
+    });
+  }
+
+  if (review) {
+    pending.push({
+      id: "weekly-review",
+      tone: "info",
+      title: "Falta la revisión de la semana pasada",
+      detail: `${review.label}: qué salió bien, qué cambiar y tres prioridades. Diez minutos.`,
+      href: `/bitacora?semana=${review.week}`,
+      action: "Hacerla",
     });
   }
 

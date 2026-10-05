@@ -12,7 +12,7 @@ import type { Command } from "@/components/CommandPalette";
  * this is the function that changes — nothing in the component.
  */
 export async function listCommands(): Promise<Command[]> {
-  const [posts, projects, pages, games, books, subscriptions] = await Promise.all([
+  const [posts, projects, pages, games, books, subscriptions, tasks] = await Promise.all([
     db.post.findMany({
       take: 50,
       orderBy: { updatedAt: "desc" },
@@ -31,6 +31,7 @@ export async function listCommands(): Promise<Command[]> {
     db.game.findMany({ take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
     db.book.findMany({ take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
     db.subscription.findMany({ take: 100, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.task.findMany({ where: { status: { in: ["inbox", "planned"] } }, take: 100, select: { id: true, title: true } }),
   ]);
 
   return [
@@ -76,6 +77,12 @@ export async function listCommands(): Promise<Command[]> {
       label: sub.name,
       kind: "Suscripción",
       href: "/suscripciones",
+    })),
+    ...tasks.map((task) => ({
+      id: `task:${task.id}`,
+      label: task.title,
+      kind: "Pendiente",
+      href: "/pendientes",
     })),
   ];
 }

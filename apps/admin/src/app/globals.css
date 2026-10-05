@@ -150,3 +150,38 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/*
+ * Touch screens, fixed once here rather than in 158 fields and a dozen buttons.
+ *
+ * Deliberately outside any `@layer`: Tailwind v4 puts its utilities in a cascade
+ * layer, and unlayered rules beat layered ones whatever their specificity — so
+ * these override `text-sm` and `p-1.5` without `!important` and without touching
+ * a single component. `pointer: coarse` and not a width, because the problem is
+ * the finger, not the screen: an iPad is wide and still has no cursor.
+ */
+@media (pointer: coarse) {
+  /*
+   * Safari on iOS zooms the page into any field under 16 px when it gains focus,
+   * and does not zoom back out. Every field here was 14 px, so writing a note on
+   * a phone meant fighting the zoom after every tap.
+   */
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  /*
+   * Icon-only buttons and links were 20 to 26 px — some of them next to «move to
+   * the trash». A label with a lone icon inside is exactly an icon-only control,
+   * so that is the selector; 40 px is the floor a thumb hits reliably.
+   */
+  :is(button, a)[aria-label]:has(> svg:only-child) {
+    display: inline-flex;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+  }
+}

@@ -134,7 +134,7 @@ function finishedAround(finishedAt: string | null | undefined, on: string | unde
 }
 
 /** What a line is about, for its icon and for grouping a week's highlights. */
-export type LineKind = "content" | "games" | "books" | "subscriptions" | "data" | "note";
+export type LineKind = "content" | "games" | "books" | "subscriptions" | "tasks" | "data" | "note";
 
 /**
  * Highlights worth counting across a week. A line carries one when it is the
@@ -147,7 +147,8 @@ export type Tally =
   | "book-started"
   | "payment"
   | "published"
-  | "added";
+  | "added"
+  | "task-done";
 
 export type AuditLine = {
   text: string;
@@ -169,6 +170,7 @@ const nouns: Record<string, string> = {
   game: "el juego",
   book: "el libro",
   subscription: "la suscripción",
+  task: "el pendiente",
   technology: "la tecnología",
   "game-store": "la tienda",
   navigation: "el menú",
@@ -184,6 +186,7 @@ const kinds: Record<string, LineKind> = {
   "game-store": "games",
   book: "books",
   subscription: "subscriptions",
+  task: "tasks",
   backup: "data",
   wallet: "data",
   trash: "data",
@@ -265,6 +268,24 @@ export function describeAudit(fact: AuditFact): AuditLine | null {
     if (status === "paused") return line(`Pausaste${quoted(name)}`, true);
   }
 
+  /*
+   * Tasks: only finishing one is a highlight. Capturing and planning are how the
+   * list is kept, and a week of them at full weight would bury the few things
+   * actually done — the same reason routine edits are folded.
+   */
+  if (entityType === "task") {
+    if (action === "create") return line(`Apuntaste${quoted(name)}`, false);
+    if (status === "done") return line(`Completaste${quoted(name)}`, true, "task-done");
+    if (status === "dropped") return line(`Descartaste${quoted(name)}`, false);
+    if (status === "reopened") return line(`Reabriste${quoted(name)}`, false);
+    if ("plannedFor" in diff) {
+      const day = pick("plannedFor");
+      return day
+        ? line(`Planificaste${quoted(name)} para el ${dayLabel(day.slice(0, 10))}`, false)
+        : line(`Devolviste a la bandeja${quoted(name)}`, false);
+    }
+  }
+
   if (entityType === "backup") {
     if (action === "export") return line("Descargaste una copia de seguridad", true);
     if (action === "restore") return line("Restauraste una copia de seguridad", true);
@@ -343,6 +364,7 @@ const tallyWords: Record<Tally, [string, string]> = {
   payment: ["pago", "pagos"],
   published: ["publicación", "publicaciones"],
   added: ["cosa nueva en Personal", "cosas nuevas en Personal"],
+  "task-done": ["pendiente completado", "pendientes completados"],
 };
 
 const tallyKinds: Record<Tally, LineKind> = {
@@ -353,6 +375,7 @@ const tallyKinds: Record<Tally, LineKind> = {
   payment: "subscriptions",
   published: "content",
   added: "data",
+  "task-done": "tasks",
 };
 
 /**

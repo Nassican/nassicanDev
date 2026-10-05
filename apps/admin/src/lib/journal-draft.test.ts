@@ -132,3 +132,13 @@ test("marcar meses viejos registra pagos; no los cuenta como de esta semana", ()
   // «Pagado» on an overdue September renewal is a payment made today.
   assert.equal(tick("2026-09", true)?.tally, "payment");
 });
+
+test("de los pendientes, solo completar destaca", () => {
+  const task = (diff: Record<string, unknown>, action = "update") =>
+    describeAudit({ action, entityType: "task", diff: { title: "Pagar luz", ...diff } });
+  assert.deepEqual(task({ status: "done" }), { text: "Completaste «Pagar luz»", kind: "tasks", highlight: true, tally: "task-done" });
+  assert.equal(task({}, "create")?.text, "Apuntaste «Pagar luz»");
+  assert.equal(task({ status: "dropped" })?.highlight, false);
+  assert.equal(task({ plannedFor: "2026-10-06T09:00" })?.text, "Planificaste «Pagar luz» para el mar 6 oct");
+  assert.equal(task({ plannedFor: null })?.text, "Devolviste a la bandeja «Pagar luz»");
+});

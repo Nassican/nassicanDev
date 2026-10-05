@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@nassican/db";
 import { logAudit } from "@/lib/audit";
-import { isFullDay, isPartialDate, splitDateTime } from "@/lib/draft-fields";
+import { calendarDate } from "@nassican/shared";
+import { formatPartialDate, isFullDay, isPartialDate, splitDateTime } from "@/lib/draft-fields";
+import { getTimezone } from "@/lib/site-config";
+import { createTask } from "@/lib/tasks";
+import { writeReview } from "@/lib/journal";
 import { requireUser } from "@/lib/session";
 import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 
@@ -59,22 +63,59 @@ export async function deleteEntry(id: string): Promise<ActionResult> {
   return { ok: true, message: `Nota en la papelera durante ${TRASH_DAYS} días.` };
 }
 
-/** An empty note removes the row rather than storing a blank one. */
-export async function saveWeekNote(week: string, summary: string): Promise<ActionResult> {
-  await requireUser();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(week)) return { ok: false, message: "Esa semana no existe." };
-  if (summary.length > 8000) return { ok: false, message: "La nota de la semana es demasiado larga." };
 
-  if (summary.trim()) {
-    await db.journalWeek.upsert({
-      where: { week },
-      create: { week, summary: summary.trim() },
-      update: { summary: summary.trim() },
-    });
-  } else {
-    await db.journalWeek.deleteMany({ where: { week } });
+const isWeek = (week: string) => /^\d{4}-\d{2}-\d{2}$/.test(week);
+
+/**
+ * The guided review of `week`: its answers, and the priorities it sets for the
+ * week after. One action and one transaction, so the review is never half saved
+ * — answers without the plan they led to.
+ *
+ * Priorities are matched by id, so editing one keeps its tick; any left out of
+ * the list are removed, and an empty review removes its row rather than
+ * storing blanks.
+ */
+export async function saveReview(
+  week: string,
+  review: { wentWell: string; change: string; summary: string },
+  priorities: { id: string | null; text: string }[],
+): Promise<ActionResult> {
+  await requireUser();
+  if (!isWeek(week)) return { ok: false, message: "Esa semana no existe." };
+  if ([review.wentWell, review.change, review.summary].some((t) => t.length > 8000)) {
+    return { ok: false, message: "La revisión es demasiado larga." };
   }
 
+  const kept = await writeReview(week, review, priorities);
+
   revalidatePath("/bitacora");
-  return { ok: true, message: "Nota de la semana guardada." };
+  revalidatePath("/");
+  return {
+    ok: true,
+    message: kept > 0 ? `Revisión guardada, con ${kept} ${kept === 1 ? "prioridad" : "prioridades"} para la semana siguiente.` : "Revisión guardada.",
+  };
+}
+
+export async function togglePriority(id: string, done: boolean): Promise<ActionResult> {
+  await requireUser();
+  const priority = await db.weekPriority.update({ where: { id }, data: { done }, select: { text: true } });
+  revalidatePath("/bitacora");
+  return { ok: true, message: done ? `«${priority.text}» cumplida.` : `«${priority.text}» pendiente otra vez.` };
+}
+
+/**
+ * A priority as a task, planned for the Monday of its week: the review names
+ * what matters, and the task list is where it gets a day.
+ */
+export async function priorityToTask(id: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const priority = await db.weekPriority.findUniqueOrThrow({ where: { id }, select: { text: true, week: true } });
+  const today = calendarDate(await getTimezone());
+  // Its week's Monday, or today if that Monday has already passed.
+  const plannedFor = priority.week < today ? today : priority.week;
+
+  const task = await createTask({ title: priority.text, plannedFor });
+  await logAudit({ userId: user.id, action: "create", entityType: "task", entityId: task.id, diff: { title: task.title } });
+  revalidatePath("/pendientes");
+  return { ok: true, message: `«${task.title}» está en Pendientes para el ${formatPartialDate(plannedFor)}.` };
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import JournalModule from "@/components/JournalModule";
 import { getWeek } from "@/lib/journal";
-import { addEntry, deleteEntry, saveWeekNote, updateEntry } from "./actions";
+import { addEntry, deleteEntry, priorityToTask, saveReview, togglePriority, updateEntry } from "./actions";
 
 export const metadata: Metadata = { title: "Bitácora" };
 
@@ -17,7 +17,14 @@ export default async function BitacoraPage({
     <JournalModule
       key={view.monday}
       view={view}
-      actions={{ add: addEntry, update: updateEntry, remove: deleteEntry, saveWeek: saveWeekNote }}
+      actions={{
+        add: addEntry,
+        update: updateEntry,
+        remove: deleteEntry,
+        saveReview,
+        togglePriority,
+        priorityToTask,
+      }}
     />
   );
 }

@@ -1,6 +1,7 @@
 import PanelShell from "@/components/PanelShell";
 import { requireUser } from "@/lib/session";
 import { loadCommands } from "./actions";
+import { captureTask } from "./pendientes/actions";
 
 /**
  * Everything inside this route group is behind the session check. `requireUser`
@@ -20,6 +21,7 @@ export default async function PanelLayout({
   return (
     <PanelShell
       loadCommands={loadCommands}
+      captureTask={captureTask}
       user={{
         name: user.name,
         email: user.email,

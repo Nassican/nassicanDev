@@ -7,6 +7,7 @@ import {
   BsArrowRepeat,
   BsBook,
   BsCalendar3,
+  BsCheck2Square,
   BsChevronLeft,
   BsChevronRight,
   BsController,
@@ -22,7 +23,7 @@ import Toast from "@/components/Toast";
 import Unsaved from "@/components/Unsaved";
 import type { JournalWeekView } from "@/lib/journal";
 import { longDayLabel, type DayItem, type LineKind } from "@/lib/journal-draft";
-import { useUnsavedChanges } from "@/lib/use-unsaved";
+import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import type { ActionResult } from "@/app/(panel)/bitacora/actions";
 
 const field =
@@ -36,6 +37,7 @@ const icons: Record<LineKind, ComponentType<{ className?: string }>> = {
   games: BsController,
   books: BsBook,
   subscriptions: BsArrowRepeat,
+  tasks: BsCheck2Square,
   data: BsHddStack,
   note: BsPencilSquare,
 };
@@ -52,11 +54,23 @@ const INITIALS = ["L", "M", "X", "J", "V", "S", "D"];
 const SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const FULL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
+/** The three priority slots, filled from what is saved and empty after. */
+function toThree(saved: { id: string; text: string }[]): { id: string | null; text: string }[] {
+  const filled = saved.map((p): { id: string | null; text: string } => ({ id: p.id, text: p.text }));
+  return [...filled, ...Array.from({ length: 3 }, () => ({ id: null, text: "" }))].slice(0, 3);
+}
+
 type Actions = {
   add: (at: string, text: string) => Promise<ActionResult>;
   update: (id: string, at: string, text: string) => Promise<ActionResult>;
   remove: (id: string) => Promise<ActionResult>;
-  saveWeek: (week: string, summary: string) => Promise<ActionResult>;
+  saveReview: (
+    week: string,
+    review: { wentWell: string; change: string; summary: string },
+    priorities: { id: string | null; text: string }[],
+  ) => Promise<ActionResult>;
+  togglePriority: (id: string, done: boolean) => Promise<ActionResult>;
+  priorityToTask: (id: string) => Promise<ActionResult>;
 };
 
 /**
@@ -78,14 +92,19 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
   const [day, setDay] = useState(view.isCurrent ? view.today : view.days[0].date);
   const [time, setTime] = useState("");
   const [text, setText] = useState("");
-  const [summary, setSummary] = useState(view.summary);
+  const [review, setReview] = useState(view.review);
+  const [next, setNext] = useState(() => toThree(view.nextPriorities));
   const [editing, setEditing] = useState<{ id: string; at: string; text: string } | null>(null);
   const [unfolded, setUnfolded] = useState<Set<string>>(() => new Set());
+  // Folded on a phone and always open on a wide screen, where they sit beside the week.
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const composer = useRef<HTMLTextAreaElement>(null);
   const jump = useRef<HTMLInputElement>(null);
 
-  const summaryDirty = summary.trim() !== view.summary.trim();
-  useUnsavedChanges(summaryDirty || text.trim() !== "" || editing !== null);
+  const reviewDirty = isDirty({ review: view.review, next: toThree(view.nextPriorities) }, { review, next });
+  const reviewed = Boolean(view.review.wentWell || view.review.change || view.review.summary || view.nextPriorities.length);
+  useUnsavedChanges(reviewDirty || text.trim() !== "" || editing !== null);
 
   /*
    * ← and → move between weeks, unless you are typing. Navigation, not state,
@@ -126,8 +145,12 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
   /** «+ Nota» on a day: the one composer, pointed at that day. */
   function writeOn(date: string) {
     setDay(date);
-    composer.current?.focus();
-    composer.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setComposeOpen(true);
+    // After the render that unfolds the composer on a phone, or there is nothing to focus.
+    requestAnimationFrame(() => {
+      composer.current?.focus();
+      composer.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
   }
 
   const busiest = Math.max(1, ...view.days.map((d) => d.items.reduce((n, i) => n + i.count, 0)));
@@ -149,33 +172,37 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
           <Link href={`/bitacora?semana=${view.prev}`} className={nav} aria-label="Semana anterior" title="Semana anterior (←)">
             <BsChevronLeft className="h-3 w-3" aria-hidden />
           </Link>
-          <button
-            type="button"
-            className={`${nav} relative min-w-[11rem] justify-center text-neutral-200`}
-            title="Ir a otra semana"
-            onClick={() => {
-              try {
-                jump.current?.showPicker();
-              } catch {
-                jump.current?.focus();
-              }
-            }}
-          >
-            <BsCalendar3 className="h-3 w-3" aria-hidden />
-            {view.label}
+          {/* The date input sits over the button, outside it: an input inside a
+              button is invalid HTML, and on touch it must take the tap itself. */}
+          <span className="relative inline-flex">
+            <button
+              type="button"
+              className={`${nav} min-w-[9rem] justify-center text-neutral-200 sm:min-w-[11rem]`}
+              title="Ir a otra semana"
+              onClick={() => {
+                try {
+                  jump.current?.showPicker();
+                } catch {
+                  jump.current?.focus();
+                }
+              }}
+            >
+              <BsCalendar3 className="h-3 w-3" aria-hidden />
+              {view.label}
+            </button>
             <input
               ref={jump}
               type="date"
               tabIndex={-1}
               aria-hidden
               max={view.today}
-              className="pointer-events-none absolute right-0 bottom-0 h-px w-px opacity-0"
+              className="pointer-events-none absolute inset-0 h-full w-full opacity-0 pointer-coarse:pointer-events-auto"
               value={view.monday}
               onChange={(e) => {
                 if (e.target.value) router.push(`/bitacora?semana=${e.target.value}`);
               }}
             />
-          </button>
+          </span>
           {view.next ? (
             <Link href={`/bitacora?semana=${view.next}`} className={nav} aria-label="Semana siguiente" title="Semana siguiente (→)">
               <BsChevronRight className="h-3 w-3" aria-hidden />
@@ -263,7 +290,15 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         {/* ---------------------- escribir y resumir (lateral) ---------------------- */}
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:order-2 lg:self-start">
-          <section className="flex flex-col gap-3 rounded-lg border border-neutral-900 p-4">
+          <button
+            type="button"
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border border-neutral-700 py-2.5 text-sm text-neutral-100 lg:hidden ${composeOpen ? "hidden" : ""}`}
+            onClick={() => setComposeOpen(true)}
+          >
+            <BsPlus className="h-4 w-4" aria-hidden />
+            Escribir una nota
+          </button>
+          <section className={`${composeOpen ? "flex" : "hidden"} flex-col gap-3 rounded-lg border border-neutral-900 p-4 lg:flex`}>
             <h2 className="text-sm font-semibold">Escribir una nota</h2>
 
             <div className="flex flex-col gap-1.5">
@@ -341,29 +376,126 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
             </div>
           </section>
 
-          <section className="flex flex-col gap-3 rounded-lg border border-neutral-900 p-4">
+          {/* Folded on a phone, so the week is not a screen of form away. */}
+          <button
+            type="button"
+            className={`${small} justify-center py-2 lg:hidden ${summaryOpen ? "hidden" : ""}`}
+            onClick={() => setSummaryOpen(true)}
+          >
+            {reviewed ? "Ver la revisión de la semana" : "Hacer la revisión de la semana"}
+          </button>
+          <section className={`${summaryOpen ? "flex" : "hidden"} flex-col gap-4 rounded-lg border border-neutral-900 p-4 lg:flex`}>
             <header className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">La semana, en resumen</h2>
-              {summaryDirty ? <Unsaved /> : null}
+              <h2 className="text-sm font-semibold">Revisión de la semana</h2>
+              {reviewDirty ? <Unsaved /> : null}
             </header>
-            <textarea
-              className={field}
-              rows={5}
-              value={summary}
-              placeholder="Qué salió bien, qué no, qué sigue la semana que viene."
-              onChange={(e) => setSummary(e.target.value)}
-            />
+
+            {/*
+              What last week's review promised, ticked here. Seeing whether the
+              plan held is the half of a review that makes the next plan better.
+            */}
+            {view.priorities.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                <span className={labelClass}>Te propusiste</span>
+                {view.priorities.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={p.done}
+                    disabled={pending}
+                    onClick={() => run(() => actions.togglePriority(p.id, !p.done))}
+                    className="flex items-start gap-2 text-left text-sm"
+                  >
+                    <span
+                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                        p.done ? "border-green-700 bg-green-950 text-green-400" : "border-neutral-600"
+                      }`}
+                      aria-hidden
+                    >
+                      {p.done ? "✓" : ""}
+                    </span>
+                    <span className={p.done ? "text-neutral-500 line-through" : "text-neutral-200"}>{p.text}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {view.toDecide.inbox + view.toDecide.overdue > 0 ? (
+              <Link
+                href="/pendientes"
+                className="rounded border border-amber-900/50 bg-amber-950/15 px-3 py-2 text-xs text-amber-300 hover:border-amber-700"
+              >
+                Por decidir: {view.toDecide.inbox} en la bandeja · {view.toDecide.overdue} atrasados →
+              </Link>
+            ) : null}
+
+            <label className="flex flex-col gap-1">
+              <span className={labelClass}>¿Qué salió bien?</span>
+              <textarea
+                className={field}
+                rows={3}
+                value={review.wentWell}
+                onChange={(e) => setReview({ ...review, wentWell: e.target.value })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={labelClass}>¿Qué cambiarías?</span>
+              <textarea
+                className={field}
+                rows={3}
+                value={review.change}
+                onChange={(e) => setReview({ ...review, change: e.target.value })}
+              />
+            </label>
+
+            <div className="flex flex-col gap-1.5">
+              <span className={labelClass}>Tres prioridades · {view.nextLabel}</span>
+              {next.map((p, i) => (
+                <div key={i} className="flex gap-1.5">
+                  <input
+                    className={`${field} min-w-0 flex-1`}
+                    value={p.text}
+                    placeholder={`Prioridad ${i + 1}`}
+                    aria-label={`Prioridad ${i + 1}`}
+                    onChange={(e) => setNext(next.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))}
+                  />
+                  {p.id && !reviewDirty ? (
+                    <button
+                      type="button"
+                      className={small}
+                      disabled={pending}
+                      title="Crear un pendiente con esta prioridad"
+                      onClick={() => run(() => actions.priorityToTask(p.id!))}
+                    >
+                      → Pendiente
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            <label className="flex flex-col gap-1">
+              <span className={labelClass}>Notas libres</span>
+              <textarea
+                className={field}
+                rows={2}
+                value={review.summary}
+                onChange={(e) => setReview({ ...review, summary: e.target.value })}
+              />
+            </label>
+
             <button
               type="button"
-              disabled={pending || !summaryDirty}
-              onClick={() => run(() => actions.saveWeek(view.monday, summary))}
+              disabled={pending || !reviewDirty}
+              onClick={() => run(() => actions.saveReview(view.monday, review, next))}
               className={`${small} self-start border-green-800 text-green-300 hover:border-green-600`}
             >
-              Guardar resumen
+              Guardar revisión
             </button>
           </section>
 
-          <p className="px-1 text-[11px] leading-relaxed text-neutral-600">
+          <p className="hidden px-1 text-[11px] leading-relaxed text-neutral-600 lg:block">
             Se arma con la auditoría, pero no la reemplaza: pliega las ediciones
             repetidas, deja fuera lo rutinario y tus notas se pueden cambiar. El
             registro completo, con quién y desde dónde, está en{" "}
@@ -488,6 +620,15 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
             );
           })}
         </ol>
+
+        {/* On a phone the note about the audit trail closes the page instead of opening it. */}
+        <p className="px-1 text-[11px] leading-relaxed text-neutral-600 lg:hidden">
+          Se arma con la auditoría, pero no la reemplaza. El registro completo está en{" "}
+          <Link href="/sistema#auditoria" className="text-neutral-400 underline-offset-2 hover:underline">
+            Sistema → Auditoría
+          </Link>
+          .
+        </p>
       </div>
 
       <Toast result={result} onDismiss={() => setResult(null)} />
@@ -520,7 +661,7 @@ function Note({ item, onEdit, onRemove }: { item: DayItem; onEdit: () => void; o
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-100">{item.text}</p>
         {item.time ? <p className="mt-1 font-mono text-[11px] text-neutral-500">{item.time}</p> : null}
       </div>
-      <span className="flex shrink-0 gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <span className="flex shrink-0 gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
         <button
           type="button"
           onClick={onEdit}

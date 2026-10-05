@@ -2003,6 +2003,56 @@ esta semana.
 rutinario y sus notas se editan; el registro completo, con quién y desde dónde,
 sigue en Sistema, y la propia página lo dice con un enlace a `/sistema#auditoria`.
 
+**La revisión semanal guiada.** El resumen libre pasó a tres preguntas —qué salió
+bien, qué cambiarías, tres prioridades para la semana siguiente— más notas libres.
+Se apoya en el metaanálisis de Harkin (2016): vigilar el progreso ayuda a cumplir
+metas, y más **cuando se registra por escrito**.
+
+- **Las prioridades se guardan en la semana para la que son**, no en la que se
+  escribieron: la revisión de la semana 40 escribe las de la 41, y es en la 41
+  donde se marcan como cumplidas. Ver si el plan aguantó es la mitad de una
+  revisión que mejora el siguiente plan.
+- **Tres como mucho.** Una lista de prioridades que crece es una lista sin
+  ninguna. Se emparejan por id, así que editar una conserva su marca.
+- **Una prioridad se vuelve pendiente con un clic**, planificada para el lunes de
+  su semana: la revisión dice qué importa y Pendientes le da un día.
+- **Lo que hay que decidir está a la vista** mientras se revisa: la bandeja sin
+  fecha y lo atrasado, con enlace.
+- **El dashboard la recuerda solo de lunes a miércoles.** Una revisión mira atrás
+  para planificar adelante, y el jueves la semana que planificaría ya va por la
+  mitad. Recordarla un sábado solo enseña a ignorar recordatorios.
+
+`writeReview` vive en `lib/journal.ts` y no en la acción para poder probarse
+contra la base sin una petición alrededor: respuestas y prioridades van en una
+sola transacción, para que nunca quede una revisión guardada sin el plan al que
+llevó.
+
+### Pendientes: apuntar rápido, planificar con un día
+
+En `app.nassican.com/pendientes`, junto al Dashboard. El módulo existe por un
+hallazgo concreto: Masicampo y Baumeister (2011) mostraron que una tarea sin
+terminar sigue interfiriendo con lo siguiente que haces, y que lo que la calla
+**no es terminarla sino planificar cuándo**. De ahí la regla del módulo: un
+pendiente sale de la bandeja **solo con un día**. «2026-10» no es un plan.
+
+**Capturar cuesta dos segundos o no ocurre.** Desde cualquier pantalla, la paleta
+con `+` delante apunta en lugar de buscar: «+ pagar la luz mañana» crea el
+pendiente ya planificado. El «hoy»/«mañana» del final se lee **en el servidor**,
+contra la zona configurada, porque el día del navegador puede no ser el de
+Bogotá. La paleta se queda abierta tras apuntar: capturar viene en ráfagas.
+
+**Descartar es un cierre, no un fracaso.** Decidir no hacer algo lo saca de la
+cabeza igual que hacerlo, así que tiene su botón al lado de los de planificar.
+
+Los grupos son de calendario y no de «próximos 7 días»: «esta semana» acaba el
+domingo, y un domingo no ofrece «próximo lunes» porque ya es «mañana». Planificar
+es un toque —Hoy, Mañana, Próximo lunes— y «Otro día» abre el calendario. El
+dashboard avisa de lo atrasado y de lo que es para hoy.
+
+En la bitácora, **solo completar destaca**. Apuntar, planificar y descartar son
+cómo se mantiene la lista, y una semana de ellos a peso completo enterraría lo
+hecho.
+
 ### Usuarios: sesiones, roles y revocación
 
 En `app.nassican.com/usuarios`. Muestra los tres cerrojos de la sección de
@@ -2175,6 +2225,41 @@ pestaña, recargar y escribir otra dirección. El App Router no ofrece forma
 documentada de interceptar una navegación de cliente, así que pulsar «Blogs» con
 cambios sin guardar los pierde igual. Prometer lo contrario en un comentario
 sería peor que no tenerlo.
+
+**El teléfono: reglas globales, no 158 ediciones.** El final de
+`app/globals.css` tiene un bloque `@media (pointer: coarse)` **fuera de toda
+`@layer`**. Eso es lo que lo hace funcionar: Tailwind v4 mete sus utilidades en una
+capa de cascada, y una regla sin capa gana a cualquier regla con capa, sea cual
+sea su especificidad. Así pisa `text-sm` y `p-1.5` sin `!important` y sin tocar
+componentes. Se comprobó en la hoja generada que la regla no quedó dentro de
+ninguna capa.
+
+- **Campos a 16 px.** Safari de iOS amplía la página al enfocar un campo de menos
+  de 16 px y no vuelve. Los 158 campos del panel eran de 14 px.
+- **Botones de solo icono a 40 × 40 px.** El selector es
+  `[aria-label]:has(> svg:only-child)`: un control con etiqueta accesible y un
+  único icono es exactamente un botón de solo icono. Algunos medían 20 px y
+  estaban junto a «mover a la papelera».
+
+Es `pointer: coarse` y no un ancho de pantalla porque el problema es el dedo, no
+el tamaño: un iPad es ancho y tampoco tiene cursor.
+
+Tres piezas más del mismo trabajo:
+
+- **La paleta tiene botón.** «Buscar» en la cabecera llama a
+  `openCommandPalette()`, que dispara el mismo `toggle` que ⌘K. Antes, en un
+  teléfono la paleta no existía.
+- **El calendario en táctil se toca, no se abre por código.** El `<input
+  type="date">` invisible cubre el botón del calendario. Con ratón deja pasar el
+  clic y el botón lo abre con `showPicker()`; al tacto recibe el toque él mismo,
+  porque Safari de iOS no garantiza abrir un selector que considera oculto. En la
+  bitácora además estaba **dentro** de un botón, que es HTML inválido.
+- **Movimientos es una lista en el teléfono.** La tabla mide 42 rem y en móvil
+  enseñaba un tercio de cada fila. Debajo de `sm` las mismas filas, en el mismo
+  orden, con un selector para ordenar porque ya no hay cabecera.
+
+**No se ha probado en un teléfono real.** Todo esto está verificado en el código y
+en el HTML y CSS generados. El calendario en iPhone, sobre todo, falta comprobarlo.
 
 **Fechas: escribir o elegir.** `components/DateField.tsx` en Juegos, Libros,
 Suscripciones, Bitácora y Perfil. **El texto se queda** porque estas fechas son

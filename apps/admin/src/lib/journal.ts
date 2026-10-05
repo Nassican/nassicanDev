@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@nassican/db";
 import { calendarDate, calendarTime } from "@nassican/shared";
+import { blankToNull } from "@/lib/draft-fields";
 import {
   addDays,
   collapse,
@@ -16,6 +17,7 @@ import {
   type LineKind,
 } from "@/lib/journal-draft";
 import { getTimezone } from "@/lib/site-config";
+import { groupOf } from "@/lib/task-draft";
 
 /**
  * One week of the log: what the audit trail says happened, interleaved with
@@ -38,7 +40,14 @@ export type JournalWeekView = {
   next: string | null;
   isCurrent: boolean;
   days: JournalDay[];
-  summary: string;
+  /** The guided review of this week: three answers, and free notes. */
+  review: { wentWell: string; change: string; summary: string };
+  /** What last week's review set out for this week, to be ticked here. */
+  priorities: { id: string; text: string; done: boolean }[];
+  /** What this review sets out for the following week. */
+  nextPriorities: { id: string; text: string }[];
+  nextLabel: string;
+  toDecide: { inbox: number; overdue: number };
   /** «2 juegos terminados · 3 pagos», in a fixed order. */
   highlights: { kind: LineKind; label: string; count: number }[];
   counts: { highlights: number; routine: number; notes: number; activeDays: number };
@@ -54,7 +63,7 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
   const monday = mondayOf(valid);
   const nextMonday = addDays(monday, 7);
 
-  const [audit, entries, week] = await Promise.all([
+  const [audit, entries, week, priorities, nextPriorities, open] = await Promise.all([
     db.auditLog.findMany({
       where: {
         createdAt: { gte: zonedMidnight(monday, timezone), lt: zonedMidnight(nextMonday, timezone) },
@@ -68,6 +77,11 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
       orderBy: { at: "asc" },
     }),
     db.journalWeek.findUnique({ where: { week: monday } }),
+    db.weekPriority.findMany({ where: { week: monday }, orderBy: { position: "asc" } }),
+    db.weekPriority.findMany({ where: { week: nextMonday }, orderBy: { position: "asc" } }),
+    // What is still to decide, for the review: an inbox and late tasks are
+    // exactly what a weekly review exists to clear.
+    db.task.findMany({ where: { status: { in: ["inbox", "planned"] } }, select: { status: true, plannedFor: true } }),
   ]);
 
   const ids = (type: string) => [
@@ -145,7 +159,18 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
     next: nextMonday <= today ? nextMonday : null,
     isCurrent: monday === mondayOf(today),
     days,
-    summary: week?.summary ?? "",
+    review: {
+      wentWell: week?.wentWell ?? "",
+      change: week?.change ?? "",
+      summary: week?.summary ?? "",
+    },
+    priorities: priorities.map((p) => ({ id: p.id, text: p.text, done: p.done })),
+    nextPriorities: nextPriorities.map((p) => ({ id: p.id, text: p.text })),
+    nextLabel: weekLabel(nextMonday),
+    toDecide: {
+      inbox: open.filter((t) => groupOf(t, today) === "inbox").length,
+      overdue: open.filter((t) => groupOf(t, today) === "overdue").length,
+    },
     highlights: weekHighlights(all),
     counts: {
       highlights: weigh((i) => !i.noteId && i.highlight),
@@ -154,4 +179,65 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
       activeDays: days.filter((d) => d.items.length > 0).length,
     },
   };
+}
+
+/**
+ * Last week's review, when it is still missing and still worth doing.
+ *
+ * Only from Monday to Wednesday: a review is a look back to plan forward, and
+ * by Thursday the week it would plan is half gone. Nagging about it on Saturday
+ * would be a reminder that only teaches you to ignore reminders.
+ */
+export async function missingReview(): Promise<{ week: string; label: string } | null> {
+  const timezone = await getTimezone();
+  const today = calendarDate(timezone);
+  const weekday = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7; // 0 = Monday
+  if (weekday > 2) return null;
+
+  const week = addDays(mondayOf(today), -7);
+  const [review, priorities] = await Promise.all([
+    db.journalWeek.findUnique({ where: { week }, select: { summary: true, wentWell: true, change: true } }),
+    db.weekPriority.count({ where: { week: addDays(week, 7) } }),
+  ]);
+
+  const done = Boolean(review?.summary?.trim() || review?.wentWell?.trim() || review?.change?.trim()) || priorities > 0;
+  return done ? null : { week, label: weekLabel(week) };
+}
+
+/** Three at most: a list of priorities that grows is a list without any. */
+export const MAX_PRIORITIES = 3;
+
+/**
+ * Writes the review of `week` and the priorities it sets for the week after,
+ * in one transaction, so a review is never half saved. Returns how many
+ * priorities were kept.
+ */
+export async function writeReview(
+  week: string,
+  review: { wentWell: string; change: string; summary: string },
+  priorities: { id: string | null; text: string }[],
+): Promise<number> {
+  const next = addDays(week, 7);
+  const kept = priorities.map((p) => ({ ...p, text: p.text.trim() })).filter((p) => p.text).slice(0, MAX_PRIORITIES);
+  const answers = {
+    wentWell: blankToNull(review.wentWell),
+    change: blankToNull(review.change),
+    summary: blankToNull(review.summary),
+  };
+  const empty = !answers.wentWell && !answers.change && !answers.summary;
+
+  await db.$transaction([
+    empty
+      ? db.journalWeek.deleteMany({ where: { week } })
+      : db.journalWeek.upsert({ where: { week }, create: { week, ...answers }, update: answers }),
+    db.weekPriority.deleteMany({
+      where: { week: next, id: { notIn: kept.flatMap((p) => (p.id ? [p.id] : [])) } },
+    }),
+    ...kept.map((p, position) =>
+      p.id
+        ? db.weekPriority.update({ where: { id: p.id }, data: { text: p.text, position } })
+        : db.weekPriority.create({ data: { week: next, text: p.text, position } }),
+    ),
+  ]);
+  return kept.length;
 }

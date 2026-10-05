@@ -73,7 +73,7 @@ export default function DateField({
   const what = label ? ` ${label}` : "";
 
   return (
-    <div className="relative flex min-w-0 gap-1.5">
+    <div className="flex min-w-0 gap-1.5">
       <input
         className={`${field} min-w-0 flex-1 font-mono`}
         value={date}
@@ -82,31 +82,36 @@ export default function DateField({
         onChange={(e) => onChange(joinDateTime(e.target.value, time))}
       />
 
-      <button
-        type="button"
-        className={icon}
-        title={`Elegir${what} en el calendario`}
-        aria-label={`Elegir${what} en el calendario`}
-        onClick={openCalendar}
-      >
-        <BsCalendar3 className="h-3.5 w-3.5" aria-hidden />
-      </button>
-
       {/*
-        Rendered, not `display: none`: a picker has to be on the page to open,
-        and this one sits under the button so the calendar appears next to it.
+        The button and the real date input share one box. With a mouse the
+        input lets clicks through and the button opens it with `showPicker()`,
+        so the calendar appears next to the button. On a touch screen the
+        (invisible) input takes the tap itself: Safari on iOS does not reliably
+        open a picker for a field it considers hidden, but it always opens one
+        for a date input that was tapped.
       */}
-      <input
-        ref={picker}
-        type="date"
-        tabIndex={-1}
-        aria-hidden
-        className="pointer-events-none absolute right-0 bottom-0 h-px w-px opacity-0"
-        value={seed}
-        onChange={(e) => {
-          if (e.target.value) onChange(joinDateTime(e.target.value, time));
-        }}
-      />
+      <span className="relative inline-flex shrink-0">
+        <button
+          type="button"
+          className={icon}
+          title={`Elegir${what} en el calendario`}
+          aria-label={`Elegir${what} en el calendario`}
+          onClick={openCalendar}
+        >
+          <BsCalendar3 className="h-3.5 w-3.5" aria-hidden />
+        </button>
+        <input
+          ref={picker}
+          type="date"
+          tabIndex={-1}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-0 pointer-coarse:pointer-events-auto"
+          value={seed}
+          onChange={(e) => {
+            if (e.target.value) onChange(joinDateTime(e.target.value, time));
+          }}
+        />
+      </span>
 
       {allowTime ? (
         showTime ? (

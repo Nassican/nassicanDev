@@ -83,6 +83,15 @@ function UserCard({
 }) {
   const isSelf = user.id === currentUserId;
   const deactivateProblem = activationProblem(user, false, currentUserId, users);
+  // Every distinct reason something here is locked, for the line under the controls.
+  const locks = [
+    ...new Set(
+      [
+        ...roles.filter((r) => r !== user.role).map((r) => roleChangeProblem(user, r, currentUserId, users)),
+        user.isActive ? deactivateProblem : null,
+      ].filter((p): p is string => Boolean(p)),
+    ),
+  ];
   const others = user.sessions.filter((s) => !s.isCurrent);
 
   return (
@@ -156,6 +165,14 @@ function UserCard({
           </button>
         </div>
       </div>
+
+      {/*
+        Why a control is locked, said in text. It used to live in a `title`,
+        which a phone never shows: the select simply refused, with no reason.
+      */}
+      {canAdminister && locks.length > 0 ? (
+        <p className="text-[11px] text-neutral-500">{locks.join(" ")}</p>
+      ) : null}
 
       <p className="text-[11px] text-neutral-600">{roleNotes[user.role]}</p>
 

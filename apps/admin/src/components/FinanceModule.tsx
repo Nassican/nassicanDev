@@ -296,7 +296,59 @@ export default function FinanceModule({
 
       {/* --------------------------- movimientos ---------------------------- */}
       <section className="flex flex-col gap-3">
-        <div className="overflow-x-auto rounded-lg border border-neutral-900">
+        {/*
+          A phone gets a list, not the table. The table is 42 rem wide and
+          scrolled sideways on a phone, which showed a third of each row; one
+          movement reads top to bottom as easily as across. Same rows, same
+          order, same sort — chosen from a select, since there is no header.
+        */}
+        <div className="flex flex-col gap-2 sm:hidden">
+          <label className="flex items-center gap-2 text-xs text-neutral-500">
+            Ordenar por
+            <select
+              className="rounded border border-neutral-800 bg-neutral-950 px-2 py-1 text-neutral-200"
+              value={filters.sort}
+              onChange={(e) => sortBy(e.target.value as SortColumn)}
+            >
+              {(["date", "account", "category", "amount"] as SortColumn[]).map((column) => (
+                <option key={column} value={column}>
+                  {sortLabels[column]}
+                  {arrow(column)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {records.length === 0 ? (
+            <p className="rounded-lg border border-neutral-900 px-3 py-10 text-center text-sm text-neutral-500">
+              {summary.lastSync ? "Ningún movimiento con estos filtros." : "Sin sincronizar todavía. Pulsa «Sincronizar»."}
+            </p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-neutral-900 overflow-hidden rounded-lg border border-neutral-900">
+              {records.map((r) => (
+                <li key={r.id} className="flex flex-col gap-0.5 px-4 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm text-neutral-200">
+                      {r.note || r.counterParty || r.categoryName || "Sin detalle"}
+                    </span>
+                    <span
+                      className={`shrink-0 text-sm tabular-nums ${r.amount < 0 ? "text-red-400" : "text-green-400"}`}
+                    >
+                      {formatMoney(r.amount, r.currencyCode)}
+                    </span>
+                  </div>
+                  <span className="truncate text-[11px] text-neutral-500">
+                    {[day(r.recordDate), r.accountName, r.categoryName, r.note ? r.counterParty : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-lg border border-neutral-900 sm:block">
           <table className="w-full min-w-[42rem] text-[12px]">
             <thead>
               <tr className="border-b border-neutral-900 text-left text-neutral-500">

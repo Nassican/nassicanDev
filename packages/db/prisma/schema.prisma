@@ -1512,6 +1512,7 @@ enum TrashKind {
   book
   subscription
   journal
+  task
 }
 
 /// What a deletion took away, kept for thirty days so it can be put back.
@@ -1677,8 +1678,71 @@ model JournalEntry {
 model JournalWeek {
   /// The Monday that starts it, "2026-09-28".
   week      String   @id
-  summary   String
+  /// Free notes on the week. Optional since the guided review arrived: a week
+  /// can be reviewed through the questions alone.
+  summary   String?
+  /// The guided review: what went well, and what to change.
+  wentWell  String?  @map("went_well")
+  change    String?
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("journal_weeks")
+}
+
+/// What the weekly review set out to do the following week.
+///
+/// Stored against the week it is **for**, not the week it was written in: the
+/// review of week 40 writes week 41's priorities, and week 41 is where they are
+/// ticked. Its own rows rather than JSON on `JournalWeek`, so a priority can be
+/// ticked on its own without rewriting the review around it.
+model WeekPriority {
+  id       String  @id @default(uuid())
+  /// The Monday of the week this priority is for.
+  week     String
+  position Int     @default(0)
+  text     String
+  done     Boolean @default(false)
+
+  @@index([week])
+  @@map("week_priorities")
+}
+
+// ---------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------
+
+/// Where a task stands. `dropped` is a real outcome and not a failure: deciding
+/// not to do something takes it off your mind as surely as doing it.
+enum TaskStatus {
+  inbox
+  planned
+  done
+  dropped
+}
+
+/// Something to do, captured in two seconds and planned later.
+///
+/// **A task leaves the inbox only with a day.** The research behind the module
+/// is Masicampo and Baumeister (2011): an unfinished task keeps intruding on
+/// whatever you do next, and what stops it is not finishing it but making a
+/// concrete plan for when. A list of things without dates is exactly the list
+/// that keeps intruding.
+model Task {
+  id         String     @id @default(uuid())
+  title      String
+  note       String?
+  /// Free text with suggestions — «nassican», «personal», «casa» — like the
+  /// subscription categories: the useful groups are the operator's own.
+  area       String?
+  status     TaskStatus @default(inbox)
+  /// "2026-10-06" or "2026-10-06T09:00". A full day: «2026-10» is not a plan.
+  plannedFor String?    @map("planned_for")
+  /// When it was finished or dropped, so the week it happened is known.
+  closedAt   DateTime?  @map("closed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, plannedFor])
+  @@map("tasks")
 }
