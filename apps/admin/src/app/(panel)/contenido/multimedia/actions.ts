@@ -5,7 +5,7 @@ import { db } from "@nassican/db";
 import { cacheTags, locales, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
-import { describeUsage } from "@/lib/media-usage";
+import { describeUsage, describeUsageMany } from "@/lib/media-usage";
 import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 import { notifyPublicSite } from "@/lib/revalidate";
 import type { MediaText } from "@/lib/media-library";
@@ -94,4 +94,115 @@ export async function deleteMedia(mediaId: string): Promise<ActionResult> {
   });
 
   return { ok: true, message: `Movida a la papelera. Se puede restaurar durante ${TRASH_DAYS} días.` };
+}
+
+/*
+ * Organising is not audited: a folder says where an image is filed, not what
+ * the site shows, and the journal would fill with «editaste una imagen» lines
+ * for an afternoon of tidying.
+ */
+
+const MAX_FOLDER_NAME = 60;
+
+async function folderNameProblem(name: string, except?: string): Promise<string | null> {
+  const clean = name.trim();
+  if (!clean) return "La carpeta necesita un nombre.";
+  if (clean.length > MAX_FOLDER_NAME) return `El nombre pasa de ${MAX_FOLDER_NAME} caracteres.`;
+  // Two folders with one name are two places to look for the same thing.
+  const twin = await db.mediaFolder.findFirst({
+    where: { name: { equals: clean, mode: "insensitive" }, ...(except ? { id: { not: except } } : {}) },
+    select: { id: true },
+  });
+  return twin ? `Ya hay una carpeta «${clean}».` : null;
+}
+
+export async function createFolder(name: string): Promise<ActionResult & { id?: string }> {
+  await requireUser();
+  const problem = await folderNameProblem(name);
+  if (problem) return { ok: false, message: problem };
+  const folder = await db.mediaFolder.create({ data: { name: name.trim() }, select: { id: true } });
+  revalidatePath("/contenido/multimedia");
+  return { ok: true, message: `Carpeta «${name.trim()}» creada.`, id: folder.id };
+}
+
+export async function renameFolder(id: string, name: string): Promise<ActionResult> {
+  await requireUser();
+  const problem = await folderNameProblem(name, id);
+  if (problem) return { ok: false, message: problem };
+  await db.mediaFolder.update({ where: { id }, data: { name: name.trim() } });
+  revalidatePath("/contenido/multimedia");
+  return { ok: true, message: "Carpeta renombrada." };
+}
+
+/** The images stay: the key is SET NULL, so they move to «Sin carpeta». */
+export async function deleteFolder(id: string): Promise<ActionResult> {
+  await requireUser();
+  const folder = await db.mediaFolder.findUnique({
+    where: { id },
+    select: { name: true, _count: { select: { media: true } } },
+  });
+  if (!folder) return { ok: false, message: "Esa carpeta ya no existe." };
+  await db.mediaFolder.delete({ where: { id } });
+  revalidatePath("/contenido/multimedia");
+  const count = folder._count.media;
+  return {
+    ok: true,
+    message:
+      count > 0
+        ? `Carpeta «${folder.name}» borrada. ${count === 1 ? "Su imagen pasó" : `Sus ${count} imágenes pasaron`} a «Sin carpeta».`
+        : `Carpeta «${folder.name}» borrada.`,
+  };
+}
+
+export async function moveMedia(ids: string[], folderId: string | null): Promise<ActionResult> {
+  await requireUser();
+  if (ids.length === 0) return { ok: false, message: "No hay imágenes seleccionadas." };
+  const folder = folderId
+    ? await db.mediaFolder.findUnique({ where: { id: folderId }, select: { name: true } })
+    : null;
+  if (folderId && !folder) return { ok: false, message: "Esa carpeta ya no existe." };
+
+  const { count } = await db.media.updateMany({ where: { id: { in: ids } }, data: { folderId } });
+  revalidatePath("/contenido/multimedia");
+  const what = count === 1 ? "Imagen movida" : `${count} imágenes movidas`;
+  return { ok: true, message: folder ? `${what} a «${folder.name}».` : `${what} a «Sin carpeta».` };
+}
+
+/**
+ * Many images to the trash at once. Each one still asks the same question as a
+ * single delete, and the used ones are left where they are and counted: a bulk
+ * action that silently skipped some would look like it had done them all.
+ */
+export async function trashMedia(ids: string[]): Promise<ActionResult> {
+  const actor = await requireUser();
+  if (ids.length === 0) return { ok: false, message: "No hay imágenes seleccionadas." };
+
+  const usage = await describeUsageMany(ids);
+  let trashed = 0;
+  let used = 0;
+  for (const id of ids) {
+    if ((usage.get(id) ?? []).length > 0) {
+      used++;
+      continue;
+    }
+    const done = await moveToTrash("media", id, actor.id);
+    if (!done) continue;
+    trashed++;
+    await logAudit({
+      userId: actor.id,
+      action: "delete",
+      entityType: "media",
+      entityId: id,
+      diff: { label: done.label, trash: true },
+    });
+  }
+
+  revalidatePath("/contenido/multimedia");
+  if (trashed > 0) notifyPublicSite([cacheTags.posts, cacheTags.projects]);
+
+  const moved = trashed === 1 ? "1 imagen en la papelera" : `${trashed} imágenes en la papelera`;
+  const kept = used > 0 ? ` · ${used} en uso, no se tocaron` : "";
+  return trashed === 0
+    ? { ok: false, message: `Ninguna se movió: ${used === 1 ? "la seleccionada está en uso" : "todas están en uso"}.` }
+    : { ok: true, message: `${moved} durante ${TRASH_DAYS} días${kept}.` };
 }

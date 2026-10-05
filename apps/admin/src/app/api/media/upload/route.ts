@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@nassican/db";
 import { storeImage } from "@/lib/media";
 import { currentSession } from "@/lib/session";
 
@@ -41,10 +42,19 @@ export async function POST(request: Request) {
     );
   }
 
+  // Optional: the library uploads into the folder it has open. A folder that
+  // vanished meanwhile is not worth failing the upload over.
+  const requested = form.get("folderId");
+  const folderId =
+    typeof requested === "string" && requested
+      ? ((await db.mediaFolder.findUnique({ where: { id: requested }, select: { id: true } }))?.id ?? null)
+      : null;
+
   try {
     const media = await storeImage({
       input: Buffer.from(await file.arrayBuffer()),
       uploadedBy: session.user.id,
+      folderId,
     });
 
     return NextResponse.json({

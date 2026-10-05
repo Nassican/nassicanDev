@@ -543,6 +543,48 @@ quedado corta— para preguntar a `describeUsage`: una sola respuesta a «¿se u
 la misma que enseña la biblioteca.
 `deleteMedia` se niega mientras algo apunte a la imagen, y dice cuántos.
 
+#### La biblioteca a escala: carpetas, páginas y una sola consulta de uso
+
+**El coste estaba en el servidor, no en la cuadrícula.** `listMedia` llamaba a
+`describeUsage` una vez por imagen, y cada llamada eran ocho consultas: 40 imágenes
+eran unos trescientos viajes y **3,4 s**, creciendo con cada subida. Ahora
+`describeUsageMany` responde para todas en **diez consultas fijas** —0,4 s con 40, lo
+mismo con 400— y `describeUsage` es esa misma función con un solo id, así que
+«¿se usa?» sigue teniendo una única respuesta. Se comprobó comparando las dos
+versiones imagen por imagen sobre la base real: **idénticas** en las 40.
+
+**Los metadatos bajan enteros; las miniaturas no.** Unos cientos de bytes por imagen
+—mil imágenes pesan menos que un diploma—, así que filtrar, buscar y ordenar ocurre
+en el navegador sin volver a preguntar. Lo que no escala son las miniaturas, y
+esas van en páginas de 48 y perezosas, con `next/image` redimensionando: una
+cuadrícula cuesta lo que hay en pantalla.
+
+**Todo lo que decide qué se ve vive en la dirección** —carpeta, filtro, búsqueda,
+orden, vista y página— y se escribe con `window.history.replaceState`, que Next
+sincroniza con `useSearchParams`. Con `router.replace` cada tecla de la búsqueda
+habría vuelto a leer la biblioteca entera en el servidor. Lo que se filtra es un
+enlace; lo que no se reconoce cae al valor por defecto (`media-view.test.ts`).
+
+**Carpetas planas**, aunque el esquema admite anidarlas: a esta escala un nivel
+responde «dónde están los diplomas», y un árbol sería otra navegación que aprender.
+Subir desde una carpeta —con el botón o **arrastrando** archivos a la página— la
+guarda ahí. Borrar una carpeta no borra imágenes: la clave es `SET NULL` y pasan a
+«Sin carpeta». Dos carpetas no pueden llamarse igual, sin distinguir mayúsculas.
+Organizar no se audita: dice dónde está archivada una imagen, no qué muestra el
+sitio, y una tarde ordenando llenaría la bitácora de ediciones.
+
+**Una trampa que apareció al hacerlo:** `storeImage` reconoce una imagen repetida
+por su checksum y actualizaba su fila con la carpeta de la subida nueva, `null` si
+no traía. Pegar en un artículo un diploma que ya existía lo habría sacado de
+«Certificados» en silencio. Ahora una subida sin carpeta deja la imagen donde
+estaba; con carpeta, la mueve, porque se hizo desde dentro de ella a propósito.
+
+**Selección múltiple** para mover a una carpeta o mandar a la papelera. La papelera
+en lote hace la misma pregunta que el borrado suelto, deja las que están en uso y
+**las cuenta en el mensaje**: una acción en lote que se saltara algunas en silencio
+parecería haberlas hecho todas. En el detalle, ← y → recorren la selección actual
+(no mientras se escribe en un campo) y la carpeta se cambia desde ahí.
+
 ### Páginas
 
 En `app.nassican.com/contenido/paginas`. Una sola tabla y dos cosas distintas,

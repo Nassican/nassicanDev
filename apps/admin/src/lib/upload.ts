@@ -15,9 +15,10 @@ export type UploadResult =
  * stored. Shared by the cover picker and the body editor so both report the
  * same errors and the same saving.
  */
-export async function uploadImage(file: File): Promise<UploadResult> {
+export async function uploadImage(file: File, folderId?: string | null): Promise<UploadResult> {
   const body = new FormData();
   body.append("file", file);
+  if (folderId) body.append("folderId", folderId);
 
   try {
     const response = await fetch("/api/media/upload", { method: "POST", body });

@@ -89,13 +89,21 @@ export async function storeImage({
     width: image.width,
     height: image.height,
     blurDataUrl: image.blurDataUrl,
-    folderId: folderId ?? null,
     uploadedBy: uploadedBy ?? null,
   };
 
+  /*
+   * The same bytes uploaded again are the same image. Without a folder the
+   * upload leaves it where it is filed: pasting a diploma into an article must
+   * not pull it out of «Certificados». With one, it moves there — that upload
+   * was made from inside the folder on purpose.
+   */
   const media = existing
-    ? await db.media.update({ where: { id: existing.id }, data: fields })
-    : await db.media.create({ data: { ...fields, checksum: image.checksum } });
+    ? await db.media.update({
+        where: { id: existing.id },
+        data: folderId ? { ...fields, folderId } : fields,
+      })
+    : await db.media.create({ data: { ...fields, folderId: folderId ?? null, checksum: image.checksum } });
 
   // Prisma's Bytes maps to Uint8Array; Buffer is a subclass with a wider
   // backing type, so it needs converting rather than casting.
