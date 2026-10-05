@@ -79,9 +79,19 @@ export default function CertificatesClient({
         </Link>
       </div>
 
-      {/* Translucent card rather than a filled bar: `dark:bg-black/50` over the
-          near-black page read as a separate black slab floating over the list. */}
-      <div className="sticky top-20 z-20 mb-6 rounded-2xl border border-black/10 bg-white/80 p-3 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]">
+      {/*
+        Opaque. Translucent, the diplomas scrolling under the bar showed through:
+        a white one made its white text invisible in the dark theme, and a dark
+        one would do the same to dark text in the light theme.
+
+        Solid in the colour the translucent bar used to look like at rest, so
+        nothing changes until something scrolls under it. #141414 is the page's
+        #0a0a0a with 4 % white mixed in, written out rather than as `color-mix()`:
+        Tailwind emits that only inside `@supports`, and a browser without it
+        would get no background at all. `dark:bg-black/50` was tried before and
+        read as a black slab over the list.
+      */}
+      <div className="sticky top-20 z-20 mb-6 rounded-2xl border border-black/10 bg-[var(--background)] p-3 shadow-sm dark:border-white/10 dark:bg-[#141414]">
         <div className="grid gap-3 sm:grid-cols-5">
           <input
             placeholder={t.certificates.searchPlaceholder}
