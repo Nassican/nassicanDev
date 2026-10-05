@@ -1747,8 +1747,40 @@ model Task {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  focusBlocks FocusBlock[]
+
   @@index([status, plannedFor])
   @@map("tasks")
+}
+
+/// A timed stretch of focused work, and the line left for whoever picks it up.
+///
+/// Leroy (2009): attention stays behind on an interrupted task, and a plan for
+/// resuming it is what lets it go. `returnNote` is that plan, shown again the
+/// next time a block starts on the same thing.
+model FocusBlock {
+  id             String    @id @default(uuid())
+  /// What the block was for, copied from the task when there is one, so the
+  /// history still reads after the task is gone.
+  label          String
+  taskId         String?   @map("task_id")
+  /// 25 or 50: the length chosen, not the length worked.
+  plannedMinutes Int       @map("planned_minutes")
+  breakMinutes   Int       @map("break_minutes")
+  startedAt      DateTime  @map("started_at")
+  /// Null while it runs. Never later than the planned end: a block left
+  /// running over lunch is still a 25-minute block.
+  endedAt        DateTime? @map("ended_at")
+  /// «Dónde lo dejé».
+  returnNote     String?   @map("return_note")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([startedAt])
+  @@index([taskId])
+  @@map("focus_blocks")
 }
 
 // ---------------------------------------------------------------------------

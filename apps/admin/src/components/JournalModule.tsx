@@ -17,12 +17,14 @@ import {
   BsPencil,
   BsPencilSquare,
   BsPlus,
+  BsStopwatch,
   BsTrash,
 } from "react-icons/bs";
 import DateField from "@/components/DateField";
 import Toast from "@/components/Toast";
 import Unsaved from "@/components/Unsaved";
 import type { JournalWeekView } from "@/lib/journal";
+import { formatDuration } from "@/lib/focus-draft";
 import { longDayLabel, type DayItem, type LineKind } from "@/lib/journal-draft";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import type { ActionResult } from "@/app/(panel)/bitacora/actions";
@@ -40,6 +42,7 @@ const icons: Record<LineKind, ComponentType<{ className?: string }>> = {
   subscriptions: BsArrowRepeat,
   tasks: BsCheck2Square,
   goals: BsBullseye,
+  focus: BsStopwatch,
   data: BsHddStack,
   note: BsPencilSquare,
 };
@@ -224,7 +227,7 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
 
       {/* ---------------------------- lo destacado ---------------------------- */}
       <section className="flex flex-wrap items-center gap-2" aria-label="Lo destacado de la semana">
-        {view.highlights.length === 0 && view.counts.notes === 0 ? (
+        {view.highlights.length === 0 && view.counts.notes === 0 && view.focusMinutes === 0 ? (
           <p className="text-sm text-neutral-500">
             {view.counts.routine > 0
               ? `Semana de mantenimiento: ${view.counts.routine} ${view.counts.routine === 1 ? "edición" : "ediciones"} y nada que destacar todavía.`
@@ -244,6 +247,15 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
                 </span>
               );
             })}
+            {view.focusMinutes > 0 ? (
+              <Link
+                href="/enfoque"
+                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 px-3 py-1 text-xs text-neutral-200 hover:border-neutral-600"
+              >
+                <BsStopwatch className="h-3.5 w-3.5 text-neutral-500" aria-hidden />
+                <span className="font-semibold tabular-nums">{formatDuration(view.focusMinutes)}</span> de foco
+              </Link>
+            ) : null}
             {view.counts.notes > 0 ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-3 py-1 text-xs text-neutral-100">
                 <BsPencilSquare className="h-3.5 w-3.5 text-neutral-400" aria-hidden />

@@ -2151,6 +2151,60 @@ prueba lo cazó.
 El ritmo —cuántos artículos salieron en los últimos 30 días— va arriba, en ámbar
 cuando es cero.
 
+### Enfoque: bloques con pausa fija y una línea de dónde lo dejaste
+
+En `app.nassican.com/enfoque`, junto a Pendientes. Dos hallazgos lo sostienen, y
+ninguno promete más trabajo:
+
+- **Leroy (2009), residuo de atención.** La atención se queda en la tarea
+  interrumpida, y lo que la suelta es un plan para retomarla. Por eso cerrar un
+  bloque pide **«dónde lo dejas»**, y empezar otro sobre lo mismo —el mismo
+  pendiente, o el mismo nombre escrito con otros acentos— lo enseña antes de
+  arrancar. Esa nota es el módulo; el temporizador es lo de menos.
+- **Biwer y colaboradores, pausas fijas.** Mejor ánimo y el mismo trabajo en menos
+  tiempo que con pausas a voluntad. No más trabajo, así que el módulo no lo dice.
+  Dos formatos, 25/5 y 50/10.
+
+**El reloj vive en la base, no en el navegador.** Un bloque en marcha es una fila
+con `ended_at` vacío, y todo lo demás es aritmética sobre `started_at`: una
+recarga, otra pestaña o el teléfono ven el mismo reloj. Uno a la vez —dos relojes
+contarían los mismos minutos dos veces—, y la comprobación comparte transacción
+con el alta para que dos pestañas no ganen las dos.
+
+**Un bloque nunca cierra después de su final previsto.** Uno olvidado a la hora del
+almuerzo es un bloque de 25 minutos, no de tres horas, y «horas de foco» contaría
+el almuerzo. Por lo mismo, la pausa corre desde el final del bloque: escribir la
+nota dos minutos tarde deja tres de descanso, y volver una hora después no deja
+ninguno — ya se tomó. Un bloque cortado antes de tiempo no gana pausa.
+
+**El reloj te sigue.** `FocusChip` lo pone en la cabecera de todas las pantallas y
+en el título de la pestaña, que es lo que se ve desde otra. Pregunta al servidor
+**una vez**, al cargar el panel —el armazón no se remonta al navegar—, y después
+escucha lo que anuncia el módulo (`announceFocus`). Al terminar el bloque o la
+pausa, el navegador avisa si se le dio permiso desde el propio módulo; sin
+permiso, el título basta. El segundo que avanza es un `useSyncExternalStore` con
+0 en el servidor, así que el HTML no lleva una hora que no casaría al hidratar.
+
+**No se audita.** Los bloques llegan a la bitácora desde su propia tabla —una línea
+por bloque, con la nota— y las horas de la semana van arriba, junto a lo
+destacado. Auditarlos los pondría dos veces, la misma razón por la que las notas
+de la bitácora no se auditan. «Hoy» enseña los minutos del día y lleva al módulo.
+
+Marcar «el pendiente quedó hecho» al cerrar usa el mismo cierre y la misma
+auditoría que Pendientes, así que la bitácora dice «Completaste…» desde donde se
+marque. Borrar un pendiente no borra sus bloques: la clave es `SET NULL` y el
+nombre se copió al empezar, para que la historia se siga leyendo.
+
+Fuera de la papelera, como las listas del perfil: un bloque es un registro de
+minutos, se borra con confirmación y no hay nada que restaurar que valga más que
+volver a medirlo.
+
+**Cómo se verificó**, contra la base real y con filas desechables: un segundo
+bloque se niega, uno cerrado tres horas tarde cuenta 25 minutos, la nota vuelve
+por pendiente y por nombre, la bitácora y «Hoy» lo suman, y borrar el pendiente
+conserva el bloque. **No se ha probado en un navegador**: el aviso del sistema y
+el título de la pestaña están verificados en el código, no en pantalla.
+
 ### Usuarios: sesiones, roles y revocación
 
 En `app.nassican.com/usuarios`. Muestra los tres cerrojos de la sección de
@@ -2507,6 +2561,20 @@ Tres reglas:
 Una subida desde la ficha cae en la raíz de Multimedia, no en la carpeta
 «Certificados» del script: moverla es un clic allí y no justificaba otro
 parámetro en la ruta de subida.
+
+**La lista son filas, y se abre una a la vez.** Treinta y siete formularios
+apilados obligaban a bajar por treinta y seis para corregir uno. Cada fila dice lo
+justo para encontrarlo —miniatura, título, proveedor, año, categoría y qué le
+falta— y se despliega en su sitio. Buscar (sin acentos, con `fold()`), el filtro
+«Incompletos» y las páginas de doce **solo deciden qué se ve**: la sección sigue
+guardando la lista entera, ocultas incluidas.
+
+**Guardar devuelve la lista con sus ids.** Antes un certificado nuevo se quedaba en
+pantalla sin id tras guardar, y el siguiente guardado lo borraba y lo volvía a
+crear —sin pérdida, pero con otro id—. La acción devuelve lo guardado y el editor
+lo adopta, salvo que se haya escrito algo mientras guardaba: eso se queda en
+pantalla y sigue marcado como pendiente. Experiencia y Formación tienen el mismo
+patrón y **no** se tocaron: allí borrar y recrear tampoco pierde nada.
 
 ### El script de importación
 

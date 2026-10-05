@@ -1,6 +1,7 @@
 import PanelShell from "@/components/PanelShell";
 import { requireUser } from "@/lib/session";
 import { loadCommands } from "./actions";
+import { loadFocus } from "./enfoque/actions";
 import { captureTask } from "./pendientes/actions";
 
 /**
@@ -22,6 +23,7 @@ export default async function PanelLayout({
     <PanelShell
       loadCommands={loadCommands}
       captureTask={captureTask}
+      loadFocus={loadFocus}
       user={{
         name: user.name,
         email: user.email,

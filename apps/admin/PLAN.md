@@ -110,7 +110,9 @@ cómo— para que dejen de interferir.
   con el calendario que ya existe.
 - La revisión semanal de la bitácora enseña lo que sigue sin planificar.
 
-### 2.3 Bloques de enfoque con nota de retorno
+### 2.3 Bloques de enfoque con nota de retorno — hecho
+
+En `/enfoque`, con el reloj en la cabecera de todas las pantallas. Ver `CLAUDE.md`.
 
 **La evidencia.**
 - **Saltar entre tareas cuesta.** Leroy (2009) encontró que la atención se queda
@@ -179,7 +181,8 @@ orden en que se construyen.
 | 2 | Metas y hábitos (2.1) | **hecho** |
 | 3 | «Hoy» en el dashboard | **hecho** |
 | 4 | Calendario editorial (3) | **hecho** |
-| 5 | Bloques de enfoque (2.3), notas, presupuesto del mes, aprendizaje, oportunidades, rendimiento móvil del sitio y edición rápida en listas | siguiente, a elegir |
+| 5 | Bloques de enfoque (2.3) | **hecho** |
+| 6 | Notas, presupuesto del mes, aprendizaje, oportunidades, rendimiento móvil del sitio y edición rápida en listas | siguiente, a elegir |
 | — | Subir lo hecho a git (0) y probar el móvil en un teléfono real (1) | en paralelo, cuanto antes |
 
 **Hecho:** los 37 certificados de Platzi están en Perfil → Certificados, en los dos

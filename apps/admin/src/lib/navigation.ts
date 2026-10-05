@@ -35,7 +35,8 @@ export type NavIcon =
   | "journal"
   | "task"
   | "goal"
-  | "calendar";
+  | "calendar"
+  | "focus";
 
 export type NavEntry = {
   label: string;
@@ -71,6 +72,7 @@ export const navigation: NavSection[] = [
     entries: [
       { label: "Dashboard", href: "/", icon: "dashboard", ready: true },
       { label: "Pendientes", href: "/pendientes", icon: "task", ready: true },
+      { label: "Enfoque", href: "/enfoque", icon: "focus", ready: true },
     ],
   },
   {

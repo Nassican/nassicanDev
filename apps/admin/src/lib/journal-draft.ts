@@ -134,7 +134,16 @@ function finishedAround(finishedAt: string | null | undefined, on: string | unde
 }
 
 /** What a line is about, for its icon and for grouping a week's highlights. */
-export type LineKind = "content" | "games" | "books" | "subscriptions" | "tasks" | "goals" | "data" | "note";
+export type LineKind =
+  | "content"
+  | "games"
+  | "books"
+  | "subscriptions"
+  | "tasks"
+  | "goals"
+  | "focus"
+  | "data"
+  | "note";
 
 /**
  * Highlights worth counting across a week. A line carries one when it is the

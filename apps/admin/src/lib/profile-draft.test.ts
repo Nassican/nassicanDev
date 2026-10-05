@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { diplomasMissingAlt, suggestDiplomaAlt, type CertificateDraft } from "./profile-draft.ts";
+import { diplomasMissingAlt, suggestDiplomaAlt, type CertificateDraft } from "./profile-draft";
 
 const locales = ["es", "en"] as const;
 

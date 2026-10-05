@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@nassican/db";
 import { calendarDate } from "@nassican/shared";
 import { lateEditorial } from "@/lib/editorial";
+import { focusBetween } from "@/lib/focus";
 import { habitsToday } from "@/lib/goals";
 import { missingReview, readActivity } from "@/lib/journal";
 import { addDays, longDayLabel, mondayOf } from "@/lib/journal-draft";
@@ -41,6 +42,8 @@ export type TodayView = {
   review: { week: string; label: string } | null;
   /** Ideas and drafts whose target date came and went without publishing. */
   editorial: { title: string; targetDate: string; postId: string | null }[];
+  /** Closed focus blocks today. */
+  focus: { minutes: number; blocks: number };
 };
 
 export async function getToday(): Promise<TodayView> {
@@ -48,7 +51,7 @@ export async function getToday(): Promise<TodayView> {
   const today = calendarDate(timezone);
   const yesterday = addDays(today, -1);
 
-  const [tasks, habits, priorities, subscriptions, goals, activity, review, editorial] = await Promise.all([
+  const [tasks, habits, priorities, subscriptions, goals, activity, review, editorial, focus] = await Promise.all([
     db.task.findMany({
       where: { status: "planned" },
       orderBy: { plannedFor: "asc" },
@@ -71,6 +74,7 @@ export async function getToday(): Promise<TodayView> {
     readActivity(yesterday, today, timezone),
     missingReview(),
     lateEditorial(today),
+    focusBetween(today, addDays(today, 1), timezone),
   ]);
 
   return {
@@ -102,5 +106,6 @@ export async function getToday(): Promise<TodayView> {
       .map(({ item }) => item.text),
     review,
     editorial,
+    focus: { minutes: focus.reduce((n, b) => n + b.minutes, 0), blocks: focus.length },
   };
 }

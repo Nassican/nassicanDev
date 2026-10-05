@@ -1,6 +1,18 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import Image from "next/image";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
+import { BsChevronDown, BsImage, BsPlus } from "react-icons/bs";
+import { Pager, usePage } from "@/components/Pager";
+import { fold } from "@/lib/list-filters";
 import Toast from "@/components/Toast";
 import Unsaved from "@/components/Unsaved";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
@@ -10,13 +22,14 @@ import {
   emptyLocalized,
   missingIn,
   suggestDiplomaAlt,
+  diplomasMissingAlt,
   type CertificateDraft,
   type EducationDraft,
   type ExperienceDraft,
   type LocalizedText,
   type ProfileDraft,
 } from "@/lib/profile-draft";
-import type { ActionResult } from "@/app/(panel)/perfil/actions";
+import type { ActionResult, CertificatesResult } from "@/app/(panel)/perfil/actions";
 import CoverPicker from "@/components/CoverPicker";
 import DateField from "@/components/DateField";
 
@@ -120,7 +133,7 @@ export default function ProfileModule({
     saveProfile: (d: ProfileDraft) => Promise<ActionResult>;
     saveExperience: (d: ExperienceDraft[]) => Promise<ActionResult>;
     saveEducation: (d: EducationDraft[]) => Promise<ActionResult>;
-    saveCertificates: (d: CertificateDraft[]) => Promise<ActionResult>;
+    saveCertificates: (d: CertificateDraft[]) => Promise<CertificatesResult>;
   };
 }) {
   const router = useRouter();
@@ -128,6 +141,10 @@ export default function ProfileModule({
   const [experience, setExperience] = useState(initialExperience);
   const [education, setEducation] = useState(initialEducation);
   const [certificates, setCertificates] = useState(initialCertificates);
+  const latest = useRef(certificates);
+  useEffect(() => {
+    latest.current = certificates;
+  }, [certificates]);
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -150,13 +167,13 @@ export default function ProfileModule({
    * reported success: a save that failed left the row as it was, so the edits
    * are still unsaved and still have to look that way.
    */
-  function run(action: () => Promise<ActionResult>, commit?: () => void) {
+  function run<R extends ActionResult>(action: () => Promise<R>, commit?: (outcome: R) => void) {
     setResult(null);
     startTransition(async () => {
       const outcome = await action();
       setResult(outcome);
       if (outcome.ok) {
-        commit?.();
+        commit?.(outcome);
         router.refresh();
       }
     });
@@ -510,83 +527,296 @@ export default function ProfileModule({
         note="La categoría alimenta los filtros de /certificates"
         dirty={dirt.certificates}
         pending={pending}
-        onSave={() =>
+        onSave={() => {
+          const sent = certificates;
           run(
-            () => actions.saveCertificates(certificates),
-            () => setSavedCertificates(certificates),
-          )
-        }
-      >
-        {certificates.map((item, i) => (
-          <article key={item.id ?? `nuevo-${i}`} className="flex flex-col gap-3 rounded border border-neutral-900 p-3">
-            <CoverPicker
-              url={item.imageUrl}
-              emptyLabel="sin diploma"
-              // The upload takes a moment and the form stays editable meanwhile,
-              // so this reads the list as it is when the picture arrives.
-              onChange={(media) =>
-                setCertificates((current) => {
-                  const now = current[i];
-                  if (!now) return current;
-                  return patch(current, i, media
-                    ? {
-                        fileMediaId: media.id,
-                        imageUrl: media.url,
-                        // A new picture starts with a suggested description rather
-                        // than an empty one. It is a draft, meant to be edited.
-                        alt: missingIn(locales, now.alt).length === locales.length ? suggestDiplomaAlt(now) : now.alt,
-                      }
-                    : { fileMediaId: null, imageUrl: null });
-                })
+            () => actions.saveCertificates(sent),
+            (outcome) => {
+              // New rows only get their id on the server. Adopting the saved list
+              // gives them one, so the next save updates them instead of deleting
+              // and recreating them — unless something was typed while saving,
+              // which has to stay on screen and stay unsaved.
+              if (outcome.certificates && !isDirty(sent, latest.current)) {
+                setCertificates(outcome.certificates);
+                setSavedCertificates(outcome.certificates);
+              } else {
+                setSavedCertificates(sent);
               }
-            />
-            <div className="grid gap-2 sm:grid-cols-4">
-              <input className={field} value={item.provider} placeholder="Proveedor"
-                onChange={(e) => setCertificates(patch(certificates, i, { provider: e.target.value }))} />
-              <input className={field} value={item.dateLabel} placeholder="Año: 2024"
-                onChange={(e) => setCertificates(patch(certificates, i, { dateLabel: e.target.value }))} />
-              <input className={`${field} sm:col-span-2`} value={item.url} placeholder="URL del diploma"
-                onChange={(e) => setCertificates(patch(certificates, i, { url: e.target.value }))} />
-            </div>
-
-            <Translated title="Título" value={item.title}
-              onChange={(v) => setCertificates(patch(certificates, i, { title: v }))} />
-            <Translated title="Categoría" value={item.category}
-              onChange={(v) => setCertificates(patch(certificates, i, { category: v }))} />
-            <Incomplete missing={missingIn(locales, item.title, item.category)} />
-            {item.fileMediaId ? (
-              <>
-                <Translated title="Texto alternativo del diploma" multiline value={item.alt}
-                  onChange={(v) => setCertificates(patch(certificates, i, { alt: v }))} />
-                <Incomplete missing={missingIn(locales, item.alt)} />
-              </>
-            ) : null}
-
-            <button
-              type="button"
-              className={`${ghost} w-fit border-red-900/60 text-red-400`}
-              onClick={() => setCertificates(certificates.filter((_, j) => j !== i))}
-            >
-              Eliminar
-            </button>
-          </article>
-        ))}
-        <button
-          type="button"
-          className={`${ghost} w-fit`}
-          onClick={() =>
-            setCertificates([...certificates, {
-              id: null, provider: "", dateLabel: "", url: "",
-              title: emptyLocalized(locales), category: emptyLocalized(locales),
-              fileMediaId: null, imageUrl: null, alt: emptyLocalized(locales),
-            }])
-          }
-        >
-          Añadir certificado
-        </button>
+            },
+          );
+        }}
+      >
+        <CertificateList items={certificates} onChange={setCertificates} />
       </Section>
 
       <Toast result={result} onDismiss={() => setResult(null)} />
+    </div>
+  );
+}
+
+const CERTIFICATES_PER_PAGE = 12;
+
+/** What a row still needs before the site can show it whole, in a few words. */
+function certificateProblems(item: CertificateDraft): string[] {
+  const problems: string[] = [];
+  if (!item.provider.trim() || !item.url.trim()) problems.push("proveedor o URL");
+  const translations = missingIn(locales, item.title, item.category);
+  if (translations.length > 0) problems.push(`traducción (${translations.join(", ")})`);
+  if (diplomasMissingAlt([item], locales).length > 0) problems.push("texto alternativo");
+  return problems;
+}
+
+/**
+ * Certificates as rows, one open at a time.
+ *
+ * Thirty-seven full forms stacked meant scrolling past thirty-six of them to
+ * reach the one that needed fixing. A row says enough to find it — the
+ * diploma, the title, where and when, and what is missing — and opens in place.
+ * Search, the filter and the pages only decide what is shown: the section
+ * still saves the whole list, hidden rows included.
+ */
+function CertificateList({
+  items,
+  onChange,
+}: {
+  items: CertificateDraft[];
+  onChange: Dispatch<SetStateAction<CertificateDraft[]>>;
+}) {
+  const [query, setQuery] = useState("");
+  const [onlyIncomplete, setOnlyIncomplete] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+
+  // A new row has no id until it is saved; its place in the list stands in.
+  const keyOf = (item: CertificateDraft, index: number) => item.id ?? `nuevo-${index}`;
+
+  const incomplete = items.filter((item) => certificateProblems(item).length > 0).length;
+  const needle = fold(query);
+  const shown = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => !onlyIncomplete || certificateProblems(item).length > 0)
+    .filter(
+      ({ item }) =>
+        !needle ||
+        fold([item.title.es, item.title.en, item.provider, item.category.es, item.dateLabel].join(" ")).includes(
+          needle,
+        ),
+    );
+  const { rows, page, pages, setPage, from, total } = usePage(shown, CERTIFICATES_PER_PAGE);
+
+  // Reads the list as it is when called: an upload finishes after the click
+  // that started it, and the form stays editable meanwhile.
+  const update = (index: number, next: (item: CertificateDraft) => Partial<CertificateDraft>) =>
+    onChange((current) => current.map((item, i) => (i === index ? { ...item, ...next(item) } : item)));
+
+  function add() {
+    setQuery("");
+    setOnlyIncomplete(false);
+    setOpen(`nuevo-${items.length}`);
+    setPage(Math.floor(items.length / CERTIFICATES_PER_PAGE));
+    onChange((current) => [
+      ...current,
+      {
+        id: null,
+        provider: "",
+        dateLabel: "",
+        url: "",
+        title: emptyLocalized(locales),
+        category: emptyLocalized(locales),
+        fileMediaId: null,
+        imageUrl: null,
+        alt: emptyLocalized(locales),
+      },
+    ]);
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          className={`${field} min-w-0 flex-1 sm:max-w-xs`}
+          placeholder="Buscar por título, proveedor o categoría"
+          aria-label="Buscar certificados"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(0);
+          }}
+        />
+        {incomplete > 0 || onlyIncomplete ? (
+          <button
+            type="button"
+            aria-pressed={onlyIncomplete}
+            onClick={() => {
+              setOnlyIncomplete(!onlyIncomplete);
+              setPage(0);
+            }}
+            className={`${ghost} ${onlyIncomplete ? "border-amber-700 text-amber-400" : ""}`}
+          >
+            Incompletos · {incomplete}
+          </button>
+        ) : null}
+        <button type="button" className={`${ghost} inline-flex items-center gap-1 sm:ml-auto`} onClick={add}>
+          <BsPlus className="h-4 w-4" aria-hidden />
+          Añadir certificado
+        </button>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="rounded-lg border border-neutral-900 px-3 py-6 text-center text-sm text-neutral-500">
+          {items.length === 0
+            ? "Todavía no hay certificados."
+            : `Ningún certificado coincide. Hay ${items.length} en total.`}
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-neutral-900 rounded-lg border border-neutral-900">
+          {rows.map(({ item, index }) => {
+            const key = keyOf(item, index);
+            const expanded = open === key;
+            const problems = certificateProblems(item);
+            const panel = `certificado-${key}`;
+            return (
+              <li key={key}>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-controls={panel}
+                  onClick={() => setOpen(expanded ? null : key)}
+                  className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-neutral-900/50 ${
+                    expanded ? "bg-neutral-900/50" : ""
+                  }`}
+                >
+                  <span className="relative flex h-9 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-neutral-800 bg-neutral-950">
+                    {item.imageUrl ? (
+                      <Image src={item.imageUrl} alt="" fill sizes="48px" unoptimized className="object-cover" />
+                    ) : (
+                      <BsImage className="h-3.5 w-3.5 text-neutral-600" aria-hidden />
+                    )}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm text-neutral-100">
+                      {item.title.es.trim() || item.title.en.trim() || "Certificado sin título"}
+                    </span>
+                    <span className="truncate text-[11px] text-neutral-500">
+                      {[item.provider.trim(), item.dateLabel.trim(), item.category.es.trim()]
+                        .filter(Boolean)
+                        .join(" · ") || "Sin datos todavía"}
+                    </span>
+                  </span>
+                  {problems.length > 0 ? (
+                    <span className="shrink-0 text-[11px] text-amber-500">
+                      <span className="hidden sm:inline">Falta {problems[0]}</span>
+                      <span className="sm:hidden">Incompleto</span>
+                    </span>
+                  ) : null}
+                  <BsChevronDown
+                    className={`h-3 w-3 shrink-0 text-neutral-500 transition-transform ${expanded ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
+                </button>
+
+                {expanded ? (
+                  <div id={panel} className="flex flex-col gap-3 border-t border-neutral-900 px-3 py-3">
+                    <CoverPicker
+                      url={item.imageUrl}
+                      emptyLabel="sin diploma"
+                      onChange={(media) =>
+                        update(index, (now) =>
+                          media
+                            ? {
+                                fileMediaId: media.id,
+                                imageUrl: media.url,
+                                // A new picture starts with a suggested description
+                                // rather than an empty one. It is a draft to edit.
+                                alt:
+                                  missingIn(locales, now.alt).length === locales.length
+                                    ? suggestDiplomaAlt(now)
+                                    : now.alt,
+                              }
+                            : { fileMediaId: null, imageUrl: null },
+                        )
+                      }
+                    />
+
+                    <div className="grid gap-2 sm:grid-cols-4">
+                      <input
+                        className={field}
+                        value={item.provider}
+                        placeholder="Proveedor"
+                        aria-label="Proveedor"
+                        onChange={(e) => update(index, () => ({ provider: e.target.value }))}
+                      />
+                      <input
+                        className={field}
+                        value={item.dateLabel}
+                        placeholder="Año: 2024"
+                        aria-label="Año"
+                        onChange={(e) => update(index, () => ({ dateLabel: e.target.value }))}
+                      />
+                      <input
+                        className={`${field} sm:col-span-2`}
+                        value={item.url}
+                        placeholder="URL del diploma"
+                        aria-label="URL del diploma"
+                        onChange={(e) => update(index, () => ({ url: e.target.value }))}
+                      />
+                    </div>
+
+                    <Translated title="Título" value={item.title} onChange={(v) => update(index, () => ({ title: v }))} />
+                    <Translated
+                      title="Categoría"
+                      value={item.category}
+                      onChange={(v) => update(index, () => ({ category: v }))}
+                    />
+                    <Incomplete missing={missingIn(locales, item.title, item.category)} />
+
+                    {item.fileMediaId ? (
+                      <>
+                        <Translated
+                          title="Texto alternativo del diploma"
+                          multiline
+                          value={item.alt}
+                          onChange={(v) => update(index, () => ({ alt: v }))}
+                        />
+                        <Incomplete missing={missingIn(locales, item.alt)} />
+                      </>
+                    ) : null}
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        className={`${ghost} border-red-900/60 text-red-400`}
+                        onClick={() => {
+                          setOpen(null);
+                          onChange((current) => current.filter((_, i) => i !== index));
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                      <button type="button" className={ghost} onClick={() => setOpen(null)}>
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <Pager
+        page={page}
+        pages={pages}
+        from={from}
+        shown={rows.length}
+        total={total}
+        label="certificados"
+        onPage={(next) => {
+          setPage(next);
+          setOpen(null);
+        }}
+      />
     </div>
   );
 }

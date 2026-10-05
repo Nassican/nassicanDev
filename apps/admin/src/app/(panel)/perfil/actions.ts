@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db, prismaJson } from "@nassican/db";
 import { cacheTags, locales } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
-import { writeCertificates } from "@/lib/profile";
+import { listCertificates, writeCertificates } from "@/lib/profile";
 import { describeUsage } from "@/lib/media-usage";
 import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 import { diplomasMissingAlt } from "@/lib/profile-draft";
@@ -19,6 +19,9 @@ import type {
 export type ActionResult =
   | { ok: true; message: string }
   | { ok: false; message: string };
+
+/** The saved list comes back so new rows get the ids the server gave them. */
+export type CertificatesResult = ActionResult & { certificates?: CertificateDraft[] };
 
 /**
  * Every list is saved whole: rows absent from the payload are deleted. These
@@ -192,7 +195,7 @@ export async function saveEducation(
 
 export async function saveCertificates(
   items: CertificateDraft[],
-): Promise<ActionResult> {
+): Promise<CertificatesResult> {
   const user = await requireUser();
 
   // The site shows a diploma in both languages, so its alt text is required in
@@ -222,13 +225,14 @@ export async function saveCertificates(
     if (await moveToTrash("media", mediaId, user.id)) trashed++;
   }
 
-  const result = await done(cacheTags.certificates, "Certificados");
+  const [result, certificates] = await Promise.all([done(cacheTags.certificates, "Certificados"), listCertificates()]);
   if (trashed > 0) {
     notifyPublicSite([cacheTags.posts, cacheTags.projects]);
     return {
       ok: true,
+      certificates,
       message: `Certificados guardados. ${trashed === 1 ? "La imagen que ya no se usaba está" : `${trashed} imágenes que ya no se usaban están`} en la papelera durante ${TRASH_DAYS} días.`,
     };
   }
-  return result;
+  return { ...result, certificates };
 }

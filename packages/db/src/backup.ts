@@ -501,6 +501,7 @@ export const REPLACED_ON_RESTORE = [
   "GameStore", "Game", "Book",
   "Subscription", "SubscriptionPayment", "JournalEntry", "JournalWeek",
   "WeekPriority", "Task", "Goal", "Habit", "HabitCheck", "ContentIdea",
+  "FocusBlock",
 ] as const satisfies readonly ModelName[];
 
 /**

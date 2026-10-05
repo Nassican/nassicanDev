@@ -16,6 +16,8 @@ import {
   type DayItem,
   type LineKind,
 } from "@/lib/journal-draft";
+import { focusBetween } from "@/lib/focus";
+import { formatDuration } from "@/lib/focus-draft";
 import { getTimezone } from "@/lib/site-config";
 import { groupOf } from "@/lib/task-draft";
 
@@ -48,6 +50,8 @@ export type JournalWeekView = {
   nextPriorities: { id: string; text: string }[];
   nextLabel: string;
   toDecide: { inbox: number; overdue: number };
+  /** Minutes of closed focus blocks this week. A sum, not a tally of lines. */
+  focusMinutes: number;
   /** «2 juegos terminados · 3 pagos», in a fixed order. */
   highlights: { kind: LineKind; label: string; count: number }[];
   counts: { highlights: number; routine: number; notes: number; activeDays: number };
@@ -120,7 +124,7 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
   const monday = mondayOf(valid);
   const nextMonday = addDays(monday, 7);
 
-  const [activity, entries, week, priorities, nextPriorities, open] = await Promise.all([
+  const [activity, entries, week, priorities, nextPriorities, open, focus] = await Promise.all([
     readActivity(monday, nextMonday, timezone),
     // Text dates compare as text: «2026-10-04T21:30» sorts before «2026-10-05».
     db.journalEntry.findMany({
@@ -133,10 +137,25 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
     // What is still to decide, for the review: an inbox and late tasks are
     // exactly what a weekly review exists to clear.
     db.task.findMany({ where: { status: { in: ["inbox", "planned"] } }, select: { status: true, plannedFor: true } }),
+    focusBetween(monday, nextMonday, timezone),
   ]);
 
   const byDay = new Map<string, DayItem[]>(weekDays(monday).map((d) => [d, []]));
   for (const { date, item } of activity) byDay.get(date)?.push(item);
+
+  // Focus blocks come from their own table, not the audit trail: one line per
+  // block, with where it was left, because that line is what the block was for.
+  for (const block of focus) {
+    byDay.get(block.date)?.push({
+      time: block.time,
+      text: `Enfoque · ${formatDuration(block.minutes)} en «${block.label}»${
+        block.returnNote ? ` — lo dejaste en: ${block.returnNote}` : ""
+      }`,
+      kind: "focus",
+      highlight: true,
+      count: 1,
+    });
+  }
 
   for (const entry of entries) {
     byDay.get(entry.at.slice(0, 10))?.push({
@@ -183,6 +202,7 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
       inbox: open.filter((t) => groupOf(t, today) === "inbox").length,
       overdue: open.filter((t) => groupOf(t, today) === "overdue").length,
     },
+    focusMinutes: focus.reduce((n, b) => n + b.minutes, 0),
     highlights: weekHighlights(all),
     counts: {
       highlights: weigh((i) => !i.noteId && i.highlight),

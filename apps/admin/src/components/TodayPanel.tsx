@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BsArrowRight, BsCheck2 } from "react-icons/bs";
+import { BsArrowRight, BsCheck2, BsStopwatch } from "react-icons/bs";
 import Toast from "@/components/Toast";
 import { formatPartialDate } from "@/lib/draft-fields";
+import { formatDuration } from "@/lib/focus-draft";
 import { relativeDay } from "@/lib/task-draft";
 import type { TodayView } from "@/lib/today";
 
@@ -133,6 +134,19 @@ export default function TodayPanel({
                 </ul>
               </div>
             ) : null}
+
+            <Link
+              href="/enfoque"
+              className="group flex items-center justify-between gap-2 rounded border border-neutral-800 px-3 py-2 text-xs text-neutral-300 hover:border-neutral-600"
+            >
+              <span className="flex items-center gap-2">
+                <BsStopwatch className="h-3.5 w-3.5 text-neutral-500" aria-hidden />
+                {view.focus.blocks > 0
+                  ? `${formatDuration(view.focus.minutes)} de foco hoy · ${view.focus.blocks} ${view.focus.blocks === 1 ? "bloque" : "bloques"}`
+                  : "Empezar un bloque de enfoque"}
+              </span>
+              <BsArrowRight className="h-3 w-3 shrink-0" aria-hidden />
+            </Link>
 
             {view.priorities.length > 0 ? (
               <div className="flex flex-col gap-1.5">

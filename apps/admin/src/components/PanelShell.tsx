@@ -30,9 +30,12 @@ import {
   BsBullseye,
   BsCalendarWeek,
   BsGraphUp,
+  BsStopwatch,
   BsX,
 } from "react-icons/bs";
 import CommandPalette, { openCommandPalette, type Command } from "@/components/CommandPalette";
+import FocusChip from "@/components/FocusChip";
+import type { FocusNow } from "@/lib/focus-draft";
 import SignOutButton from "@/components/SignOutButton";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -67,6 +70,7 @@ const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
   task: BsCheck2Square,
   goal: BsBullseye,
   calendar: BsCalendarWeek,
+  focus: BsStopwatch,
 };
 
 type PanelUser = {
@@ -291,6 +295,7 @@ export default function PanelShell({
   user,
   loadCommands,
   captureTask,
+  loadFocus,
   children,
 }: {
   user: PanelUser;
@@ -301,6 +306,7 @@ export default function PanelShell({
    */
   loadCommands: () => Promise<Command[]>;
   captureTask: (raw: string) => Promise<{ ok: boolean; message: string }>;
+  loadFocus: () => Promise<FocusNow>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -413,6 +419,8 @@ export default function PanelShell({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {/* On «Enfoque» the page itself is the clock. */}
+            <FocusChip load={loadFocus} hidden={pathname === "/enfoque"} />
             {/*
               The palette's only door used to be ⌘K, which a phone does not
               have. On a small screen it is also the fastest way around: the
