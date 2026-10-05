@@ -43,7 +43,14 @@ const icons: Record<LineKind, ComponentType<{ className?: string }>> = {
 /** How many routine lines a day shows before folding the rest behind a button. */
 const ROUTINE_SHOWN = 3;
 
+/**
+ * Day names at three widths. The strip spans the whole page, so a wide screen
+ * has room to say «Miércoles» and a phone has room for «X»; the note picker
+ * lives in a narrow column at every size and always uses the short form.
+ */
 const INITIALS = ["L", "M", "X", "J", "V", "S", "D"];
+const SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const FULL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
 type Actions = {
   add: (at: string, text: string) => Promise<ActionResult>;
@@ -234,7 +241,11 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
                 d.date === view.today ? "border-neutral-600" : "border-neutral-900 hover:border-neutral-700"
               } ${future ? "pointer-events-none opacity-40" : ""}`}
             >
-              <span className="text-[10px] text-neutral-500">{INITIALS[i]}</span>
+              <span className="text-[10px] text-neutral-500 xl:text-xs">
+                <span className="sm:hidden">{INITIALS[i]}</span>
+                <span className="hidden sm:inline xl:hidden">{SHORT[i]}</span>
+                <span className="hidden xl:inline">{FULL[i]}</span>
+              </span>
               <span className="text-sm font-semibold tabular-nums text-neutral-200">{Number(d.date.slice(8))}</span>
               {/* Height is how busy the day was, against the busiest of the week. */}
               <span className="flex h-6 w-full items-end justify-center" aria-hidden>
@@ -276,7 +287,7 @@ export default function JournalModule({ view, actions }: { view: JournalWeekView
                           : "border border-neutral-800 text-neutral-400 hover:border-neutral-600"
                       }`}
                     >
-                      {INITIALS[i]}
+                      {SHORT[i]}
                     </button>
                   );
                 })}
