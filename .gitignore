@@ -50,3 +50,5 @@ clave.json
 *-service-account*.json
 *serviceaccount*.json
 gcp-*.json
+
+certificados_bk/

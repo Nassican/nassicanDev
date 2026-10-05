@@ -56,6 +56,63 @@ export type JournalWeekView = {
 /** Rows whose diff did not name the thing — `setStatus` once logged only the status. */
 const NAMED = new Set(["game", "book", "subscription"]);
 
+/**
+ * The audit trail between two local days (`to` excluded), as journal lines.
+ *
+ * Shared by the week and by «Hoy», so «ayer terminaste…» on the dashboard and the
+ * same line in the journal are one reading, with the same names resolved and the
+ * same evidence asked of every «terminaste».
+ */
+export async function readActivity(
+  from: string,
+  to: string,
+  timezone: string,
+): Promise<{ date: string; item: DayItem }[]> {
+  const audit = await db.auditLog.findMany({
+    where: { createdAt: { gte: zonedMidnight(from, timezone), lt: zonedMidnight(to, timezone) } },
+    orderBy: { createdAt: "asc" },
+    select: { action: true, entityType: true, entityId: true, diff: true, createdAt: true },
+  });
+
+  const ids = (type: string) => [
+    ...new Set(audit.filter((a) => a.entityType === type && a.entityId && NAMED.has(type)).map((a) => a.entityId!)),
+  ];
+  const [games, books, subscriptions] = await Promise.all([
+    ids("game").length
+      ? db.game.findMany({ where: { id: { in: ids("game") } }, select: { id: true, title: true, finishedAt: true } })
+      : [],
+    ids("book").length
+      ? db.book.findMany({ where: { id: { in: ids("book") } }, select: { id: true, title: true, finishedAt: true } })
+      : [],
+    ids("subscription").length
+      ? db.subscription.findMany({ where: { id: { in: ids("subscription") } }, select: { id: true, name: true } })
+      : [],
+  ]);
+  const names = new Map<string, string>([
+    ...games.map((g): [string, string] => [g.id, g.title]),
+    ...books.map((b): [string, string] => [b.id, b.title]),
+    ...subscriptions.map((s): [string, string] => [s.id, s.name]),
+  ]);
+  const finishes = new Map<string, string | null>([
+    ...games.map((g): [string, string | null] => [g.id, g.finishedAt]),
+    ...books.map((b): [string, string | null] => [b.id, b.finishedAt]),
+  ]);
+
+  return audit.flatMap((row) => {
+    const diff = typeof row.diff === "object" && row.diff !== null && !Array.isArray(row.diff) ? row.diff : null;
+    const date = calendarDate(timezone, row.createdAt);
+    const line = describeAudit({
+      action: row.action,
+      entityType: row.entityType,
+      diff,
+      name: row.entityId ? names.get(row.entityId) : null,
+      on: date,
+      finishedAt: row.entityId ? finishes.get(row.entityId) : null,
+    });
+    return line ? [{ date, item: { time: calendarTime(timezone, row.createdAt), ...line, count: 1 } }] : [];
+  });
+}
+
 export async function getWeek(requested: string | undefined): Promise<JournalWeekView> {
   const timezone = await getTimezone();
   const today = calendarDate(timezone);
@@ -63,14 +120,8 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
   const monday = mondayOf(valid);
   const nextMonday = addDays(monday, 7);
 
-  const [audit, entries, week, priorities, nextPriorities, open] = await Promise.all([
-    db.auditLog.findMany({
-      where: {
-        createdAt: { gte: zonedMidnight(monday, timezone), lt: zonedMidnight(nextMonday, timezone) },
-      },
-      orderBy: { createdAt: "asc" },
-      select: { action: true, entityType: true, entityId: true, diff: true, createdAt: true },
-    }),
+  const [activity, entries, week, priorities, nextPriorities, open] = await Promise.all([
+    readActivity(monday, nextMonday, timezone),
     // Text dates compare as text: «2026-10-04T21:30» sorts before «2026-10-05».
     db.journalEntry.findMany({
       where: { at: { gte: monday, lt: nextMonday } },
@@ -84,47 +135,8 @@ export async function getWeek(requested: string | undefined): Promise<JournalWee
     db.task.findMany({ where: { status: { in: ["inbox", "planned"] } }, select: { status: true, plannedFor: true } }),
   ]);
 
-  const ids = (type: string) => [
-    ...new Set(
-      audit.filter((a) => a.entityType === type && a.entityId && NAMED.has(type)).map((a) => a.entityId!),
-    ),
-  ];
-  const [games, books, subscriptions] = await Promise.all([
-    ids("game").length ? db.game.findMany({ where: { id: { in: ids("game") } }, select: { id: true, title: true, finishedAt: true } }) : [],
-    ids("book").length ? db.book.findMany({ where: { id: { in: ids("book") } }, select: { id: true, title: true, finishedAt: true } }) : [],
-    ids("subscription").length
-      ? db.subscription.findMany({ where: { id: { in: ids("subscription") } }, select: { id: true, name: true } })
-      : [],
-  ]);
-  const names = new Map<string, string>([
-    ...games.map((g): [string, string] => [g.id, g.title]),
-    ...books.map((b): [string, string] => [b.id, b.title]),
-    ...subscriptions.map((s): [string, string] => [s.id, s.name]),
-  ]);
-
-  const finishes = new Map<string, string | null>([
-    ...games.map((g): [string, string | null] => [g.id, g.finishedAt]),
-    ...books.map((b): [string, string | null] => [b.id, b.finishedAt]),
-  ]);
   const byDay = new Map<string, DayItem[]>(weekDays(monday).map((d) => [d, []]));
-
-  for (const row of audit) {
-    const diff = typeof row.diff === "object" && row.diff !== null && !Array.isArray(row.diff) ? row.diff : null;
-    const line = describeAudit({
-      action: row.action,
-      entityType: row.entityType,
-      diff,
-      name: row.entityId ? names.get(row.entityId) : null,
-      on: calendarDate(timezone, row.createdAt),
-      finishedAt: row.entityId ? finishes.get(row.entityId) : null,
-    });
-    if (!line) continue;
-    byDay.get(calendarDate(timezone, row.createdAt))?.push({
-      time: calendarTime(timezone, row.createdAt),
-      ...line,
-      count: 1,
-    });
-  }
+  for (const { date, item } of activity) byDay.get(date)?.push(item);
 
   for (const entry of entries) {
     byDay.get(entry.at.slice(0, 10))?.push({

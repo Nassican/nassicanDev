@@ -134,7 +134,7 @@ function finishedAround(finishedAt: string | null | undefined, on: string | unde
 }
 
 /** What a line is about, for its icon and for grouping a week's highlights. */
-export type LineKind = "content" | "games" | "books" | "subscriptions" | "tasks" | "data" | "note";
+export type LineKind = "content" | "games" | "books" | "subscriptions" | "tasks" | "goals" | "data" | "note";
 
 /**
  * Highlights worth counting across a week. A line carries one when it is the
@@ -148,7 +148,9 @@ export type Tally =
   | "payment"
   | "published"
   | "added"
-  | "task-done";
+  | "task-done"
+  | "goal-achieved"
+  | "habit-done";
 
 export type AuditLine = {
   text: string;
@@ -171,6 +173,8 @@ const nouns: Record<string, string> = {
   book: "el libro",
   subscription: "la suscripción",
   task: "el pendiente",
+  goal: "la meta",
+  habit: "el hábito",
   technology: "la tecnología",
   "game-store": "la tienda",
   navigation: "el menú",
@@ -187,6 +191,8 @@ const kinds: Record<string, LineKind> = {
   book: "books",
   subscription: "subscriptions",
   task: "tasks",
+  goal: "goals",
+  habit: "goals",
   backup: "data",
   wallet: "data",
   trash: "data",
@@ -286,6 +292,23 @@ export function describeAudit(fact: AuditFact): AuditLine | null {
     }
   }
 
+  /*
+   * Goals and habits. Achieving a goal is the highlight of a week; setting one
+   * is a decision worth seeing too. A habit tick is routine on its own — it
+   * happens daily — but it is counted, so the week says «12 hábitos cumplidos».
+   */
+  if (entityType === "goal") {
+    if (action === "create") return line(`Te propusiste${quoted(name)}`, true);
+    if (status === "achieved") return line(`Lograste${quoted(name)}`, true, "goal-achieved");
+    if (status === "dropped") return line(`Soltaste la meta${quoted(name)}`, false);
+    if (status === "active") return line(`Retomaste la meta${quoted(name)}`, false);
+  }
+
+  if (entityType === "habit") {
+    if (action === "create") return line(`Empezaste el hábito${quoted(name)}`, true);
+    if (pick("checked")) return line(`Cumpliste${quoted(name)}`, false, "habit-done");
+  }
+
   if (entityType === "backup") {
     if (action === "export") return line("Descargaste una copia de seguridad", true);
     if (action === "restore") return line("Restauraste una copia de seguridad", true);
@@ -365,6 +388,8 @@ const tallyWords: Record<Tally, [string, string]> = {
   published: ["publicación", "publicaciones"],
   added: ["cosa nueva en Personal", "cosas nuevas en Personal"],
   "task-done": ["pendiente completado", "pendientes completados"],
+  "goal-achieved": ["meta lograda", "metas logradas"],
+  "habit-done": ["hábito cumplido", "hábitos cumplidos"],
 };
 
 const tallyKinds: Record<Tally, LineKind> = {
@@ -376,6 +401,8 @@ const tallyKinds: Record<Tally, LineKind> = {
   published: "content",
   added: "data",
   "task-done": "tasks",
+  "goal-achieved": "goals",
+  "habit-done": "goals",
 };
 
 /**

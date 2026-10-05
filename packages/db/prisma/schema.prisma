@@ -1513,6 +1513,8 @@ enum TrashKind {
   subscription
   journal
   task
+  goal
+  habit
 }
 
 /// What a deletion took away, kept for thirty days so it can be put back.
@@ -1745,4 +1747,92 @@ model Task {
 
   @@index([status, plannedFor])
   @@map("tasks")
+}
+
+// ---------------------------------------------------------------------------
+// Goals and habits
+// ---------------------------------------------------------------------------
+
+enum GoalStatus {
+  active
+  achieved
+  dropped
+}
+
+/// Where a goal's progress is counted from, when it is not counted by hand.
+/// Each reads rows the panel already has, so the goal moves when the work does.
+enum GoalSource {
+  books_finished
+  games_finished
+  posts_published
+  tasks_done
+}
+
+/// A goal, with the plan that gets it done.
+///
+/// **The plan is required, not the deadline.** The evidence behind the module is
+/// the implementation-intention meta-analyses (Gollwitzer and Sheeran, 2006;
+/// Sheeran, Listrom and Gollwitzer, 2024): writing the plan as «if X, then Y»
+/// has a medium-to-large effect on reaching the goal, larger in that conditional
+/// form. A goal without one is a wish, and the form refuses to store wishes.
+model Goal {
+  id    String  @id @default(uuid())
+  title String
+  /// Why it matters. Optional, and shown next to the plan when there is one.
+  why   String?
+
+  /// The implementation intention, in its two halves.
+  planIf   String @map("plan_if")
+  planThen String @map("plan_then")
+
+  /// Partial date text, like every hand-typed date here.
+  deadline String?
+  status   GoalStatus @default(active)
+
+  /// A number to reach, and what it counts. Both optional: «aprender a nadar»
+  /// is a goal with no number, and inventing one would be worse than none.
+  target   Int?
+  unit     String?
+  /// Counted by hand when `source` is null.
+  progress Int         @default(0)
+  source   GoalSource?
+  /// What an automatic source counts from, «2026-01-01». Partial date text.
+  since    String?
+
+  closedAt  DateTime? @map("closed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("goals")
+}
+
+/// A habit: a small action tied to a cue, ticked on the days it is due.
+model Habit {
+  id        String   @id @default(uuid())
+  title     String
+  /// The cue that triggers it — «después de almorzar». Required for the same
+  /// reason as a goal's plan: a habit forms around a context, and «every day,
+  /// somehow» is not one.
+  cue       String
+  /// Due weekdays, Monday first: "1234567" is every day, "135" Mon/Wed/Fri.
+  days      String   @default("1234567")
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  checks HabitCheck[]
+
+  @@map("habits")
+}
+
+/// One day a habit was done. A row per tick, keyed by the local day.
+model HabitCheck {
+  habitId String @map("habit_id")
+  /// "2026-10-05", the operator's local day.
+  date    String
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@id([habitId, date])
+  @@map("habit_checks")
 }

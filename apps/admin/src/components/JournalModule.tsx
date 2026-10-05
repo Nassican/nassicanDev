@@ -8,6 +8,7 @@ import {
   BsBook,
   BsCalendar3,
   BsCheck2Square,
+  BsBullseye,
   BsChevronLeft,
   BsChevronRight,
   BsController,
@@ -38,6 +39,7 @@ const icons: Record<LineKind, ComponentType<{ className?: string }>> = {
   books: BsBook,
   subscriptions: BsArrowRepeat,
   tasks: BsCheck2Square,
+  goals: BsBullseye,
   data: BsHddStack,
   note: BsPencilSquare,
 };

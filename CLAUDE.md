@@ -2053,6 +2053,64 @@ En la bitácora, **solo completar destaca**. Apuntar, planificar y descartar son
 cómo se mantiene la lista, y una semana de ellos a peso completo enterraría lo
 hecho.
 
+### Metas y hábitos: con plan, con señal, y con la cifra real
+
+En `app.nassican.com/metas`, en «Personal». Dos piezas, cada una sobre su propia
+evidencia.
+
+**Una meta exige su plan «si… entonces…».** Es el único campo obligatorio además
+del título, partido en sus dos mitades. Los metaanálisis de *implementation
+intentions* (Gollwitzer y Sheeran, 2006: d = 0,65 en 94 pruebas; Sheeran, Listrom y
+Gollwitzer, 2024: 642 pruebas) encontraron el efecto mayor justo en ese formato
+condicional. Una meta sin plan es un deseo, y el formulario no guarda deseos.
+
+El progreso se lleva **a mano** (+ y −, nunca bajo cero) o **se cuenta solo** desde
+filas que otros módulos ya tienen: libros y juegos terminados, artículos
+publicados, pendientes completados. Contado al leer y nunca guardado, para que «4
+de 12 libros» no pueda discrepar de Libros. Los terminados se cuentan **por su fecha
+de fin, a su propia precisión**: un libro terminado «2026» cuenta para una meta que
+empieza en marzo de 2026, porque nada dice que fuera antes. Sin fecha de fin no
+cuenta — la misma evidencia que pide la bitácora antes de decir «terminaste».
+
+**Un hábito exige su señal** (`cue`: «después de almorzar») y los días en que toca.
+Dos números que una app de hábitos suele falsear siguen el estudio de Lally (2010):
+
+- **La racha perdona un día perdido.** Solo se corta con dos días debidos seguidos
+  sin marcar, porque saltarse uno no afectó a la formación del hábito. Una racha
+  que se reinicia por un fallo suelto castiga justo el desliz que no hace daño, y
+  es como las rachas hacen abandonar. Si el último día debido quedó sin marcar, lo
+  dice: «hoy la salvas». Hoy sin marcar no es un fallo: el día sigue en curso.
+- **El progreso se mide contra 66 días**, la media hasta la automaticidad, con su
+  rango real (18 a 254) dicho al lado, y no contra los 21 del mito.
+
+Los últimos siete días se pueden marcar a posteriori: un día recordado tarde
+también cuenta. Archivar un hábito deja de pedirlo y conserva su historia;
+borrarlo lo lleva a la papelera con todos sus días.
+
+`streak()` tenía un fallo que encontró su prueba: el aviso de riesgo se apagaba al
+final del bucle, porque los dos fallos donde **empezó** la racha se leían como si la
+amenazaran. Ahora el riesgo existe solo mientras queda racha que salvar.
+
+### «Hoy»: el día en la cabecera del dashboard
+
+`lib/today.ts` y `components/TodayPanel.tsx`. El resto del dashboard mira atrás
+—tráfico, sincronizaciones, salud del contenido—; esto mira adelante, y **solo
+hasta hoy**: pendientes de hoy y atrasados, hábitos que tocan, prioridades de la
+semana, renovaciones de los próximos 3 días, metas que vencen en una semana, la
+revisión semanal si falta y lo destacado de ayer. Lo que está más lejos vive en su
+módulo: traerlo aquí convertiría un vistazo en una lista.
+
+**Todo se marca ahí mismo** —un pendiente, un hábito, una prioridad—, porque abrir
+tres módulos para marcar tres casillas es como las casillas se quedan sin marcar.
+
+Al llegar «Hoy», los avisos de pendientes, renovaciones y revisión **salieron de la
+lista del dashboard**, que ahora se titula «El sitio y el sistema». La misma cosa
+dos veces en una página es ruido, y la lista volvió a hablar solo de lo que es suyo.
+
+«Ayer» sale de `readActivity`, extraída de la bitácora para que las dos lean la
+auditoría igual: los mismos nombres resueltos y la misma evidencia pedida a cada
+«terminaste».
+
 ### Usuarios: sesiones, roles y revocación
 
 En `app.nassican.com/usuarios`. Muestra los tres cerrojos de la sección de
@@ -2258,6 +2316,14 @@ Tres piezas más del mismo trabajo:
   enseñaba un tercio de cada fila. Debajo de `sm` las mismas filas, en el mismo
   orden, con un selector para ordenar porque ya no hay cabecera.
 
+**La barra de desplazamiento** también vive en `globals.css`: fina, sin flechas y
+con los grises del tema (`neutral-700` en reposo, `neutral-600` al pasar). La
+trampa está en el orden de precedencia: Chrome **ignora todos los
+`::-webkit-scrollbar`** en cuanto un elemento tiene `scrollbar-width` o
+`scrollbar-color`, y solo los primeros pueden quitar las flechas. Por eso las
+propiedades estándar van dentro de `@supports not selector(::-webkit-scrollbar)`,
+que hoy significa solo Firefox.
+
 **No se ha probado en un teléfono real.** Todo esto está verificado en el código y
 en el HTML y CSS generados. El calendario en iPhone, sobre todo, falta comprobarlo.
 
@@ -2342,6 +2408,21 @@ npm run games:import -- --dry   # siembra Juegos desde las notas de Wallet
 npm run profile:import -- --dry
 npm run profile:import
 ```
+
+**Certificados de Platzi.** `npm run certificates:platzi -- <carpeta> [--dry]` lee la
+exportación paginada de «Mis cursos» (`data.courses[]`). La fecha y el diploma salen
+de ahí; los títulos no del todo. El español es el de Platzi, limpio de lo que habla
+del catálogo y no del curso (años de versión, «Gratis», dobles espacios). El inglés
+y la categoría están **escritos a mano en el script**, una línea por curso, porque
+una traducción que el build no comprueba es una que alguien tuvo que escribir, y
+ese archivo es donde se revisa. Un curso que falte en el catálogo hace fallar el
+script en vez de entrar sin inglés.
+
+Idempotente por **número de curso**, leído del enlace del diploma: un certificado ya
+en el perfil es el mismo curso diga lo que diga su slug, y conserva su título y
+categoría. Solo se le corrige la etiqueta de fecha al año oficial de aprobación —
+así salieron dos que decían 2024 y eran de 2023. Primera ejecución: 34 nuevos, 3 ya
+estaban; la segunda, 0.
 
 ### El script de importación
 

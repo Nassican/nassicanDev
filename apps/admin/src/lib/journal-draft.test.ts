@@ -142,3 +142,13 @@ test("de los pendientes, solo completar destaca", () => {
   assert.equal(task({ plannedFor: "2026-10-06T09:00" })?.text, "Planificaste «Pagar luz» para el mar 6 oct");
   assert.equal(task({ plannedFor: null })?.text, "Devolviste a la bandeja «Pagar luz»");
 });
+
+test("lograr una meta destaca; cada hábito cumplido se cuenta sin ocupar la semana", () => {
+  assert.deepEqual(
+    describeAudit({ action: "update", entityType: "goal", diff: { title: "Leer 12 libros", status: "achieved" } }),
+    { text: "Lograste «Leer 12 libros»", kind: "goals", highlight: true, tally: "goal-achieved" },
+  );
+  const tick = describeAudit({ action: "update", entityType: "habit", diff: { title: "Leer", checked: "2026-10-05" } });
+  assert.equal(tick?.highlight, false);
+  assert.equal(tick?.tally, "habit-done");
+});

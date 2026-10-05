@@ -4,6 +4,11 @@ import { BsArrowRight, BsPlus } from "react-icons/bs";
 import { getDashboard, type Pending } from "@/lib/dashboard";
 import { createPost } from "./contenido/blogs/actions";
 import { createProject } from "./contenido/proyectos/actions";
+import TodayPanel from "@/components/TodayPanel";
+import { getToday } from "@/lib/today";
+import { togglePriority } from "./bitacora/actions";
+import { toggleHabit } from "./metas/actions";
+import { finishTask } from "./pendientes/actions";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -57,7 +62,8 @@ function Tile({ label, value, note }: { label: string; value: string; note: stri
 }
 
 export default async function DashboardPage() {
-  const { counts, coverage, pending, recent, traffic } = await getDashboard();
+  // Side by side: the day and the site are independent, and each waits on Postgres.
+  const [{ counts, coverage, pending, recent, traffic }, today] = await Promise.all([getDashboard(), getToday()]);
   const pct = Math.round(coverage.ratio * 100);
 
   return (
@@ -66,7 +72,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Qué necesita tu atención en nassican.com.
+            Tu día, y lo que necesita atención en nassican.com.
           </p>
         </div>
 
@@ -91,9 +97,11 @@ export default async function DashboardPage() {
       </header>
 
       {/* ---------------------------- pendientes ---------------------------- */}
+      <TodayPanel view={today} actions={{ finishTask, toggleHabit, togglePriority }} />
+
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">
-          Pendientes
+          El sitio y el sistema
         </h2>
 
         {pending.length === 0 ? (

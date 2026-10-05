@@ -74,7 +74,9 @@ difícil es revisar el cambio.
 Elegidos contra la evidencia, no contra la moda. Cada uno se apoya en un
 hallazgo con estudios detrás y en algo que el panel ya tiene.
 
-### 2.1 Metas con planes «si… entonces…» y hábitos
+### 2.1 Metas con planes «si… entonces…» y hábitos — hecho
+
+Construido en `/metas`. Ver `CLAUDE.md`.
 
 **La evidencia.** Escribir el plan como «si pasa X, entonces hago Y» —una
 *implementation intention*— tiene un efecto medio a grande sobre conseguir la
@@ -174,13 +176,14 @@ orden en que se construyen.
 | fase | qué | estado |
 | --- | --- | --- |
 | 1 | Pendientes (2.2) y revisión semanal (2.4) | **hecho** |
-| 2 | Metas y hábitos (2.1) | siguiente |
-| 3 | «Hoy» en el dashboard y calendario editorial (3) | después |
-| 4 | Bloques de enfoque (2.3), notas, presupuesto del mes, aprendizaje, oportunidades, rendimiento móvil del sitio y edición rápida en listas | más adelante |
+| 2 | Metas y hábitos (2.1) | **hecho** |
+| 3 | «Hoy» en el dashboard | **hecho** |
+| 4 | Calendario editorial (3) | siguiente |
+| 5 | Bloques de enfoque (2.3), notas, presupuesto del mes, aprendizaje, oportunidades, rendimiento móvil del sitio y edición rápida en listas | más adelante |
 | — | Subir lo hecho a git (0) y probar el móvil en un teléfono real (1) | en paralelo, cuanto antes |
 
-**Pendiente de recibir:** los certificados de Platzi, para cargarlos en Perfil →
-Certificados.
+**Hecho:** los 37 certificados de Platzi están en Perfil → Certificados, en los dos
+idiomas (`npm run certificates:platzi`).
 
 ## Fuentes
 
