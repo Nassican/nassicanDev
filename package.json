@@ -24,7 +24,8 @@
     "games:import": "tsx --conditions=react-server scripts/import-games.ts",
     "games:list": "tsx --conditions=react-server scripts/import-games-list.ts",
     "backup:restore": "tsx --conditions=react-server scripts/restore-backup.ts",
-    "certificates:platzi": "tsx --conditions=react-server scripts/import-platzi-certificates.ts"
+    "certificates:platzi": "tsx --conditions=react-server scripts/import-platzi-certificates.ts",
+    "certificates:diplomas": "tsx --conditions=react-server scripts/import-platzi-diplomas.ts"
   },
   "engines": {
     "node": ">=20"

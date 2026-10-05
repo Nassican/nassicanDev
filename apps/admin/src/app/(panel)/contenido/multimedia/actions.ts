@@ -5,6 +5,7 @@ import { db } from "@nassican/db";
 import { cacheTags, locales, type Locale } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
+import { describeUsage } from "@/lib/media-usage";
 import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 import { notifyPublicSite } from "@/lib/revalidate";
 import type { MediaText } from "@/lib/media-library";
@@ -62,28 +63,18 @@ export async function saveMediaText(
 export async function deleteMedia(mediaId: string): Promise<ActionResult> {
   const actor = await requireUser();
 
-  const usage = await db.mediaUsage.count({ where: { mediaId } });
-  if (usage > 0) {
+  /*
+   * One answer to «is it used?», the same one the library shows. This used to
+   * keep its own list of foreign keys, and that copy is how a certificate image,
+   * the profile avatar and the default social image were all deletable: the keys
+   * are ON DELETE SET NULL, so they would have gone quiet rather than break.
+   */
+  const usages = await describeUsage(mediaId);
+  if (usages.length > 0) {
+    const where = [...new Set(usages.map((u) => u.label))].slice(0, 3).join(", ");
     return {
       ok: false,
-      message: `No se puede borrar: la imagen se usa en ${usage} ${usage === 1 ? "sitio" : "sitios"}. Quítala de ahí primero.`,
-    };
-  }
-
-  // Covers and OG images are foreign keys with ON DELETE SET NULL, so they
-  // would go quiet rather than break. Check them too before removing anything.
-  const [covers, ogPosts, ogProjects] = await Promise.all([
-    db.post.count({ where: { coverMediaId: mediaId } }) ,
-    db.postTranslation.count({ where: { ogImageId: mediaId } }),
-    db.projectTranslation.count({ where: { ogImageId: mediaId } }),
-  ]);
-  const projectCovers = await db.project.count({ where: { coverMediaId: mediaId } });
-
-  const referenced = covers + ogPosts + ogProjects + projectCovers;
-  if (referenced > 0) {
-    return {
-      ok: false,
-      message: `No se puede borrar: sigue asignada como portada o imagen social en ${referenced} ${referenced === 1 ? "elemento" : "elementos"}.`,
+      message: `No se puede borrar: se usa en ${usages.length} ${usages.length === 1 ? "sitio" : "sitios"} (${where}). Quítala de ahí primero.`,
     };
   }
 

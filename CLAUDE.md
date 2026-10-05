@@ -533,6 +533,14 @@ fuese la portada de un proyecto — que es exactamente lo que pasó la primera v
 Leer las claves foráneas hace que la respuesta sea correcta sin necesitar un
 backfill.
 
+
+Más tarde aparecieron **tres claves foráneas que ninguna de las dos fuentes
+miraba**: la imagen de un certificado, el avatar del perfil y la imagen social por
+defecto del SEO. Se encontró al enlazar los 37 diplomas: la biblioteca los habría
+llamado «sin usar» y dejado borrar. `describeUsage` las lee ahora, y `deleteMedia`
+dejó de llevar su propia lista de comprobaciones —esa copia era la que se había
+quedado corta— para preguntar a `describeUsage`: una sola respuesta a «¿se usa?»,
+la misma que enseña la biblioteca.
 `deleteMedia` se niega mientras algo apunte a la imagen, y dice cuántos.
 
 ### Páginas
@@ -2111,6 +2119,38 @@ dos veces en una página es ruido, y la lista volvió a hablar solo de lo que es
 auditoría igual: los mismos nombres resueltos y la misma evidencia pedida a cada
 «terminaste».
 
+### Calendario editorial: ideas con fecha, y lo que sale cuándo
+
+En `app.nassican.com/contenido/calendario`. Existe por un dato: **cero artículos
+publicados**. Una idea sin fecha sigue rondando sin avanzar —el mismo hallazgo que
+sostiene Pendientes—, así que aquí cada idea pide una fecha objetivo, aunque sea
+solo un mes.
+
+**Ideas en su propia tabla, no artículos con un estado «idea».** Una idea no tiene
+slug, ni cuerpo, ni traducciones; un `post` que pudiera carecer de los tres haría
+que cada consulta sobre artículos preguntara si es uno de verdad. Al pulsar
+**«Escribir»**, la idea se convierte en un borrador real de Blogs —con su título
+en español y un slug legible desde el principio, con sufijo si choca— y apunta a
+él. Desde ese momento **manda el artículo**: su estado y su fecha, nunca la etapa
+de la idea. Escribir dos veces la misma idea no crea dos borradores.
+
+Un tablero y un mes, que leen las mismas piezas: una idea para el 15 es una
+tarjeta en «Ideas» y un punto en el 15 a la vez, nunca dos listas que mantener al
+día. Columnas: Ideas, Investigando, Escribiendo, Programado y Publicado. Los
+artículos empezados directamente en Blogs también entran: el calendario trata de
+lo que sale, no de dónde se empezó. **Publicado con fecha futura es programado**,
+diga lo que diga el estado, y se juzga con el reloj del servidor.
+
+**La precisión de la fecha manda también aquí.** Un objetivo «2026-11» es un plan
+de verdad: se ve en noviembre, en una franja aparte, y no clavado al día 1, que
+haría parecer que vence un día que nadie eligió. Por la misma razón, solo es
+«atrasado» cuando el mes termina. «Hoy» avisa de lo editorial que se pasó de
+fecha; la primera versión llamaba atrasado a «2026-10» el 5 de octubre, y la
+prueba lo cazó.
+
+El ritmo —cuántos artículos salieron en los últimos 30 días— va arriba, en ámbar
+cuando es cero.
+
 ### Usuarios: sesiones, roles y revocación
 
 En `app.nassican.com/usuarios`. Muestra los tres cerrojos de la sección de
@@ -2424,6 +2464,50 @@ categoría. Solo se le corrige la etiqueta de fecha al año oficial de aprobaci�
 así salieron dos que decían 2024 y eran de 2023. Primera ejecución: 34 nuevos, 3 ya
 estaban; la segunda, 0.
 
+**Los diplomas.** `npm run certificates:diplomas -- <carpeta> [--dry] [--force]`
+descarga la `diploma_image` de cada certificado y la guarda con `storeImage`, el
+mismo camino que una subida del panel: WebP, placeholder borroso y checksum como
+URL, en una carpeta «Certificados» de Multimedia. 37 diplomas pasaron de 3,4 MB a
+1,1 MB (−68 %), unos 30 KB cada uno. La CDN de Platzi responde 403 sin un user
+agent de navegador.
+
+**El texto alternativo dice lo que la imagen muestra**, leído de un diploma real:
+Platzi certificando al operador, por su nombre completo, por aprobar el curso, en
+la fecha impresa. La fecha es la de aprobación **en Bogotá**, que es la que
+imprime el diploma: la exportación la guarda en UTC, y una aprobación por la noche
+es el día siguiente allí. El inglés dice que el diploma está en español, porque lo
+está.
+
+**Guardar Certificados solo escribe lo que cambió.** La lista se manda entera y
+antes se escribía entera: 111 escrituras para 37 diplomas. Una transacción por
+lotes no lo arregló —el adaptador de Neon sigue mandando cada sentencia en su
+propio viaje: 9,4 s medidos desde Bogotá—; leer lo guardado una vez y comparar sí:
+una lista sin cambios es una lectura (0,3 s) y editar un título, una escritura.
+
+**El diploma se sube, se cambia y se quita desde la ficha**, en Perfil →
+Certificados, con el mismo `CoverPicker` de las portadas, y su texto alternativo
+se edita al lado en los dos idiomas. Ese texto vive en `media_translations`, no
+en el certificado —es el mismo que enseña Multimedia—, así que editarlo en un
+sitio lo cambia en el otro.
+
+Tres reglas:
+
+- **Sin texto alternativo en los dos idiomas no se guarda.** Una imagen nueva
+  llega con uno sugerido (`suggestDiplomaAlt`) en vez de vacío: es un borrador
+  que conviene corregir, no una casilla en blanco que bloquea sin explicar.
+- **Una imagen soltada va a la papelera, no se queda huérfana.** Reemplazar,
+  quitar o borrar el certificado devuelve en `released` lo que dejó de estar
+  enlazado; la acción pregunta a `describeUsage` y solo la manda a la papelera
+  si nada más la usa. Treinta días para arrepentirse, y la biblioteca no acumula
+  diplomas que nadie recuerda haber subido.
+- **El cambio de imagen solo se escribe si cambió**, igual que el resto de la
+  lista: `fileMediaId` entra en la comparación, y el texto alternativo se escribe
+  solo cuando difiere del guardado.
+
+Una subida desde la ficha cae en la raíz de Multimedia, no en la carpeta
+«Certificados» del script: moverla es un clic allí y no justificaba otro
+parámetro en la ruta de subida.
+
 ### El script de importación
 
 ```bash
@@ -2638,6 +2722,18 @@ página de detalle lo dice explícitamente en lugar de mostrar texto de relleno.
 **No inventes el contenido de un caso de estudio**; si no tienes la información
 real del proyecto, déjalo en `comingSoon`.
 
+
+**Los desplegables del sitio son propios.** Un `<select>` nativo se puede estilizar
+cerrado y no abierto: la lista la dibuja el sistema operativo —un menú blanco de
+Windows sobre una página casi negra, en otra tipografía—. `components/ui/Select.tsx`
+dibuja la suya con las superficies del sitio y conserva lo que el nativo daba
+gratis, que es lo fácil de perder: el patrón *listbox* de ARIA (flechas,
+Inicio/Fin, Enter y Espacio, Escape de vuelta al botón, una letra para saltar) y
+`aria-activedescendant`, para que el lector de pantalla anuncie la opción bajo el
+cursor. En `/certificates` cada diploma se amplía en un `<dialog>` modal nativo:
+foco atrapado y Escape sin librería. Las imágenes van `unoptimized`: ya son WebP a
+su tamaño final bajo una URL inmutable, y reoptimizarlas gastaría cuota de Vercel
+para nada.
 ## Tema claro / oscuro
 
 - **Por defecto oscuro.** Sin preferencia guardada, el sitio se ve en oscuro; no

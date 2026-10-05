@@ -16,9 +16,12 @@ export type { UploadedMedia };
 export default function CoverPicker({
   url,
   onChange,
+  emptyLabel = "sin portada",
 }: {
   url: string | null;
   onChange: (media: UploadedMedia | null) => void;
+  /** What the empty box says: a diploma is not a cover. */
+  emptyLabel?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
@@ -50,7 +53,7 @@ export default function CoverPicker({
             <Image src={url} alt="" fill sizes="80px" className="object-cover" />
           ) : (
             <span className="flex size-full items-center justify-center font-mono text-[10px] text-neutral-600">
-              sin portada
+              {emptyLabel}
             </span>
           )}
         </div>

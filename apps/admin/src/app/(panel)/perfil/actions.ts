@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { db, prismaJson } from "@nassican/db";
 import { cacheTags, locales } from "@nassican/shared";
 import { requireUser } from "@/lib/session";
+import { writeCertificates } from "@/lib/profile";
+import { describeUsage } from "@/lib/media-usage";
+import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
+import { diplomasMissingAlt } from "@/lib/profile-draft";
 import { notifyPublicSite } from "@/lib/revalidate";
 import type {
   CertificateDraft,
@@ -189,37 +193,42 @@ export async function saveEducation(
 export async function saveCertificates(
   items: CertificateDraft[],
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireUser();
 
-  const keep = items.filter((i) => i.provider.trim() && i.url.trim());
-  await db.certificate.deleteMany({
-    where: { id: { notIn: keep.map((i) => i.id).filter((id): id is string => !!id) } },
-  });
-
-  for (const [position, item] of keep.entries()) {
-    const fields = {
-      provider: item.provider.trim(),
-      dateLabel: item.dateLabel.trim() || null,
-      credentialUrl: item.url.trim(),
-      position,
+  // The site shows a diploma in both languages, so its alt text is required in
+  // both: an image without one does not exist for whoever cannot see it.
+  const missing = diplomasMissingAlt(
+    items.filter((i) => i.provider.trim() && i.url.trim()),
+    locales,
+  );
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      message: `Falta el texto alternativo del diploma en algún idioma: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}.`,
     };
-
-    const row = item.id
-      ? await db.certificate.update({ where: { id: item.id }, data: fields })
-      : await db.certificate.create({ data: fields });
-
-    for (const locale of locales) {
-      const data = {
-        title: item.title[locale]?.trim() ?? "",
-        category: item.category[locale]?.trim() ?? "",
-      };
-      await db.certificateTranslation.upsert({
-        where: { certificateId_locale: { certificateId: row.id, locale } },
-        update: data,
-        create: { certificateId: row.id, locale, ...data },
-      });
-    }
   }
 
-  return done(cacheTags.certificates, "Certificados");
+  const { released } = await writeCertificates(items);
+
+  /*
+   * An image this save let go of — replaced, removed, or on a deleted
+   * certificate — goes to the trash if nothing else uses it. Left in the
+   * library it would be an orphan nobody remembers uploading; in the trash it is
+   * recoverable for thirty days. One still used elsewhere is left alone.
+   */
+  let trashed = 0;
+  for (const mediaId of released) {
+    if ((await describeUsage(mediaId)).length > 0) continue;
+    if (await moveToTrash("media", mediaId, user.id)) trashed++;
+  }
+
+  const result = await done(cacheTags.certificates, "Certificados");
+  if (trashed > 0) {
+    notifyPublicSite([cacheTags.posts, cacheTags.projects]);
+    return {
+      ok: true,
+      message: `Certificados guardados. ${trashed === 1 ? "La imagen que ya no se usaba está" : `${trashed} imágenes que ya no se usaban están`} en la papelera durante ${TRASH_DAYS} días.`,
+    };
+  }
+  return result;
 }

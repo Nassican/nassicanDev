@@ -75,7 +75,7 @@ export type MediaUsageSummary = {
 export async function describeUsage(
   mediaId: string,
 ): Promise<MediaUsageSummary[]> {
-  const [tracked, postCovers, projectCovers, postOg, projectOg] =
+  const [tracked, postCovers, projectCovers, postOg, projectOg, certificates, profiles, seoDefaults] =
     await Promise.all([
       db.mediaUsage.findMany({
         where: { mediaId },
@@ -91,6 +91,15 @@ export async function describeUsage(
         where: { ogImageId: mediaId },
         select: { projectId: true },
       }),
+      // Three more foreign keys, found missing when 37 diplomas were linked: a
+      // certificate's image, the profile avatar and the default social image.
+      // Without them the library called a used image «unused» and let it go.
+      db.certificate.findMany({
+        where: { fileMediaId: mediaId },
+        select: { id: true, translations: { where: { locale: "es" }, select: { title: true } } },
+      }),
+      db.profile.findMany({ where: { avatarMediaId: mediaId }, select: { id: true } }),
+      db.seoSettings.findMany({ where: { defaultOgImageId: mediaId }, select: { id: true } }),
     ]);
 
   const fromKeys = [
@@ -98,6 +107,9 @@ export async function describeUsage(
     ...projectCovers.map((p) => ({ entityType: "project", entityId: p.id, field: "cover" })),
     ...postOg.map((p) => ({ entityType: "post", entityId: p.postId, field: "og_image" })),
     ...projectOg.map((p) => ({ entityType: "project", entityId: p.projectId, field: "og_image" })),
+    ...certificates.map((c) => ({ entityType: "certificate", entityId: c.id, field: "file" })),
+    ...profiles.map((p) => ({ entityType: "profile", entityId: String(p.id), field: "avatar" })),
+    ...seoDefaults.map((s) => ({ entityType: "seo", entityId: String(s.id), field: "og_image" })),
   ];
 
   // The same reference can appear in both sources once the panel has saved it.
@@ -128,6 +140,8 @@ export async function describeUsage(
     cover: "portada",
     og_image: "imagen social",
     body: "cuerpo",
+    file: "imagen",
+    avatar: "avatar",
   };
 
   return usages.map((usage) => {
@@ -147,6 +161,12 @@ export async function describeUsage(
         href: project ? `/contenido/proyectos/${project.id}` : null,
       };
     }
+    if (usage.entityType === "certificate") {
+      const certificate = certificates.find((c) => c.id === usage.entityId);
+      return { ...usage, label: certificate?.translations[0]?.title ?? "certificado", href: "/perfil" };
+    }
+    if (usage.entityType === "profile") return { ...usage, label: "perfil", href: "/perfil" };
+    if (usage.entityType === "seo") return { ...usage, label: "SEO global", href: "/seo" };
     return { ...usage, label: usage.entityType, href: null };
   }).map((u) => ({ ...u, field: fieldLabels[u.field] ?? u.field }));
 }

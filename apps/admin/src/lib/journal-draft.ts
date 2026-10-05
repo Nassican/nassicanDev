@@ -309,6 +309,15 @@ export function describeAudit(fact: AuditFact): AuditLine | null {
     if (pick("checked")) return line(`Cumpliste${quoted(name)}`, false, "habit-done");
   }
 
+  /*
+   * The editorial pipeline. Noting an idea is routine; turning one into a draft
+   * is the moment an article starts to exist, and the week should show it.
+   */
+  if (entityType === "idea" && action === "create") return line(`Apuntaste la idea${quoted(name)}`, false);
+  if (entityType === "post" && action === "create" && diff.fromIdea === true) {
+    return line(`Empezaste a escribir${quoted(name)}`, true);
+  }
+
   if (entityType === "backup") {
     if (action === "export") return line("Descargaste una copia de seguridad", true);
     if (action === "restore") return line("Restauraste una copia de seguridad", true);

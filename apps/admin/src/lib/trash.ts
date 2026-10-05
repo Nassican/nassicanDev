@@ -37,6 +37,7 @@ const roots: Record<TrashKind, ModelName> = {
   task: "Task",
   goal: "Goal",
   habit: "Habit",
+  idea: "ContentIdea",
 };
 
 export const kindLabels: Record<TrashKind, string> = {
@@ -51,6 +52,7 @@ export const kindLabels: Record<TrashKind, string> = {
   task: "Pendiente",
   goal: "Meta",
   habit: "Hábito",
+  idea: "Idea editorial",
 };
 
 /**
@@ -147,6 +149,8 @@ function remove(kind: TrashKind, id: string) {
       return dbBase.goal.delete({ where: { id } });
     case "habit":
       return dbBase.habit.delete({ where: { id } });
+    case "idea":
+      return dbBase.contentIdea.delete({ where: { id } });
   }
 }
 

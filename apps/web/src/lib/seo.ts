@@ -375,6 +375,10 @@ export function certificatesJsonLd(
             credentialCategory: "certificate",
             dateCreated: c.date,
             recognizedBy: { "@type": "Organization", name: c.provider },
+            // The diploma itself, so a crawler reading the credential can see it.
+            ...(c.image
+              ? { image: { "@type": "ImageObject", url: absoluteUrl(c.image.url), caption: c.image.alt[locale] } }
+              : {}),
             about: c.category[locale],
           },
         })),

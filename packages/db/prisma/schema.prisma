@@ -226,6 +226,7 @@ model Post {
   translations PostTranslation[]
   revisions    PostRevision[]
   tags         PostTag[]
+  idea         ContentIdea?
 
   @@index([status, publishedAt])
   @@map("posts")
@@ -1515,6 +1516,7 @@ enum TrashKind {
   task
   goal
   habit
+  idea
 }
 
 /// What a deletion took away, kept for thirty days so it can be put back.
@@ -1835,4 +1837,43 @@ model HabitCheck {
 
   @@id([habitId, date])
   @@map("habit_checks")
+}
+
+// ---------------------------------------------------------------------------
+// Editorial calendar
+// ---------------------------------------------------------------------------
+
+/// Where an idea is before it becomes a draft. After that, the post's own status
+/// says where it is, and this stops mattering.
+enum IdeaStage {
+  idea
+  research
+}
+
+/// An article that does not exist yet.
+///
+/// Its own table rather than a post with an «idea» status: an idea has no slug,
+/// no body and no translations, and a post row that may lack all three would
+/// make every query on posts ask whether it is a real one. Once written, the idea
+/// points at its post and the post is the truth about status and date.
+///
+/// The module exists because the site had zero published articles: an idea
+/// without a date keeps intruding without moving, which is the same finding the
+/// task list rests on (Masicampo and Baumeister, 2011).
+model ContentIdea {
+  id         String    @id @default(uuid())
+  title      String
+  note       String?
+  stage      IdeaStage @default(idea)
+  /// When it should come out. Partial date text: «2026-11» is a real target.
+  targetDate String?   @map("target_date")
+  /// The draft it became.
+  postId     String?   @unique @map("post_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@map("content_ideas")
 }

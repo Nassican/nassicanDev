@@ -178,12 +178,13 @@ orden en que se construyen.
 | 1 | Pendientes (2.2) y revisión semanal (2.4) | **hecho** |
 | 2 | Metas y hábitos (2.1) | **hecho** |
 | 3 | «Hoy» en el dashboard | **hecho** |
-| 4 | Calendario editorial (3) | siguiente |
-| 5 | Bloques de enfoque (2.3), notas, presupuesto del mes, aprendizaje, oportunidades, rendimiento móvil del sitio y edición rápida en listas | más adelante |
+| 4 | Calendario editorial (3) | **hecho** |
+| 5 | Bloques de enfoque (2.3), notas, presupuesto del mes, aprendizaje, oportunidades, rendimiento móvil del sitio y edición rápida en listas | siguiente, a elegir |
 | — | Subir lo hecho a git (0) y probar el móvil en un teléfono real (1) | en paralelo, cuanto antes |
 
 **Hecho:** los 37 certificados de Platzi están en Perfil → Certificados, en los dos
-idiomas (`npm run certificates:platzi`).
+idiomas (`npm run certificates:platzi`), cada uno con la imagen de su diploma
+(`npm run certificates:diplomas`) y texto alternativo en los dos idiomas.
 
 ## Fuentes
 

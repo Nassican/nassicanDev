@@ -52,6 +52,7 @@ export default function TodayPanel({
     view.priorities.length === 0 &&
     view.renewals.length === 0 &&
     view.goals.length === 0 &&
+    view.editorial.length === 0 &&
     !view.review;
 
   return (
@@ -213,6 +214,27 @@ export default function TodayPanel({
                       </Link>
                       <span className={`text-[11px] ${g.overdue ? "text-red-400" : "text-amber-500"}`}>
                         {g.overdue ? "pasó la fecha" : g.days === null ? "este mes" : g.days === 0 ? "hoy" : `en ${g.days} días`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {view.editorial.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                <span className={labelClass}>Editorial</span>
+                <ul className="flex flex-col gap-1 text-sm">
+                  {view.editorial.map((e) => (
+                    <li key={e.title} className="flex justify-between gap-3">
+                      <Link
+                        href={e.postId ? `/contenido/blogs/${e.postId}` : "/contenido/calendario"}
+                        className="min-w-0 truncate text-neutral-200 hover:underline"
+                      >
+                        {e.title}
+                      </Link>
+                      <span className="shrink-0 text-[11px] text-amber-500">
+                        {e.targetDate.slice(0, 10) === view.today ? "era para hoy" : `era para ${formatPartialDate(e.targetDate)}`}
                       </span>
                     </li>
                   ))}

@@ -152,3 +152,11 @@ test("lograr una meta destaca; cada hábito cumplido se cuenta sin ocupar la sem
   assert.equal(tick?.highlight, false);
   assert.equal(tick?.tally, "habit-done");
 });
+
+test("apuntar una idea es rutina; empezar a escribirla, no", () => {
+  assert.equal(describeAudit({ action: "create", entityType: "idea", diff: { title: "Neon" } })?.highlight, false);
+  assert.deepEqual(
+    describeAudit({ action: "create", entityType: "post", diff: { label: "Neon", fromIdea: true } }),
+    { text: "Empezaste a escribir «Neon»", kind: "content", highlight: true, tally: undefined },
+  );
+});

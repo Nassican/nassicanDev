@@ -143,6 +143,11 @@ export const es = {
     resultMany: "resultados",
     noResults: "No hay certificados que coincidan.",
     view: "Ver",
+    provider: "Proveedor",
+    category: "Categoría",
+    enlarge: "Ampliar diploma",
+    close: "Cerrar",
+    verifyOn: "Verificar en",
   },
 
   contact: {

@@ -25,6 +25,7 @@ const listPaths: Record<TrashKind, string> = {
   task: "/pendientes",
   goal: "/metas",
   habit: "/metas",
+  idea: "/contenido/calendario",
 };
 
 export async function restoreItem(id: string): Promise<ActionResult> {

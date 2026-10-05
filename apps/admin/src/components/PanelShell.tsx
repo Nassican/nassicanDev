@@ -28,6 +28,7 @@ import {
   BsJournalText,
   BsCheck2Square,
   BsBullseye,
+  BsCalendarWeek,
   BsGraphUp,
   BsX,
 } from "react-icons/bs";
@@ -65,6 +66,7 @@ const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
   journal: BsJournalText,
   task: BsCheck2Square,
   goal: BsBullseye,
+  calendar: BsCalendarWeek,
 };
 
 type PanelUser = {

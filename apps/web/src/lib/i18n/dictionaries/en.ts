@@ -142,6 +142,11 @@ export const en: Dictionary = {
     resultMany: "results",
     noResults: "No certificates match your filters.",
     view: "View",
+    provider: "Provider",
+    category: "Category",
+    enlarge: "Enlarge diploma",
+    close: "Close",
+    verifyOn: "Verify on",
   },
 
   contact: {

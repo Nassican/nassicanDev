@@ -9,6 +9,7 @@ import { locales, localeNames, type Locale } from "@nassican/shared";
 import {
   emptyLocalized,
   missingIn,
+  suggestDiplomaAlt,
   type CertificateDraft,
   type EducationDraft,
   type ExperienceDraft,
@@ -16,6 +17,7 @@ import {
   type ProfileDraft,
 } from "@/lib/profile-draft";
 import type { ActionResult } from "@/app/(panel)/perfil/actions";
+import CoverPicker from "@/components/CoverPicker";
 import DateField from "@/components/DateField";
 
 const field =
@@ -517,6 +519,27 @@ export default function ProfileModule({
       >
         {certificates.map((item, i) => (
           <article key={item.id ?? `nuevo-${i}`} className="flex flex-col gap-3 rounded border border-neutral-900 p-3">
+            <CoverPicker
+              url={item.imageUrl}
+              emptyLabel="sin diploma"
+              // The upload takes a moment and the form stays editable meanwhile,
+              // so this reads the list as it is when the picture arrives.
+              onChange={(media) =>
+                setCertificates((current) => {
+                  const now = current[i];
+                  if (!now) return current;
+                  return patch(current, i, media
+                    ? {
+                        fileMediaId: media.id,
+                        imageUrl: media.url,
+                        // A new picture starts with a suggested description rather
+                        // than an empty one. It is a draft, meant to be edited.
+                        alt: missingIn(locales, now.alt).length === locales.length ? suggestDiplomaAlt(now) : now.alt,
+                      }
+                    : { fileMediaId: null, imageUrl: null });
+                })
+              }
+            />
             <div className="grid gap-2 sm:grid-cols-4">
               <input className={field} value={item.provider} placeholder="Proveedor"
                 onChange={(e) => setCertificates(patch(certificates, i, { provider: e.target.value }))} />
@@ -531,6 +554,13 @@ export default function ProfileModule({
             <Translated title="Categoría" value={item.category}
               onChange={(v) => setCertificates(patch(certificates, i, { category: v }))} />
             <Incomplete missing={missingIn(locales, item.title, item.category)} />
+            {item.fileMediaId ? (
+              <>
+                <Translated title="Texto alternativo del diploma" multiline value={item.alt}
+                  onChange={(v) => setCertificates(patch(certificates, i, { alt: v }))} />
+                <Incomplete missing={missingIn(locales, item.alt)} />
+              </>
+            ) : null}
 
             <button
               type="button"
@@ -548,6 +578,7 @@ export default function ProfileModule({
             setCertificates([...certificates, {
               id: null, provider: "", dateLabel: "", url: "",
               title: emptyLocalized(locales), category: emptyLocalized(locales),
+              fileMediaId: null, imageUrl: null, alt: emptyLocalized(locales),
             }])
           }
         >
