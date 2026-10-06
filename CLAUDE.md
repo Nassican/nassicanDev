@@ -1446,10 +1446,11 @@ Y la categoría `Transfer` se excluye por su id además de por `transfer_id`, qu
 es lo que ya costó una vez: sin ella, lo más alto del ranking de gasto eran 36
 millones que no se gastaron en nada.
 
-### Finanzas: espejo de solo lectura de Wallet
+### Finanzas: espejo de Wallet, de solo lectura salvo los presupuestos
 
 En `app.nassican.com/finanzas`. Lee las finanzas personales de Wallet
-(BudgetBakers) y **nunca escribe en Wallet**.
+(BudgetBakers) y **nunca escribe en Wallet**, con una excepción decidida por el
+operador: los presupuestos, que se editan desde Presupuesto.
 
 #### Por qué un espejo y no llamadas en vivo
 
@@ -1525,6 +1526,28 @@ Ninguna salió de leer la referencia; todas salieron de llamar a la API.
 - **De los presupuestos solo se muestra el límite**, que es lo que Wallet
   expone. Lo consumido se calcularía cruzando movimientos y categorías, y una
   cifra propia que discrepe de la que ves en la app es peor que no dar cifra.
+
+#### Presupuestos: la única escritura, también por construcción
+
+El 5 de octubre de 2026 el operador decidió que el panel pueda **editar
+presupuestos** en Wallet, y nada más. El token de Wallet **no tiene scopes**: el
+mismo que edita un presupuesto podría borrar todos los movimientos. Así que, igual
+que la lectura, el límite tiene que estar en la forma del código y no en una
+promesa.
+
+`lib/wallet-client.ts` **sigue siendo solo lectura** y su prueba no cambió. La
+escritura vive en otro archivo, `lib/wallet-budgets.ts`, y abre a una sola cosa:
+
+1. **Una dirección**, la de `/budgets`, y ninguna función recibe una ruta.
+2. **GET, POST y PATCH**, escritos en cada función. **No hay DELETE**: el de Wallet
+   es un endpoint genérico para todos los tipos, y cerrar un presupuesto —que
+   Wallet conserva con su historial— es la forma reversible de retirarlo.
+3. **Nada genérico exportado.** El único `PATCH` es privado y su tipo enumera lo
+   que se puede cambiar: nombre, límite desde un mes, categorías, cerrado.
+4. **Nunca `resetLimit`**, que reescribiría el límite de los meses pasados.
+
+`wallet-budgets.test.ts` lee el fuente y falla si se rompe cualquiera de las
+cuatro. Se comprobó que muerde cambiando `PATCH` por `DELETE` a mano.
 
 #### Las tarjetas de crédito engañan, y el módulo lo dice
 
@@ -2321,67 +2344,78 @@ crezcan con un casi-duplicado. Se invalida la etiqueta `certificates` del sitio 
 el curso queda enlazado (`certificate_id`, único): publicar dos veces se niega. El
 diploma se sube después desde Perfil.
 
-### Notas: Markdown que conserva los enlaces
+### Trabajos: proyectos en curso con empresas
 
-En `app.nassican.com/notas`, junto a Pendientes. Notas en Markdown con etiquetas,
-`[[enlaces entre notas]]` por título y «Enlazan aquí». Todas bajan de una vez
-—son texto de una persona— y buscar, filtrar por etiqueta y calcular los enlaces
-ocurre sin volver al servidor. La nota abierta vive en `?nota=`, escrita con
-`history.replaceState`, así que una nota es un enlace y ⌘K abre la nota misma.
+En `app.nassican.com/trabajos`, junto a Pendientes. Sustituye a «Oportunidades»,
+que se quitó el mismo día en que se hizo: un embudo de contactos con próximos
+pasos no servía sin poder automatizarlo, y lo que de verdad se quería seguir era
+el trabajo **ya acordado**. Se llama «Trabajos» y no «Proyectos» para no chocar con
+Contenido → Proyectos, que son los del portafolio.
 
-**No usan el parser de los artículos, a propósito.** Ese convierte Markdown en
-bloques y descarta la dirección de los enlaces, porque un bloque no tiene dónde
-guardarla. En una nota el enlace guardado suele ser lo importante, así que las
-notas tienen su propio lector (`parseNote`), pequeño y probado, que conserva cada
-dirección, cada `[[enlace]]` y cada URL suelta.
+**Tres estados y ninguno más**: no iniciado, en marcha, finalizado. La página se
+abre por lo que se mueve, así que «en marcha» va primero y los finalizados se
+pliegan al final.
 
-**«Convertir en artículo»** sí pasa por el parser de los artículos: crea un
-borrador en Blogs, en español, con los bloques que caben, y **dice qué tuvo que
-simplificar** —«se conserva «la guía», se pierde https://…»— en el momento, no a
-mitad de escribir el artículo. Los `[[enlaces]]` llegan como su título. El slug
-sale de `freeSlug`, la misma función que usa una idea editorial: las dos son
-borradores que nacen de otra cosa. En la bitácora cuenta como «Empezaste a
-escribir».
+**La bitácora de avances es el módulo.** Cada avance es un día, un texto y, si se
+quiere, sus horas; la ficha suma las horas y dice cuándo fue el último. Anotar el
+primer avance de un trabajo sin iniciar lo pone **en marcha** y fija el inicio:
+trabajo que se anota es trabajo que empezó. Pasar a «en marcha» desde la lista
+también fija el inicio si faltaba, porque ese día se sabe. Finalizar **no** estampa
+la fecha: pregunta «¿Lo terminaste hoy?», como Juegos y Libros, porque poner al
+día un trabajo viejo es la otra razón para marcarlo.
 
-Guardar una nota solo se audita al crearla: se edita decenas de veces mientras se
-escribe, y la bitácora se llenaría de «editaste la nota».
+**El único aviso es el silencio**: en marcha y sin avances hace más de 7 días
+(`QUIET_DAYS`). Un trabajo que nadie toca suele estar esperando a alguien, y ese
+alguien a menudo es uno. «Hoy» lista los que están en marcha con los días desde su
+último avance, y en rojo los que pasaron su fecha de entrega.
 
-### Oportunidades: el próximo paso con fecha
+En la bitácora, empezar y terminar destacan; cada avance aparece como «Avanzaste
+en…», plegado por día como cualquier repetición y sin el peso de un hito. A la
+papelera va con sus avances y vuelve entero — comprobado.
 
-En `app.nassican.com/oportunidades`, junto a Pendientes. Empleos, clientes,
-reclutadores y colaboraciones, agrupados por etapa —por contactar, contactado, en
-conversación, propuesta— con las cerradas plegadas al final. **Cerrada son dos
-valores**, ganada y perdida, porque responden preguntas distintas después.
+### Presupuesto: los presupuestos de Wallet, editados aquí
 
-La regla es la de Pendientes (Masicampo y Baumeister): una conversación abierta
-deja de rondar cuando tiene **un próximo paso en un día concreto**. Por eso una
-oportunidad abierta sin próximo paso es un aviso, no un silencio, y «Hoy» enseña
-las que vencen hoy o están atrasadas. Anotar lo que pasó puede mover el próximo
-paso en el mismo guardado: suelen ser el mismo momento. Cerrar pone fecha;
-reabrir la quita, para que «cerrada hace» no mienta. A la papelera va con su
-historial, y vuelve entera — comprobado.
+En `app.nassican.com/presupuesto`, junto a Movimientos. **Es la única parte del
+panel que escribe en Wallet**, por decisión del operador (5 de octubre de 2026):
+el resto sigue siendo un espejo de solo lectura. Ver «Presupuestos: la única
+escritura» en la sección de Finanzas para cómo se garantiza.
 
-### Presupuesto: avisar antes de que el dinero se vaya
+**Los presupuestos son los de Wallet, no una copia.** La primera versión guardaba
+sus propios límites en una tabla del panel; se quitó al poder escribir, porque dos
+juegos de límites son dos respuestas esperando a discrepar, y el de Wallet es el
+que el operador ve en el teléfono. La página los lee **en vivo** —una petición—
+con el gasto que **Wallet mismo** calculó para el periodo, así que las cifras son
+las de la app. Si Wallet no responde, cae al espejo y calcula el gasto desde los
+movimientos sincronizados, y lo dice.
 
-En `app.nassican.com/presupuesto`, junto a Movimientos. Un límite al mes para el
-total, para un grupo de Wallet o para una categoría —los datos piden los dos
-niveles: «Food & Drinks» es un presupuesto, «Software, apps, games» otro—, en
-`budget_lines`. **Nunca escribe en Wallet**; el `WalletBudget` del espejo es otra
-cosa, los presupuestos de Wallet tal como Wallet los guarda.
+**Lo que el panel añade es el ritmo.** El 70 % gastado el día 12 de un mes de 30 es
+ir treinta puntos por delante, y a ese paso el presupuesto cierra por encima. Cada
+barra marca el día del periodo, y la proyección solo avisa desde el día 5: con dos
+días, una cena proyecta un mes que no va a pasar. El dashboard avisa desde el
+espejo, sin llamar a Wallet cada vez que se abre.
 
-**Lo que lo hace un aviso previo es el ritmo.** El 70 % gastado el día 12 de un mes
-de 30 no es «70 %»: es ir treinta puntos por delante del mes, y a ese ritmo la
-línea cierra por encima. Cada barra lleva una marca en el día del mes, y la
-proyección solo avisa desde el día 5: con dos días, una cena proyecta un mes que no
-va a pasar.
+Se puede crear un presupuesto mensual, cambiar su límite, su nombre y sus
+categorías, y cerrarlo o reabrirlo. Dos decisiones:
 
-El gasto se cuenta como en Personal —sin transferencias, ni por `transfer_id` ni
-por la categoría Transfer, en meses UTC— y se comprobó que coincide al peso con la
-cifra de Personal. Abajo, los grupos con gasto y sin límite, de mayor a menor, y
-las renovaciones que faltan del mes en pesos (los dólares con la TRM). **Avisa de
-lo viejo que es el espejo**: Wallet se sincroniza a mano, y un presupuesto sobre
-datos de hace una semana dice que vas bien cuando no lo sabe. El dashboard avisa de
-una línea superada (urgente) o que va camino de pasarse.
+- **Cambiar el límite vale desde este mes.** Wallet no deja editar el límite base;
+  ofrece `resetLimit`, que reescribe también el de **todos los meses pasados**, o
+  un cambio que rige desde un periodo en adelante. Se usa el segundo, y el pasado
+  queda como fue. Un cambio que el operador hubiera programado para un mes futuro
+  se sustituye: eso es lo que significa «desde ahora».
+- **Cerrar, no borrar.** Borrar en Wallet es un único endpoint genérico para todos
+  los tipos —registros y cuentas incluidos—, y cerrar conserva el presupuesto con
+  su historial y se puede deshacer desde aquí.
+
+Debajo, el gasto del mes en grupos que ningún presupuesto cubre, de mayor a menor
+y con «Crear presupuesto» que rellena el grupo, y las renovaciones que faltan.
+Cada escritura se audita, y el espejo se actualiza con lo que Wallet respondió.
+
+**Cómo se verificó.** Leyendo: los siete presupuestos y su gasto, idénticos a los
+de Wallet uno por uno. Escribiendo: **una sola escritura que no cambia nada** —
+renombrar «Vivienda» a «Vivienda»— para probar token, formato y respuesta sin
+tocar los datos del operador. Crear, cambiar límites y cerrar no se han probado
+contra Wallet: se dejaron para que el operador los haga desde la interfaz, porque
+un presupuesto de prueba no se podría borrar desde el panel.
 
 ### Usuarios: sesiones, roles y revocación
 

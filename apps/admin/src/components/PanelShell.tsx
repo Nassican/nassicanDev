@@ -33,7 +33,6 @@ import {
   BsStopwatch,
   BsLightning,
   BsMortarboard,
-  BsStickies,
   BsBriefcase,
   BsPiggyBank,
   BsX,
@@ -78,7 +77,6 @@ const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
   focus: BsStopwatch,
   speed: BsLightning,
   course: BsMortarboard,
-  note: BsStickies,
   work: BsBriefcase,
   budget: BsPiggyBank,
 };

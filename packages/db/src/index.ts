@@ -166,6 +166,18 @@ function extend(base: PrismaClient) {
           compute: (t) => parseStringArray(t.bio) ?? [],
         },
       },
+      // Wallet sends these as string arrays; an empty one means «all», which
+      // is Wallet's convention and not a missing value.
+      walletBudget: {
+        categoryIds: {
+          needs: { categoryIds: true },
+          compute: (t) => parseStringArray(t.categoryIds) ?? [],
+        },
+        accountIds: {
+          needs: { accountIds: true },
+          compute: (t) => parseStringArray(t.accountIds) ?? [],
+        },
+      },
     },
   });
 }

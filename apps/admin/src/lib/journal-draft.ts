@@ -163,7 +163,7 @@ export type Tally =
   | "goal-achieved"
   | "habit-done"
   | "course-finished"
-  | "opportunity-won";
+  | "work-finished";
 
 export type AuditLine = {
   text: string;
@@ -197,8 +197,8 @@ const nouns: Record<string, string> = {
   redirect: "una redirección",
   user: "un usuario",
   course: "el curso",
-  note: "la nota",
-  opportunity: "la oportunidad",
+  client_project: "el trabajo",
+  "wallet-budget": "el presupuesto de Wallet",
   certificate: "el certificado",
 };
 
@@ -216,7 +216,8 @@ const kinds: Record<string, LineKind> = {
   user: "data",
   course: "learning",
   certificate: "learning",
-  opportunity: "work",
+  client_project: "work",
+  "wallet-budget": "data",
 };
 
 const verbs: Record<string, string> = {
@@ -232,7 +233,7 @@ const verbs: Record<string, string> = {
 const SKIPPED = new Set(["session", "journal"]);
 
 /** Adding one of these is a decision about your life, not a maintenance edit. */
-const PERSONAL = new Set(["game", "book", "subscription", "course", "opportunity"]);
+const PERSONAL = new Set(["game", "book", "subscription", "course", "client_project"]);
 
 const quoted = (name: string | null) => (name ? ` «${name}»` : "");
 
@@ -296,19 +297,16 @@ export function describeAudit(fact: AuditFact): AuditLine | null {
   }
 
   /*
-   * Opportunities: a stage moving is news, a note in the log is upkeep. Winning
-   * one is the highlight of a month, let alone a week.
+   * Work for companies: starting and finishing are the news. A logged step is
+   * the work itself, so it is shown — folded per day like any repeat — but not
+   * at full weight, or a busy week would bury everything else.
    */
-  if (entityType === "opportunity" && action === "update") {
-    const stage = pick("stage");
-    if (stage === "won") return line(`Ganaste${quoted(name)}`, true, "opportunity-won");
-    if (stage === "lost") return line(`Cerraste sin éxito${quoted(name)}`, false);
-    if (stage === "proposal") return line(`Enviaste propuesta en${quoted(name)}`, true);
-    if (stage === "conversation") return line(`Empezaste a conversar en${quoted(name)}`, true);
-    if (stage === "contacted") return line(`Contactaste en${quoted(name)}`, false);
-    if (diff.entry === true) return line(`Anotaste en${quoted(name)}`, false);
+  if (entityType === "client_project" && action === "update") {
+    if (diff.entry === true) return line(`Avanzaste en${quoted(name)}`, false);
+    if (status === "in_progress") return line(`Empezaste el trabajo${quoted(name)}`, true);
+    if (status === "finished") return line(`Terminaste el trabajo${quoted(name)}`, true, "work-finished");
+    if (status === "not_started") return line(`Devolviste a no iniciado${quoted(name)}`, false);
   }
-  if (entityType === "note" && action === "create") return line(`Escribiste la nota${quoted(name)}`, false);
 
   if (entityType === "subscription") {
     const paid = pick("paid");
@@ -452,7 +450,7 @@ const tallyWords: Record<Tally, [string, string]> = {
   "goal-achieved": ["meta lograda", "metas logradas"],
   "habit-done": ["hábito cumplido", "hábitos cumplidos"],
   "course-finished": ["curso terminado", "cursos terminados"],
-  "opportunity-won": ["oportunidad ganada", "oportunidades ganadas"],
+  "work-finished": ["trabajo terminado", "trabajos terminados"],
 };
 
 const tallyKinds: Record<Tally, LineKind> = {
@@ -467,7 +465,7 @@ const tallyKinds: Record<Tally, LineKind> = {
   "goal-achieved": "goals",
   "habit-done": "goals",
   "course-finished": "learning",
-  "opportunity-won": "work",
+  "work-finished": "work",
 };
 
 /**

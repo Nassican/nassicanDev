@@ -228,7 +228,6 @@ model Post {
   revisions    PostRevision[]
   tags         PostTag[]
   idea         ContentIdea?
-  note         Note?
 
   @@index([status, publishedAt])
   @@map("posts")
@@ -1520,9 +1519,8 @@ enum TrashKind {
   goal
   habit
   idea
-  note
   course
-  opportunity
+  client_project
 }
 
 /// What a deletion took away, kept for thirty days so it can be put back.
@@ -1952,32 +1950,6 @@ model PageSpeedRun {
 }
 
 // ---------------------------------------------------------------------------
-// Notas
-// ---------------------------------------------------------------------------
-
-/// What was learnt, kept where it can be found. Markdown, because notes are
-/// typed fast and read later; the article a note becomes is blocks, like every
-/// other body.
-model Note {
-  id     String   @id @default(uuid())
-  title  String
-  /// Markdown. [[Otra nota]] links to another note by its title.
-  body   String   @default("")
-  tags   String[] @default([])
-  pinned Boolean  @default(false)
-  /// The draft it became, once «Convertir en artículo» was pressed.
-  postId String?  @unique @map("post_id")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  post Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
-
-  @@index([updatedAt])
-  @@map("notes")
-}
-
-// ---------------------------------------------------------------------------
 // Aprendizaje
 // ---------------------------------------------------------------------------
 
@@ -2024,97 +1996,58 @@ model Course {
 }
 
 // ---------------------------------------------------------------------------
-// Oportunidades
+// Trabajos: proyectos en curso con empresas
 // ---------------------------------------------------------------------------
 
-enum OpportunityKind {
-  job
-  client
-  recruiter
-  collaboration
-  other
+/// Three states and no more: a pipeline of leads was the wrong shape for work
+/// that is already agreed. What matters is what is moving.
+enum ClientProjectStatus {
+  not_started
+  in_progress
+  finished
 }
 
-/// Open stages first, then the two ways it ends. «Cerrada» is two values on
-/// purpose: what was won and what was lost answer different questions later.
-enum OpportunityStage {
-  lead
-  contacted
-  conversation
-  proposal
-  won
-  lost
-}
-
-model Opportunity {
-  id           String           @id @default(uuid())
-  title        String
-  kind         OpportunityKind  @default(job)
-  stage        OpportunityStage @default(lead)
-  organization String?
-  contactName  String?          @map("contact_name")
+/// Work for a company or a client, with its log of what was done.
+model ClientProject {
+  id          String              @id @default(uuid())
+  title       String
+  company     String
+  status      ClientProjectStatus @default(not_started)
+  contactName String?             @map("contact_name")
   /// Email, phone or a profile link — whatever reaches them.
-  contact      String?
-  url          String?
-  /// What happens next, and when. The «when» is what keeps a reply from being
-  /// forgotten — the same rule as Pendientes: a full day, not a month.
-  nextStep     String?          @map("next_step")
-  nextStepOn   String?          @map("next_step_on")
-  /// Salary or budget, in its own currency.
-  amount       Decimal?         @db.Decimal(14, 2)
-  currency     Currency?
-  closedAt     DateTime?        @map("closed_at")
+  contact     String?
+  url         String?
+  description String?
+  /// Partial dates as text, as everywhere else.
+  startedAt   String?             @map("started_at")
+  dueDate     String?             @map("due_date")
+  finishedAt  String?             @map("finished_at")
+  /// What it pays, in its own currency.
+  amount      Decimal?            @db.Decimal(14, 2)
+  currency    Currency?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  entries OpportunityEntry[]
+  entries ClientProjectEntry[]
 
-  @@index([stage, nextStepOn])
-  @@map("opportunities")
+  @@index([status])
+  @@map("client_projects")
 }
 
-/// A line of the conversation: what was said, sent or agreed, on a day.
-model OpportunityEntry {
-  id            String   @id @default(uuid())
-  opportunityId String   @map("opportunity_id")
+/// A step forward, written down: what was done, on which day, and optionally
+/// how long it took.
+model ClientProjectEntry {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
   /// "2026-10-05", or with its hour.
-  at            String
-  text          String
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-
-  @@index([opportunityId, at])
-  @@map("opportunity_entries")
-}
-
-// ---------------------------------------------------------------------------
-// Presupuesto del mes
-// ---------------------------------------------------------------------------
-
-/// What a limit applies to: the whole month, one of Wallet's category groups,
-/// or one category. Both levels exist because Wallet's data needs both —
-/// «Food & Drinks» is one budget, «Software, apps, games» is another.
-enum BudgetScope {
-  total
-  group
-  category
-}
-
-/// A monthly limit, in pesos, against the Wallet mirror. Kept here and never in
-/// Wallet: the panel does not write there, by construction.
-model BudgetLine {
-  id           String      @id @default(uuid())
-  scope        BudgetScope
-  /// The group or category name, as Wallet spells it. Empty for total.
-  key          String      @default("")
-  monthlyLimit Decimal     @map("monthly_limit") @db.Decimal(14, 2)
-  position     Int         @default(0)
-
+  at        String
+  text      String
+  hours     Float?
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([scope, key])
-  @@map("budget_lines")
+  project ClientProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, at])
+  @@map("client_project_entries")
 }

@@ -273,12 +273,12 @@ export async function getDashboard(): Promise<Dashboard> {
       title:
         budget.length === 1
           ? first.pace === "exceeded"
-            ? `Te pasaste del presupuesto de ${first.label}`
-            : `${first.label} va camino de pasarse del presupuesto`
+            ? `Te pasaste del presupuesto de ${first.name}`
+            : `${first.name} va camino de pasarse del presupuesto`
           : `${budget.length} límites del presupuesto en riesgo`,
       detail: budget
         .slice(0, 3)
-        .map((l) => `${l.label}: ${Math.round(l.ratio * 100)} % con el mes al ${Math.round(l.elapsed * 100)} %`)
+        .map((l) => `${l.name}: ${Math.round(l.ratio * 100)} % con el mes al ${Math.round(l.elapsed * 100)} %`)
         .join(" · "),
       href: "/presupuesto",
       action: "Ver",

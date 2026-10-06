@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { budgetProblems, daysIn, lineStatus, monthName, shiftMonth } from "./budget-draft";
+import { daysIn, lineStatus, monthName, newBudgetProblems, periodPosition } from "./budget-draft";
 
 test("70 % on the 12th of 30 days is ahead of the month, and says where it lands", () => {
   const s = lineStatus(70_000, 100_000, 12, 30);
@@ -22,16 +22,20 @@ test("over the limit is exceeded whatever the day; nothing spent is idle", () =>
   assert.equal(lineStatus(0, 100_000, 20, 30).pace, "idle");
 });
 
-test("months: length, name and shifting across a year", () => {
+test("a Wallet period is inclusive at both ends", () => {
+  assert.deepEqual(periodPosition("2026-10-01", "2026-10-31", "2026-10-01"), { day: 1, days: 31 });
+  assert.deepEqual(periodPosition("2026-10-01", "2026-10-31", "2026-10-05"), { day: 5, days: 31 });
+  assert.deepEqual(periodPosition("2026-10-01", "2026-10-31", "2026-11-03"), { day: 31, days: 31 });
+});
+
+test("months: length and name", () => {
   assert.equal(daysIn("2026-02"), 28);
   assert.equal(daysIn("2028-02"), 29);
   assert.equal(monthName("2026-10"), "octubre de 2026");
-  assert.equal(shiftMonth("2026-01", -1), "2025-12");
-  assert.equal(shiftMonth("2026-12", 1), "2027-01");
 });
 
-test("a line needs a target and a positive limit", () => {
-  assert.equal(budgetProblems({ scope: "group", key: "", limit: 1000 }).length, 1);
-  assert.equal(budgetProblems({ scope: "total", key: "", limit: 0 }).length, 1);
-  assert.deepEqual(budgetProblems({ scope: "category", key: "Groceries", limit: 400_000 }), []);
+test("a new budget needs a name and a positive limit", () => {
+  assert.equal(newBudgetProblems({ name: "", limit: 1000, categoryIds: [] }).length, 1);
+  assert.equal(newBudgetProblems({ name: "Mercado", limit: 0, categoryIds: [] }).length, 1);
+  assert.deepEqual(newBudgetProblems({ name: "Mercado", limit: 470_000, categoryIds: ["x"] }), []);
 });

@@ -12,7 +12,7 @@ import type { Command } from "@/components/CommandPalette";
  * this is the function that changes — nothing in the component.
  */
 export async function listCommands(): Promise<Command[]> {
-  const [posts, projects, pages, games, books, subscriptions, tasks, ideas, notes, courses, opportunities] = await Promise.all([
+  const [posts, projects, pages, games, books, subscriptions, tasks, ideas, courses, work] = await Promise.all([
     db.post.findMany({
       take: 50,
       orderBy: { updatedAt: "desc" },
@@ -33,16 +33,13 @@ export async function listCommands(): Promise<Command[]> {
     db.subscription.findMany({ take: 100, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.task.findMany({ where: { status: { in: ["inbox", "planned"] } }, take: 100, select: { id: true, title: true } }),
     db.contentIdea.findMany({ where: { postId: null }, take: 100, select: { id: true, title: true } }),
-    db.note.findMany({ take: 200, orderBy: { updatedAt: "desc" }, select: { id: true, title: true } }),
     db.course.findMany({ take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
-    db.opportunity.findMany({ take: 100, orderBy: { updatedAt: "desc" }, select: { id: true, title: true } }),
+    db.clientProject.findMany({ take: 100, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, company: true } }),
   ]);
 
   return [
-    // A note has its own address, so the palette opens the note itself.
-    ...notes.map((note) => ({ id: `note:${note.id}`, label: note.title, kind: "Nota", href: `/notas?nota=${note.id}` })),
     ...courses.map((course) => ({ id: `course:${course.id}`, label: course.title, kind: "Curso", href: "/aprendizaje" })),
-    ...opportunities.map((o) => ({ id: `opportunity:${o.id}`, label: o.title, kind: "Oportunidad", href: "/oportunidades" })),
+    ...work.map((w) => ({ id: `work:${w.id}`, label: `${w.title} · ${w.company}`, kind: "Trabajo", href: "/trabajos" })),
     ...posts.map((post) => ({
       id: `post:${post.id}`,
       // Falls back to the slug: a new draft has no title yet, and it is exactly

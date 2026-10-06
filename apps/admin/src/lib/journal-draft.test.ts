@@ -173,11 +173,11 @@ test("cursos: terminar se afirma solo con fecha que lo respalde, y publicar lleg
   );
 });
 
-test("oportunidades: ganar destaca, anotar es mantenimiento", () => {
-  const won = describeAudit({ action: "update", entityType: "opportunity", diff: { title: "Acme", stage: "won" } });
-  assert.equal(won?.text, "Ganaste «Acme»");
-  assert.equal(won?.tally, "opportunity-won");
-  const note = describeAudit({ action: "update", entityType: "opportunity", diff: { title: "Acme", entry: true } });
-  assert.equal(note?.text, "Anotaste en «Acme»");
-  assert.equal(note?.highlight, false);
+test("trabajos: empezar y terminar destacan, cada avance es el trabajo mismo", () => {
+  const done = describeAudit({ action: "update", entityType: "client_project", diff: { title: "Tienda", status: "finished" } });
+  assert.equal(done?.text, "Terminaste el trabajo «Tienda»");
+  assert.equal(done?.tally, "work-finished");
+  const step = describeAudit({ action: "update", entityType: "client_project", diff: { title: "Tienda", entry: true, status: "in_progress" } });
+  assert.equal(step?.text, "Avanzaste en «Tienda»");
+  assert.equal(step?.highlight, false);
 });

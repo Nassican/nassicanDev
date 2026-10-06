@@ -39,7 +39,6 @@ export type NavIcon =
   | "focus"
   | "speed"
   | "course"
-  | "note"
   | "work"
   | "budget";
 
@@ -78,8 +77,7 @@ export const navigation: NavSection[] = [
       { label: "Dashboard", href: "/", icon: "dashboard", ready: true },
       { label: "Pendientes", href: "/pendientes", icon: "task", ready: true },
       { label: "Enfoque", href: "/enfoque", icon: "focus", ready: true },
-      { label: "Notas", href: "/notas", icon: "note", ready: true },
-      { label: "Oportunidades", href: "/oportunidades", icon: "work", ready: true },
+      { label: "Trabajos", href: "/trabajos", icon: "work", ready: true },
     ],
   },
   {

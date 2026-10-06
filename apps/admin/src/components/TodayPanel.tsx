@@ -54,7 +54,7 @@ export default function TodayPanel({
     view.renewals.length === 0 &&
     view.goals.length === 0 &&
     view.editorial.length === 0 &&
-    view.followUps.length === 0 &&
+    view.work.length === 0 &&
     !view.review;
 
   return (
@@ -236,17 +236,23 @@ export default function TodayPanel({
               </div>
             ) : null}
 
-            {view.followUps.length > 0 ? (
+            {view.work.length > 0 ? (
               <div className="flex flex-col gap-1.5">
-                <span className={labelClass}>Oportunidades</span>
+                <span className={labelClass}>Trabajos en marcha</span>
                 <ul className="flex flex-col gap-1 text-sm">
-                  {view.followUps.map((f) => (
-                    <li key={f.id} className="flex justify-between gap-3">
-                      <Link href="/oportunidades" className="min-w-0 truncate text-neutral-200 hover:underline">
-                        {f.nextStep ? `${f.nextStep} · ${f.title}` : f.title}
+                  {view.work.map((w) => (
+                    <li key={w.id} className="flex justify-between gap-3">
+                      <Link href="/trabajos" className="min-w-0 truncate text-neutral-200 hover:underline">
+                        {w.title} <span className="text-neutral-500">· {w.company}</span>
                       </Link>
-                      <span className={`shrink-0 text-[11px] ${f.overdue ? "text-red-400" : "text-amber-500"}`}>
-                        {f.overdue ? "atrasado" : "hoy"}
+                      <span className={`shrink-0 text-[11px] ${w.late ? "text-red-400" : w.quiet ? "text-amber-500" : "text-neutral-500"}`}>
+                        {w.late
+                          ? "entrega vencida"
+                          : w.daysQuiet === null
+                            ? "sin avances"
+                            : w.daysQuiet === 0
+                              ? "avanzaste hoy"
+                              : `hace ${w.daysQuiet} ${w.daysQuiet === 1 ? "día" : "días"}`}
                       </span>
                     </li>
                   ))}

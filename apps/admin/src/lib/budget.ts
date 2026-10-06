@@ -1,42 +1,50 @@
 import "server-only";
 
-import { db, type BudgetScope } from "@nassican/db";
+import { db, prismaJson } from "@nassican/db";
 import { calendarDate } from "@nassican/shared";
-import { daysIn, lineStatus, type LineStatus } from "@/lib/budget-draft";
+import { daysIn, lineStatus, periodPosition, type LineStatus } from "@/lib/budget-draft";
 import { TRANSFER_CATEGORY } from "@/lib/personal";
 import { getTimezone } from "@/lib/site-config";
 import { getTrm } from "@/lib/trm";
+import { readBudgetsWithSpending, type WalletBudgetLive } from "@/lib/wallet-budgets";
 
 /**
- * The month's budget against the Wallet mirror. Read-only towards Wallet, like
- * everything else here: the limits live in `budget_lines`, and the spending is
- * the mirror's own rows, filtered the way Personal filters them.
+ * The month's budget: Wallet's own budgets, read live with what Wallet computed
+ * as spent, plus the pace this panel adds.
  *
- * The month is UTC on both sides, for the reason Personal already wrote down:
- * Wallet stores a date-only record at 12:00Z, so a five-hour offset cannot move
- * it across a month, and the label and the rows then speak of the same month.
+ * Read live and not from the mirror because these numbers are the ones being
+ * acted on, and Wallet is the source a budget is edited in. If Wallet does not
+ * answer, the page falls back to the mirror and computes the spending itself
+ * from mirrored records — and says so, because the two can differ by whatever
+ * was logged since the last sync.
  */
 
-export type BudgetLineView = LineStatus & { id: string; scope: BudgetScope; key: string; label: string };
+export type BudgetCard = LineStatus & {
+  id: string;
+  name: string;
+  type: WalletBudgetLive["type"];
+  currencyCode: string;
+  categoryIds: string[];
+  /** Category names, or «todas» when the budget covers every category. */
+  categories: string[];
+  period: string;
+  recordCount: number | null;
+};
 
 export type BudgetView = {
+  source: "wallet" | "mirror";
+  /** Why it fell back to the mirror, when it did. */
+  error: string | null;
+  today: string;
   month: string;
-  current: boolean;
-  /** Day of the month the pace is measured at: today, or the last day of a past month. */
-  day: number;
-  daysInMonth: number;
-  lines: BudgetLineView[];
-  /** All expenses of the month, budgeted or not. */
-  monthSpend: number;
-  /** Groups with spending and no line of their own, biggest first. */
+  cards: BudgetCard[];
+  closed: { id: string; name: string }[];
+  /** Spending this month in categories no open budget covers, by group. */
   unbudgeted: { group: string; spent: number }[];
-  /** Renewals still to come this month, in pesos where it can be said. */
   renewals: { name: string; on: string; cop: number | null; price: number; currency: string }[];
-  /** What the wish lists would cost, if bought: games, books and courses. */
   wishlist: number;
-  options: { groups: string[]; categories: { name: string; group: string | null }[] };
+  categories: { id: string; name: string; group: string }[];
   lastSync: string | null;
-  /** Whole days since that sync, measured on the server: null if never. */
   syncDays: number | null;
 };
 
@@ -45,27 +53,25 @@ const monthRange = (month: string) => {
   return { gte: new Date(Date.UTC(y, m - 1, 1)), lt: new Date(Date.UTC(y, m, 1)) };
 };
 
-export async function getBudget(requested?: string): Promise<BudgetView> {
+/** Expenses as Personal counts them: no transfers, by id or by category. */
+const expensesIn = (month: string) => ({
+  amount: { lt: 0 },
+  transferId: null,
+  categoryId: { not: TRANSFER_CATEGORY },
+  recordDate: monthRange(month),
+});
+
+export async function getBudget(): Promise<BudgetView> {
   const today = calendarDate(await getTimezone());
-  const month = requested && /^\d{4}-(0[1-9]|1[0-2])$/.test(requested) ? requested : today.slice(0, 7);
-  const current = month === today.slice(0, 7);
-  const total = daysIn(month);
-  const day = current ? Number(today.slice(8, 10)) : month < today.slice(0, 7) ? total : 0;
+  const month = today.slice(0, 7);
 
-  const expenses = {
-    amount: { lt: 0 },
-    transferId: null,
-    categoryId: { not: TRANSFER_CATEGORY },
-    recordDate: monthRange(month),
-  };
-
-  const [lines, byGroup, byCategory, categories, subscriptions, trm, games, books, courses, sync] = await Promise.all([
-    db.budgetLine.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
-    db.walletRecord.groupBy({ by: ["categoryGroup"], where: expenses, _sum: { amount: true } }),
-    db.walletRecord.groupBy({ by: ["categoryName"], where: expenses, _sum: { amount: true } }),
+  const [live, mirror, byCategory, categories, subscriptions, trm, games, books, courses, sync] = await Promise.all([
+    readBudgetsWithSpending(),
+    db.walletBudget.findMany({ orderBy: { name: "asc" } }),
+    db.walletRecord.groupBy({ by: ["categoryId", "categoryGroup"], where: expensesIn(month), _sum: { amount: true } }),
     db.walletCategory.findMany({
       where: { archived: false, id: { not: TRANSFER_CATEGORY } },
-      select: { name: true, groupName: true },
+      select: { id: true, name: true, groupName: true },
       orderBy: [{ groupName: "asc" }, { name: "asc" }],
     }),
     db.subscription.findMany({
@@ -83,46 +89,67 @@ export async function getBudget(requested?: string): Promise<BudgetView> {
     }),
   ]);
 
-  // Spending as a positive magnitude: the mirror keeps Wallet's sign, and a
-  // budget reads «gastaste 70.000», not «−70.000».
-  const magnitude = (sum: { amount: unknown }) => Math.abs(Number(sum.amount ?? 0));
-  const groupSpend = new Map(byGroup.map((r) => [r.categoryGroup, magnitude(r._sum)]));
-  const categorySpend = new Map(byCategory.map((r) => [r.categoryName, magnitude(r._sum)]));
-  const monthSpend = [...groupSpend.values()].reduce((n, v) => n + v, 0);
+  const nameOf = new Map(categories.map((c) => [c.id, c.name]));
+  const spentBy = new Map(byCategory.map((r) => [r.categoryId, Math.abs(Number(r._sum.amount ?? 0))]));
+  const localSpend = (ids: string[]) =>
+    ids.length === 0 ? [...spentBy.values()].reduce((n, v) => n + v, 0) : ids.reduce((n, id) => n + (spentBy.get(id) ?? 0), 0);
+  const labels = (ids: string[]) => (ids.length === 0 ? ["todas las categorías"] : ids.map((id) => nameOf.get(id) ?? "categoría archivada"));
 
-  const views: BudgetLineView[] = lines.map((line) => {
-    const spent =
-      line.scope === "total" ? monthSpend : line.scope === "group" ? (groupSpend.get(line.key) ?? 0) : (categorySpend.get(line.key) ?? 0);
-    return {
-      id: line.id,
-      scope: line.scope,
-      key: line.key,
-      label: line.scope === "total" ? "Todo el mes" : line.key,
-      ...lineStatus(spent, Number(line.monthlyLimit), day, total),
-    };
-  });
+  const monthDays = periodPosition(`${month}-01`, `${month}-${String(daysIn(month)).padStart(2, "0")}`, today);
 
-  const budgetedGroups = new Set(lines.filter((l) => l.scope === "group").map((l) => l.key));
-  // A category line covers part of its group; the group still counts as
-  // unbudgeted for the rest, so it is listed with what the lines do not cover.
-  const coveredByCategory = new Map<string, number>();
-  for (const line of lines.filter((l) => l.scope === "category")) {
-    const group = categories.find((c) => c.name === line.key)?.groupName;
-    if (group) coveredByCategory.set(group, (coveredByCategory.get(group) ?? 0) + (categorySpend.get(line.key) ?? 0));
+  let cards: BudgetCard[];
+  if (live.ok) {
+    cards = live.value
+      .filter((b) => b.type !== "BUDGET_ALL")
+      .map((b) => {
+        const current = b.spending?.current;
+        const position = current?.periodStart && current.periodEnd ? periodPosition(current.periodStart, current.periodEnd, today) : monthDays;
+        return {
+          id: b.id,
+          name: b.name,
+          type: b.type,
+          currencyCode: b.currencyCode,
+          categoryIds: b.categoryIds ?? [],
+          categories: labels(b.categoryIds ?? []),
+          period: current?.period ?? month,
+          recordCount: current?.recordCount ?? null,
+          ...lineStatus(current?.spent ?? 0, current?.effectiveLimit ?? b.limit ?? 0, position.day, position.days),
+        };
+      });
+  } else {
+    // The mirror knows the limits and the categories; the spending is computed
+    // here from mirrored records, monthly budgets only.
+    cards = mirror
+      .filter((b) => !b.closed && b.type === "BUDGET_INTERVAL_MONTH")
+      .map((b) => ({
+        id: b.id,
+        name: b.name,
+        type: b.type as WalletBudgetLive["type"],
+        currencyCode: b.currencyCode,
+        categoryIds: b.categoryIds,
+        categories: labels(b.categoryIds),
+        period: month,
+        recordCount: null,
+        ...lineStatus(localSpend(b.categoryIds), Number(b.limitAmount), monthDays.day, monthDays.days),
+      }));
   }
-  const unbudgeted = [...groupSpend]
-    .filter(([group]) => group && !budgetedGroups.has(group))
-    .map(([group, spent]) => ({ group: group!, spent: spent - (coveredByCategory.get(group!) ?? 0) }))
-    .filter((g) => g.spent > 0.5)
-    .sort((a, b) => b.spent - a.spent);
 
-  const end = `${month}-${String(total).padStart(2, "0")}`;
-  const from = current ? today : `${month}-01`;
+  const covered = new Set(cards.flatMap((c) => c.categoryIds));
+  const coversAll = cards.some((c) => c.categoryIds.length === 0);
+  const groups = new Map<string, number>();
+  if (!coversAll) {
+    for (const r of byCategory) {
+      if (!r.categoryId || covered.has(r.categoryId)) continue;
+      const group = r.categoryGroup ?? "Sin grupo";
+      groups.set(group, (groups.get(group) ?? 0) + Math.abs(Number(r._sum.amount ?? 0)));
+    }
+  }
+
+  const end = `${month}-${String(monthDays.days).padStart(2, "0")}`;
   const renewals = subscriptions
     .filter((s) => {
       const on = s.nextRenewal!;
-      // A renewal written as a month is «this month», not a day nobody chose.
-      return on.length === 7 ? on === month && current : on.slice(0, 10) >= from && on.slice(0, 10) <= end;
+      return on.length === 7 ? on === month : on.slice(0, 10) >= today && on.slice(0, 10) <= end;
     })
     .map((s) => {
       const price = Number(s.price);
@@ -132,42 +159,70 @@ export async function getBudget(requested?: string): Promise<BudgetView> {
     .sort((a, b) => a.on.localeCompare(b.on));
 
   return {
+    source: live.ok ? "wallet" : "mirror",
+    error: live.ok ? null : live.reason,
+    today,
     month,
-    current,
-    day,
-    daysInMonth: total,
-    lines: views,
-    monthSpend,
-    unbudgeted,
+    cards,
+    closed: mirror.filter((b) => b.closed).map((b) => ({ id: b.id, name: b.name })),
+    unbudgeted: [...groups].map(([group, spent]) => ({ group, spent })).filter((g) => g.spent > 0.5).sort((a, b) => b.spent - a.spent),
     renewals,
     wishlist: [games, books, courses].reduce((n, r) => n + Number(r._sum.price ?? 0), 0),
-    options: {
-      groups: [...new Set(categories.flatMap((c) => (c.groupName ? [c.groupName] : [])))],
-      categories: categories.map((c) => ({ name: c.name, group: c.groupName })),
-    },
+    categories: categories.map((c) => ({ id: c.id, name: c.name, group: c.groupName ?? "Sin grupo" })),
     lastSync: sync?.startedAt.toISOString() ?? null,
     syncDays: sync ? Math.floor((Date.now() - sync.startedAt.getTime()) / 86_400_000) : null,
   };
 }
 
-export async function saveLine(line: { scope: BudgetScope; key: string; limit: number }): Promise<void> {
-  const key = line.scope === "total" ? "" : line.key.trim();
-  const last = await db.budgetLine.aggregate({ _max: { position: true } });
-  await db.budgetLine.upsert({
-    where: { scope_key: { scope: line.scope, key } },
-    update: { monthlyLimit: line.limit },
-    create: { scope: line.scope, key, monthlyLimit: line.limit, position: (last._max.position ?? -1) + 1 },
-  });
+/**
+ * After a write, the mirror is updated from what Wallet answered, so Movimientos
+ * and the dashboard see the change before the next full sync.
+ */
+export async function mirrorBudget(b: WalletBudgetLive): Promise<void> {
+  const fields = {
+    name: b.name,
+    limitAmount: b.spending?.current?.effectiveLimit ?? b.limit ?? 0,
+    currencyCode: b.currencyCode,
+    type: b.type,
+    closed: b.closed ?? false,
+    accountIds: prismaJson.strings(b.accountIds ?? []),
+    categoryIds: prismaJson.strings(b.categoryIds ?? []),
+    syncedAt: new Date(),
+  };
+  await db.walletBudget.upsert({ where: { id: b.id }, update: fields, create: { id: b.id, ...fields } });
 }
 
-export async function deleteLine(id: string): Promise<string> {
-  const line = await db.budgetLine.delete({ where: { id } });
-  return line.scope === "total" ? "Todo el mes" : line.key;
-}
-
-/** For the dashboard: this month's lines that are over, or heading over. */
-export async function budgetWarnings(): Promise<BudgetLineView[]> {
-  if ((await db.budgetLine.count()) === 0) return [];
-  const view = await getBudget();
-  return view.lines.filter((l) => l.pace === "exceeded" || l.pace === "over");
+/**
+ * For the dashboard: monthly budgets over their limit or heading there, from
+ * the mirror. No call to Wallet — the dashboard opens every day, and the
+ * budget page is where the live numbers are read.
+ */
+export async function budgetWarnings(): Promise<BudgetCard[]> {
+  const budgets = await db.walletBudget.findMany({ where: { closed: false, type: "BUDGET_INTERVAL_MONTH" } });
+  if (budgets.length === 0) return [];
+  const today = calendarDate(await getTimezone());
+  const month = today.slice(0, 7);
+  const rows = await db.walletRecord.groupBy({ by: ["categoryId"], where: expensesIn(month), _sum: { amount: true } });
+  const spentBy = new Map(rows.map((r) => [r.categoryId, Math.abs(Number(r._sum.amount ?? 0))]));
+  const days = daysIn(month);
+  const day = Number(today.slice(8, 10));
+  return budgets
+    .map((b) => {
+      const spent =
+        b.categoryIds.length === 0
+          ? [...spentBy.values()].reduce((n, v) => n + v, 0)
+          : b.categoryIds.reduce((n, id) => n + (spentBy.get(id) ?? 0), 0);
+      return {
+        id: b.id,
+        name: b.name,
+        type: b.type as WalletBudgetLive["type"],
+        currencyCode: b.currencyCode,
+        categoryIds: b.categoryIds,
+        categories: [],
+        period: month,
+        recordCount: null,
+        ...lineStatus(spent, Number(b.limitAmount), day, days),
+      };
+    })
+    .filter((c) => c.pace === "exceeded" || c.pace === "over");
 }

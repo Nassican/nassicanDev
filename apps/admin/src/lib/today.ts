@@ -4,7 +4,7 @@ import { db } from "@nassican/db";
 import { calendarDate } from "@nassican/shared";
 import { lateEditorial } from "@/lib/editorial";
 import { focusBetween } from "@/lib/focus";
-import { dueFollowUps } from "@/lib/opportunities";
+import { activeWork } from "@/lib/client-projects";
 import { habitsToday } from "@/lib/goals";
 import { missingReview, readActivity } from "@/lib/journal";
 import { addDays, longDayLabel, mondayOf } from "@/lib/journal-draft";
@@ -45,8 +45,8 @@ export type TodayView = {
   editorial: { title: string; targetDate: string; postId: string | null }[];
   /** Closed focus blocks today. */
   focus: { minutes: number; blocks: number };
-  /** Opportunities whose next step is due today or already late. */
-  followUps: { id: string; title: string; nextStep: string | null; overdue: boolean }[];
+  /** Work in progress for companies, and how long since each one moved. */
+  work: { id: string; title: string; company: string; daysQuiet: number | null; quiet: boolean; late: boolean }[];
 };
 
 export async function getToday(): Promise<TodayView> {
@@ -54,7 +54,7 @@ export async function getToday(): Promise<TodayView> {
   const today = calendarDate(timezone);
   const yesterday = addDays(today, -1);
 
-  const [tasks, habits, priorities, subscriptions, goals, activity, review, editorial, focus, followUps] = await Promise.all([
+  const [tasks, habits, priorities, subscriptions, goals, activity, review, editorial, focus, work] = await Promise.all([
     db.task.findMany({
       where: { status: "planned" },
       orderBy: { plannedFor: "asc" },
@@ -78,7 +78,7 @@ export async function getToday(): Promise<TodayView> {
     missingReview(),
     lateEditorial(today),
     focusBetween(today, addDays(today, 1), timezone),
-    dueFollowUps(today),
+    activeWork(today),
   ]);
 
   return {
@@ -111,6 +111,6 @@ export async function getToday(): Promise<TodayView> {
     review,
     editorial,
     focus: { minutes: focus.reduce((n, b) => n + b.minutes, 0), blocks: focus.length },
-    followUps,
+    work,
   };
 }
