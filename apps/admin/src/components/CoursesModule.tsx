@@ -24,8 +24,15 @@ import { fold } from "@/lib/list-filters";
 import { quickText } from "@/lib/quick-edit";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 
-const field =
-  "w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
+/*
+ * The look of a field, without a width. `field` is the full-width one; a
+ * narrow field builds on `fieldBase` instead of adding `w-24` to `field`:
+ * both would be in the class list, and `w-full` wins in the stylesheet — which
+ * is how a status select once took the whole row and squeezed the title out.
+ */
+const fieldBase =
+  "rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
+const field = `w-full ${fieldBase}`;
 const labelClass = "font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500";
 const small =
   "inline-flex items-center gap-1 rounded border border-neutral-800 px-2 py-1 text-xs text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:opacity-40";
@@ -256,7 +263,7 @@ export default function CoursesModule({
             onChange={(e) => setQuery(e.target.value)}
           />
           <select
-            className={`${field} w-auto`}
+            className={fieldBase}
             value={onlyStatus}
             aria-label="Estado"
             onChange={(e) => setOnlyStatus(e.target.value as CourseStatus | "")}
@@ -340,7 +347,7 @@ export default function CoursesModule({
                 </span>
 
                 <select
-                  className={`${field} w-auto shrink-0`}
+                  className={`${fieldBase} shrink-0`}
                   value={course.status}
                   disabled={pending}
                   aria-label={`Estado de ${course.title}`}

@@ -2373,6 +2373,25 @@ En la bitácora, empezar y terminar destacan; cada avance aparece como «Avanzas
 en…», plegado por día como cualquier repetición y sin el peso de un hito. A la
 papelera va con sus avances y vuelve entero — comprobado.
 
+**Un fallo que solo se ve mirando, y que estuvo en tres módulos.** La primera
+versión se entregó sin abrirla en un navegador y salió rota: el desplegable de
+estado ocupaba la fila entera, el título quedaba aplastado a cero y la empresa y
+las fechas caían palabra por palabra. La causa: el estilo base de los campos
+(`field`) lleva `w-full`, y se le añadía `w-auto` o `w-24` creyendo que lo
+sobrescribía. Las dos clases quedan en la lista y **en la hoja generada gana
+`w-full`** — el orden lo decide Tailwind, no el orden en que se escriben. Typecheck,
+lint, pruebas y build pasaban.
+
+Estaba igual en Aprendizaje y en Multimedia. En los tres hay ahora un `fieldBase`
+sin ancho y `field` es `w-full` más eso: un campo estrecho parte de `fieldBase`.
+**No añadas una clase de ancho a `field`.** `min-w-*`, `max-w-*` y `flex-1` sí
+funcionan sobre él, porque no compiten con `width`.
+
+Se verificó con capturas reales —Chrome del sistema dirigido con `puppeteer-core`
+instalado fuera del repositorio, con una sesión de prueba y datos desechables—, a
+1440 px y a 390 px. Es el método a repetir con cualquier pantalla nueva: **una
+interfaz no está comprobada hasta que alguien la ha visto.**
+
 ### Presupuesto: los presupuestos de Wallet, editados aquí
 
 En `app.nassican.com/presupuesto`, junto a Movimientos. **Es la única parte del

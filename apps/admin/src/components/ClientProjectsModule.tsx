@@ -21,8 +21,15 @@ import { formatPartialDate } from "@/lib/draft-fields";
 import { fold } from "@/lib/list-filters";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 
-const field =
-  "w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
+/*
+ * The look of a field, without a width. `field` is the full-width one; a
+ * narrow field builds on `fieldBase` instead of adding `w-24` to `field`:
+ * both would be in the class list, and `w-full` wins in the stylesheet — which
+ * is how a status select once took the whole row and squeezed the title out.
+ */
+const fieldBase =
+  "rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
+const field = `w-full ${fieldBase}`;
 const labelClass = "font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500";
 const small =
   "inline-flex items-center gap-1 rounded border border-neutral-800 px-2 py-1 text-xs text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:opacity-40";
@@ -51,7 +58,8 @@ function toDraft(p: ClientProjectRow): ClientProjectDraft {
     startedAt: p.startedAt ?? "",
     dueDate: p.dueDate ?? "",
     finishedAt: p.finishedAt ?? "",
-    amount: p.amount === null ? "" : String(p.amount),
+    // Grouped the way it is read — «4.500.000» — and the way the field reads it back.
+    amount: p.amount === null ? "" : p.amount.toLocaleString("es-CO", { maximumFractionDigits: 2 }),
     currency: p.currency ?? "COP",
   };
 }
@@ -139,8 +147,9 @@ export default function ClientProjectsModule({ view, actions }: { view: ClientPr
               {p.amount !== null && p.currency ? <span>{money(p.amount, p.currency)}</span> : null}
             </span>
           </button>
+          <div className="flex w-full shrink-0 items-center gap-1 sm:w-auto">
           <select
-            className={`${field} w-auto shrink-0`}
+            className={`${fieldBase} min-w-0 flex-1 sm:flex-none`}
             value={p.status}
             disabled={pending}
             aria-label={`Estado de ${p.title}`}
@@ -176,6 +185,7 @@ export default function ClientProjectsModule({ view, actions }: { view: ClientPr
               <BsChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
             </button>
           </span>
+          </div>
         </div>
 
         {askFinish === p.id && !p.finishedAt ? (
@@ -465,50 +475,54 @@ function Details({
         }}
       >
         <span className={labelClass}>Anotar un avance</span>
-        <div className="flex flex-wrap gap-2">
-          <div className="w-40">
+        <div className="flex flex-wrap items-start gap-2">
+          <div className="w-44">
             <DateField label="del avance" value={at} onChange={setAt} />
           </div>
           <input
-            className={`${field} min-w-0 flex-1`}
+            className={`${fieldBase} min-w-48 flex-1`}
             value={text}
             placeholder="Terminé el carrito · Reunión de revisión con el cliente"
             aria-label="Qué avanzaste"
             onChange={(e) => setText(e.target.value)}
           />
           <input
-            className={`${field} w-24`}
+            className={`${fieldBase} w-20`}
             inputMode="decimal"
             value={hours}
             placeholder="Horas"
             aria-label="Horas (opcional)"
             onChange={(e) => setHours(e.target.value)}
           />
-        </div>
-        <div>
-          <button type="submit" className={small} disabled={pending || !text.trim()}>
+          <button type="submit" className={`${small} h-[34px]`} disabled={pending || !text.trim()}>
             Anotar
           </button>
         </div>
       </form>
 
       {row.entries.length > 0 ? (
-        <ol className="flex flex-col gap-1.5 border-l border-neutral-800 pl-3" aria-label="Bitácora del trabajo">
+        <ol className="flex flex-col gap-2.5 border-l border-neutral-800 pl-3 sm:gap-1.5" aria-label="Bitácora del trabajo">
           {row.entries.map((e) => (
-            <li key={e.id} className="flex items-start gap-2 text-xs">
+            // On a phone the date sits above the text, which then has the whole
+            // width; beside it, a long entry wrapped into a column four words wide.
+            <li key={e.id} className="flex flex-wrap items-start gap-x-2 gap-y-0.5 text-xs">
               <span className="w-24 shrink-0 font-mono text-[11px] text-neutral-500">{formatPartialDate(e.at)}</span>
-              <span className="min-w-0 flex-1 whitespace-pre-line text-neutral-300">{e.text}</span>
-              {e.hours !== null ? <span className="shrink-0 font-mono text-[11px] text-neutral-500">{e.hours} h</span> : null}
-              <button
-                type="button"
-                aria-label="Borrar este avance"
-                className="rounded p-1 text-neutral-600 hover:text-red-400"
-                onClick={() => {
-                  if (confirm("¿Borrar este avance de la bitácora?")) onRemoveEntry(e.id);
-                }}
-              >
-                <BsX className="h-3.5 w-3.5" aria-hidden />
-              </button>
+              <span className="order-last min-w-0 basis-full whitespace-pre-line text-neutral-300 sm:order-none sm:flex-1 sm:basis-0">
+                {e.text}
+              </span>
+              <span className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
+                {e.hours !== null ? <span className="font-mono text-[11px] text-neutral-500">{e.hours} h</span> : null}
+                <button
+                  type="button"
+                  aria-label="Borrar este avance"
+                  className="rounded p-1 text-neutral-600 hover:text-red-400"
+                  onClick={() => {
+                    if (confirm("¿Borrar este avance de la bitácora?")) onRemoveEntry(e.id);
+                  }}
+                >
+                  <BsX className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </span>
             </li>
           ))}
         </ol>

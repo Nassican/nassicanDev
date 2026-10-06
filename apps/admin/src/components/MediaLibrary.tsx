@@ -49,8 +49,15 @@ type Actions = {
   trash: (ids: string[]) => Promise<ActionResult>;
 };
 
-const field =
-  "w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
+/*
+ * The look of a field, without a width. `field` is the full-width one; a
+ * narrow field builds on `fieldBase` instead of adding `w-24` to `field`:
+ * both would be in the class list, and `w-full` wins in the stylesheet — which
+ * is how a status select once took the whole row and squeezed the title out.
+ */
+const fieldBase =
+  "rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
+const field = `w-full ${fieldBase}`;
 const labelStyle = "font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500";
 const ghost =
   "rounded border border-neutral-800 px-2.5 py-1 text-xs text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-200 disabled:opacity-40";
@@ -645,7 +652,7 @@ export default function MediaLibrary({
               >
                 <input
                   autoFocus
-                  className={`${field} w-56`}
+                  className={`${fieldBase} w-56`}
                   value={renaming}
                   maxLength={60}
                   aria-label="Nombre de la carpeta"
@@ -726,7 +733,7 @@ export default function MediaLibrary({
 
             <div className="flex items-center gap-2 sm:ml-auto">
               <select
-                className={`${field} w-auto`}
+                className={fieldBase}
                 value={view.sort}
                 aria-label="Orden"
                 onChange={(e) => go({ sort: e.target.value as MediaSort })}
@@ -933,7 +940,7 @@ export default function MediaLibrary({
           ) : null}
           <span className="hidden h-4 w-px bg-neutral-800 sm:block" aria-hidden />
           <select
-            className={`${field} w-auto`}
+            className={fieldBase}
             value={moveTarget}
             aria-label="Carpeta de destino"
             onChange={(e) => setMoveTarget(e.target.value)}
