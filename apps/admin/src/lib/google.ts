@@ -12,12 +12,19 @@ export type TokenResult =
 export const SCOPES = {
   analytics: "analytics.readonly",
   searchConsole: "webmasters.readonly",
+  /**
+   * PageSpeed needs no data scope at all: any token from the project only tells
+   * Google whose quota to charge. `openid` is the smallest one there is, and the
+   * operator's login already has it.
+   */
+  pagespeed: "openid",
 } as const;
 
 /** The full scope URLs a service account asks for; the short names are ours. */
 const SCOPE_URLS: Record<string, string> = {
   "analytics.readonly": "https://www.googleapis.com/auth/analytics.readonly",
   "webmasters.readonly": "https://www.googleapis.com/auth/webmasters.readonly",
+  openid: "openid",
 };
 
 // ---------------------------------------------------------- service account

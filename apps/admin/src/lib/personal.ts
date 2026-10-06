@@ -21,7 +21,7 @@ import { db } from "@nassican/db";
  * this id the top of the spending ranking was 36 million pesos that were never
  * spent on anything. The id is fixed across every Wallet account.
  */
-const TRANSFER_CATEGORY = "5c5c4e21-00c8-8000-8000-000000000000";
+export const TRANSFER_CATEGORY = "5c5c4e21-00c8-8000-8000-000000000000";
 
 export type PersonalOverview = {
   games: {

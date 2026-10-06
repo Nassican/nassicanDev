@@ -987,8 +987,8 @@ bajo demanda — que es justo el caso que vale la pena medir.
 
 `apps/admin/vercel.json` dispara `GET /api/cron/daily` a las 06:00 UTC. Hace lo
 que antes solo ocurría si alguien abría el módulo: comprobar enlaces, tomar la
-instantánea de contenido, sincronizar GA4, Search Console y Vercel, y vaciar de
-la papelera lo que lleva más de 30 días.
+instantánea de contenido, sincronizar GA4, Search Console y Vercel, medir el
+rendimiento con PageSpeed y vaciar de la papelera lo que lleva más de 30 días.
 
 Medido en producción local: **18 s de reloj** la primera vez, 12 s la segunda.
 Los cuatro externos van en paralelo porque son cuatro servicios distintos, así
@@ -1374,8 +1374,8 @@ Las dos quedan fuera del proxy de idiomas porque su matcher ya excluye `/api/`.
 
 ### Personal: lo que no es el sitio
 
-En `app.nassican.com/personal`, con Movimientos, Suscripciones, Juegos, Libros y
-Bitácora debajo. Las cosas que comparten el login con el panel sin tener nada que
+En `app.nassican.com/personal`, con Movimientos, Presupuesto, Metas y hábitos,
+Suscripciones, Juegos, Libros, Aprendizaje y Bitácora debajo. Las cosas que comparten el login con el panel sin tener nada que
 ver con la web.
 
 **Es la única sección que se pliega, y la única con página propia.** Las dos
@@ -2246,6 +2246,142 @@ bloque se niega, uno cerrado tres horas tarde cuenta 25 minutos, la nota vuelve
 por pendiente y por nombre, la bitácora y «Hoy» lo suman, y borrar el pendiente
 conserva el bloque. **No se ha probado en un navegador**: el aviso del sistema y
 el título de la pestaña están verificados en el código, no en pantalla.
+
+### Rendimiento: PageSpeed Insights en el planificador
+
+En `app.nassican.com/rendimiento`, en «Medición». Cada noche el cron mide cinco
+cosas con Lighthouse —móvil en la portada, `/projects`, `/blog` y
+`/certificates`, y escritorio en la portada como referencia— y las guarda en
+`pagespeed_runs`, una fila por página, estrategia y día local. «Medir ahora» hace
+lo mismo al momento.
+
+**Sin clave, PageSpeed responde 429**, como Google Books: la cuota anónima es de
+todos los que llaman sin credenciales y estaba gastada el día en que se escribió
+esto. Pero la API no necesita permisos sobre ningún dato, solo saber a qué
+proyecto cobrar la cuota, así que **cualquier token del proyecto sirve**: la
+service account con el scope `openid`, el más pequeño que existe, o el del login
+del operador, que ya lo tiene. `PAGESPEED_API_KEY` gana si está puesta.
+
+**Falta un paso que no se puede hacer desde el código:** activar «PageSpeed
+Insights API» en el proyecto de Google Cloud de la service account. Es gratis y no
+pide facturación. Mientras no esté, la sincronización falla con ese mensaje
+exacto —se comprobó contra Google: «has not been used in project … or it is
+disabled»— y el dashboard lo enseña como sincronización detenida, que es lo que
+es. `explainError` traduce los dos fallos conocidos a una instrucción.
+
+**Solo avisa de una caída de 10 puntos o de bajar de 50.** Lighthouse varía unos
+puntos entre una carga y otra sin que nada cambie —la máquina que Google prestó
+ese minuto—, y avisar de cada oscilación es como un aviso aprende a ser ignorado.
+Las bandas son las de Lighthouse (90 y 50) y los umbrales de LCP, TBT y CLS los
+que publica Google; los colores siempre van con su palabra al lado.
+
+Es una fuente más de `sync-health`: entra en `SCHEDULED`, así que si el cron deja
+de medir, el dashboard lo dice. Restaurar una copia no la toca: es un espejo de
+una medición ajena, como GA4.
+
+### Edición rápida en las listas
+
+En Juegos, Libros, Suscripciones y Aprendizaje. Un botón «Edición rápida»
+convierte cada fila en campos —precio, horas, páginas, fechas, progreso—; Tab pasa
+de uno a otro y cada campo **se guarda al salir de él, solo si cambió**. Rellenar
+66 juegos con el formulario llevó 102 minutos de abrir y cerrar.
+
+`QuickField` se monta con `key={valor}`: cuando el servidor contesta con la fila
+nueva, el campo arranca de ella en vez de sincronizarse en un efecto. Un fallo deja
+lo escrito en el campo y dice por qué, para no perder el número mientras se
+arregla.
+
+Cada módulo tiene **una** acción con la lista cerrada de campos que acepta y cómo
+se lee cada uno (`parseQuick`). Son los mismos lectores que los formularios
+—`34.225` sigue siendo treinta y cuatro mil—, así que un valor escrito en la fila
+y en el editor no pueden guardarse distinto. Vacío sigue siendo «no lo sé», salvo
+el precio de una suscripción, que sin él no sirve para ningún total.
+
+**«¿Lo terminaste hoy?»** Marcar algo como terminado sin fecha de fin pregunta en
+la propia fila: «Sí, hoy», «Otro día…» o «No lo sé». La bitácora solo dice
+«Terminaste» cuando la fecha lo respalda, y este es el momento en que la fecha se
+sabe. No se estampa sola: poner al día una biblioteca vieja es la otra razón para
+marcar algo terminado. «Hoy» lo resuelve el servidor en la zona configurada.
+
+### Aprendizaje: la tercera biblioteca, y la que llega al sitio
+
+En `app.nassican.com/aprendizaje`, en «Personal». La misma forma que Juegos y
+Libros —estados, «lo quiero», lo pagado y sin abrir—, con lo que un curso tiene:
+plataforma, progreso, duración y horas dedicadas, fecha objetivo. Una fecha
+objetivo `2026-11` solo es «atrasada» cuando noviembre termina, como en el
+calendario editorial. Terminar un curso lo pone al 100 %: nadie escribe 100 el día
+que aprueba.
+
+**Un curso terminado pasa a Certificados desde su fila**, y de ahí al sitio. El
+formulario pide lo que el certificado necesita **en los dos idiomas** —la regla
+principal de este documento, aplicada al publicar—: el título en español sale del
+curso, el inglés no se adivina nunca. Una categoría que ya usan los certificados
+rellena las dos lenguas de una vez, para que los filtros de `/certificates` no
+crezcan con un casi-duplicado. Se invalida la etiqueta `certificates` del sitio y
+el curso queda enlazado (`certificate_id`, único): publicar dos veces se niega. El
+diploma se sube después desde Perfil.
+
+### Notas: Markdown que conserva los enlaces
+
+En `app.nassican.com/notas`, junto a Pendientes. Notas en Markdown con etiquetas,
+`[[enlaces entre notas]]` por título y «Enlazan aquí». Todas bajan de una vez
+—son texto de una persona— y buscar, filtrar por etiqueta y calcular los enlaces
+ocurre sin volver al servidor. La nota abierta vive en `?nota=`, escrita con
+`history.replaceState`, así que una nota es un enlace y ⌘K abre la nota misma.
+
+**No usan el parser de los artículos, a propósito.** Ese convierte Markdown en
+bloques y descarta la dirección de los enlaces, porque un bloque no tiene dónde
+guardarla. En una nota el enlace guardado suele ser lo importante, así que las
+notas tienen su propio lector (`parseNote`), pequeño y probado, que conserva cada
+dirección, cada `[[enlace]]` y cada URL suelta.
+
+**«Convertir en artículo»** sí pasa por el parser de los artículos: crea un
+borrador en Blogs, en español, con los bloques que caben, y **dice qué tuvo que
+simplificar** —«se conserva «la guía», se pierde https://…»— en el momento, no a
+mitad de escribir el artículo. Los `[[enlaces]]` llegan como su título. El slug
+sale de `freeSlug`, la misma función que usa una idea editorial: las dos son
+borradores que nacen de otra cosa. En la bitácora cuenta como «Empezaste a
+escribir».
+
+Guardar una nota solo se audita al crearla: se edita decenas de veces mientras se
+escribe, y la bitácora se llenaría de «editaste la nota».
+
+### Oportunidades: el próximo paso con fecha
+
+En `app.nassican.com/oportunidades`, junto a Pendientes. Empleos, clientes,
+reclutadores y colaboraciones, agrupados por etapa —por contactar, contactado, en
+conversación, propuesta— con las cerradas plegadas al final. **Cerrada son dos
+valores**, ganada y perdida, porque responden preguntas distintas después.
+
+La regla es la de Pendientes (Masicampo y Baumeister): una conversación abierta
+deja de rondar cuando tiene **un próximo paso en un día concreto**. Por eso una
+oportunidad abierta sin próximo paso es un aviso, no un silencio, y «Hoy» enseña
+las que vencen hoy o están atrasadas. Anotar lo que pasó puede mover el próximo
+paso en el mismo guardado: suelen ser el mismo momento. Cerrar pone fecha;
+reabrir la quita, para que «cerrada hace» no mienta. A la papelera va con su
+historial, y vuelve entera — comprobado.
+
+### Presupuesto: avisar antes de que el dinero se vaya
+
+En `app.nassican.com/presupuesto`, junto a Movimientos. Un límite al mes para el
+total, para un grupo de Wallet o para una categoría —los datos piden los dos
+niveles: «Food & Drinks» es un presupuesto, «Software, apps, games» otro—, en
+`budget_lines`. **Nunca escribe en Wallet**; el `WalletBudget` del espejo es otra
+cosa, los presupuestos de Wallet tal como Wallet los guarda.
+
+**Lo que lo hace un aviso previo es el ritmo.** El 70 % gastado el día 12 de un mes
+de 30 no es «70 %»: es ir treinta puntos por delante del mes, y a ese ritmo la
+línea cierra por encima. Cada barra lleva una marca en el día del mes, y la
+proyección solo avisa desde el día 5: con dos días, una cena proyecta un mes que no
+va a pasar.
+
+El gasto se cuenta como en Personal —sin transferencias, ni por `transfer_id` ni
+por la categoría Transfer, en meses UTC— y se comprobó que coincide al peso con la
+cifra de Personal. Abajo, los grupos con gasto y sin límite, de mayor a menor, y
+las renovaciones que faltan del mes en pesos (los dólares con la TRM). **Avisa de
+lo viejo que es el espejo**: Wallet se sincroniza a mano, y un presupuesto sobre
+datos de hace una semana dice que vas bien cuando no lo sabe. El dashboard avisa de
+una línea superada (urgente) o que va camino de pasarse.
 
 ### Usuarios: sesiones, roles y revocación
 

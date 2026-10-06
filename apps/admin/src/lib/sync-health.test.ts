@@ -22,6 +22,7 @@ const healthy = (): Run[] => [
   run({ source: "ga4" }),
   run({ source: "search_console" }),
   run({ source: "vercel" }),
+  run({ source: "pagespeed" }),
 ];
 
 test("todo al día no reporta nada", () => {
@@ -94,6 +95,7 @@ test("un éxito posterior a un fallo gana aunque llegue en la misma lista", () =
     run({ source: "link_check" }),
     run({ source: "search_console" }),
     run({ source: "vercel" }),
+    run({ source: "pagespeed" }),
   ];
   assert.deepEqual(syncProblems(runs, NOW), []);
 });
@@ -133,10 +135,10 @@ test("las fuentes manuales no se vigilan", () => {
   assert.deepEqual(syncProblems(runs, NOW), []);
 });
 
-test("sin ninguna ejecución, las cuatro vigiladas salen detenidas", () => {
+test("sin ninguna ejecución, las cinco vigiladas salen detenidas", () => {
   const problems = syncProblems([], NOW);
 
-  assert.equal(problems.length, 4);
+  assert.equal(problems.length, 5);
   assert.ok(problems.every((p) => p.kind === "stale"));
 });
 

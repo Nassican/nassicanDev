@@ -31,6 +31,11 @@ import {
   BsCalendarWeek,
   BsGraphUp,
   BsStopwatch,
+  BsLightning,
+  BsMortarboard,
+  BsStickies,
+  BsBriefcase,
+  BsPiggyBank,
   BsX,
 } from "react-icons/bs";
 import CommandPalette, { openCommandPalette, type Command } from "@/components/CommandPalette";
@@ -71,6 +76,11 @@ const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
   goal: BsBullseye,
   calendar: BsCalendarWeek,
   focus: BsStopwatch,
+  speed: BsLightning,
+  course: BsMortarboard,
+  note: BsStickies,
+  work: BsBriefcase,
+  budget: BsPiggyBank,
 };
 
 type PanelUser = {

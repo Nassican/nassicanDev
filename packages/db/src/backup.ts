@@ -501,7 +501,7 @@ export const REPLACED_ON_RESTORE = [
   "GameStore", "Game", "Book",
   "Subscription", "SubscriptionPayment", "JournalEntry", "JournalWeek",
   "WeekPriority", "Task", "Goal", "Habit", "HabitCheck", "ContentIdea",
-  "FocusBlock",
+  "FocusBlock", "Note", "Course", "Opportunity", "OpportunityEntry", "BudgetLine",
 ] as const satisfies readonly ModelName[];
 
 /**
@@ -523,6 +523,7 @@ export const KEPT_ON_RESTORE = [
   "AnalyticsDailySource", "AnalyticsDailyGeo", "AnalyticsDailyDevice",
   "VercelAnalyticsDaily", "Deployment", "UptimeCheck", "OutboundLink",
   "WalletAccount", "WalletCategory", "WalletRecord", "WalletBudget",
+  "PageSpeedRun",
 ] as const satisfies readonly ModelName[];
 
 /**

@@ -19,7 +19,7 @@ import type { SyncSource } from "@nassican/db";
  */
 
 /** What `/api/cron/daily` runs, and therefore what is expected to be fresh. */
-const SCHEDULED = ["link_check", "ga4", "search_console", "vercel"] as const;
+const SCHEDULED = ["link_check", "ga4", "search_console", "vercel", "pagespeed"] as const;
 
 /**
  * Deliberately not watched:
@@ -163,6 +163,7 @@ export const sourceLabels: Record<SyncSource, string> = {
   content_stats: "Estadísticas",
   link_check: "Enlaces",
   wallet: "Wallet",
+  pagespeed: "Rendimiento",
 };
 
 export const STALE_WINDOW_HOURS = STALE_HOURS;

@@ -142,6 +142,8 @@ export type LineKind =
   | "tasks"
   | "goals"
   | "focus"
+  | "learning"
+  | "work"
   | "data"
   | "note";
 
@@ -159,7 +161,9 @@ export type Tally =
   | "added"
   | "task-done"
   | "goal-achieved"
-  | "habit-done";
+  | "habit-done"
+  | "course-finished"
+  | "opportunity-won";
 
 export type AuditLine = {
   text: string;
@@ -192,6 +196,10 @@ const nouns: Record<string, string> = {
   profile: "el perfil",
   redirect: "una redirección",
   user: "un usuario",
+  course: "el curso",
+  note: "la nota",
+  opportunity: "la oportunidad",
+  certificate: "el certificado",
 };
 
 const kinds: Record<string, LineKind> = {
@@ -206,6 +214,9 @@ const kinds: Record<string, LineKind> = {
   wallet: "data",
   trash: "data",
   user: "data",
+  course: "learning",
+  certificate: "learning",
+  opportunity: "work",
 };
 
 const verbs: Record<string, string> = {
@@ -221,7 +232,7 @@ const verbs: Record<string, string> = {
 const SKIPPED = new Set(["session", "journal"]);
 
 /** Adding one of these is a decision about your life, not a maintenance edit. */
-const PERSONAL = new Set(["game", "book", "subscription"]);
+const PERSONAL = new Set(["game", "book", "subscription", "course", "opportunity"]);
 
 const quoted = (name: string | null) => (name ? ` «${name}»` : "");
 
@@ -266,6 +277,38 @@ export function describeAudit(fact: AuditFact): AuditLine | null {
     if (status === "backlog") return line(`Dejaste pendiente${quoted(name)}`, false);
     if (status === "wishlist") return line(`Apuntaste en «lo quiero»${quoted(name)}`, false);
   }
+
+  /*
+   * Courses read like books: finishing one is claimed only with an end date to
+   * back it. Publishing its certificate is the moment it reaches the site.
+   */
+  if (entityType === "course" && action === "update" && status) {
+    if (status === "finished") {
+      return finishedAround(fact.finishedAt, fact.on)
+        ? line(`Terminaste el curso${quoted(name)}`, true, "course-finished")
+        : line(`Marcaste como terminado el curso${quoted(name)}${when(fact.finishedAt)}`, false);
+    }
+    if (status === "in_progress") return line(`Empezaste el curso${quoted(name)}`, true);
+    if (status === "dropped") return line(`Dejaste el curso${quoted(name)}`, true);
+  }
+  if (entityType === "certificate" && action === "publish") {
+    return line(`Publicaste el certificado${quoted(name)}`, true, "published");
+  }
+
+  /*
+   * Opportunities: a stage moving is news, a note in the log is upkeep. Winning
+   * one is the highlight of a month, let alone a week.
+   */
+  if (entityType === "opportunity" && action === "update") {
+    const stage = pick("stage");
+    if (stage === "won") return line(`Ganaste${quoted(name)}`, true, "opportunity-won");
+    if (stage === "lost") return line(`Cerraste sin éxito${quoted(name)}`, false);
+    if (stage === "proposal") return line(`Enviaste propuesta en${quoted(name)}`, true);
+    if (stage === "conversation") return line(`Empezaste a conversar en${quoted(name)}`, true);
+    if (stage === "contacted") return line(`Contactaste en${quoted(name)}`, false);
+    if (diff.entry === true) return line(`Anotaste en${quoted(name)}`, false);
+  }
+  if (entityType === "note" && action === "create") return line(`Escribiste la nota${quoted(name)}`, false);
 
   if (entityType === "subscription") {
     const paid = pick("paid");
@@ -408,6 +451,8 @@ const tallyWords: Record<Tally, [string, string]> = {
   "task-done": ["pendiente completado", "pendientes completados"],
   "goal-achieved": ["meta lograda", "metas logradas"],
   "habit-done": ["hábito cumplido", "hábitos cumplidos"],
+  "course-finished": ["curso terminado", "cursos terminados"],
+  "opportunity-won": ["oportunidad ganada", "oportunidades ganadas"],
 };
 
 const tallyKinds: Record<Tally, LineKind> = {
@@ -421,6 +466,8 @@ const tallyKinds: Record<Tally, LineKind> = {
   "task-done": "tasks",
   "goal-achieved": "goals",
   "habit-done": "goals",
+  "course-finished": "learning",
+  "opportunity-won": "work",
 };
 
 /**

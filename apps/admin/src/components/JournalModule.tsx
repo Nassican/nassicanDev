@@ -18,6 +18,8 @@ import {
   BsPencilSquare,
   BsPlus,
   BsStopwatch,
+  BsMortarboard,
+  BsBriefcase,
   BsTrash,
 } from "react-icons/bs";
 import DateField from "@/components/DateField";
@@ -43,6 +45,8 @@ const icons: Record<LineKind, ComponentType<{ className?: string }>> = {
   tasks: BsCheck2Square,
   goals: BsBullseye,
   focus: BsStopwatch,
+  learning: BsMortarboard,
+  work: BsBriefcase,
   data: BsHddStack,
   note: BsPencilSquare,
 };

@@ -182,7 +182,8 @@ orden en que se construyen.
 | 3 | «Hoy» en el dashboard | **hecho** |
 | 4 | Calendario editorial (3) | **hecho** |
 | 5 | Bloques de enfoque (2.3) | **hecho** |
-| 6 | Notas, presupuesto del mes, aprendizaje, oportunidades, rendimiento móvil del sitio y edición rápida en listas | siguiente, a elegir |
+| 6 | Notas, presupuesto del mes, aprendizaje, oportunidades, rendimiento móvil del sitio y edición rápida en listas | **hecho** |
+| — | Activar «PageSpeed Insights API» en Google Cloud (proyecto de la service account) | pendiente, a mano: sin eso Rendimiento no mide |
 | — | Subir lo hecho a git (0) y probar el móvil en un teléfono real (1) | en paralelo, cuanto antes |
 
 **Hecho:** los 37 certificados de Platzi están en Perfil → Certificados, en los dos

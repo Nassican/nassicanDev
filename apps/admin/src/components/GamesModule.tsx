@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BsPencil, BsPlus, BsTrash } from "react-icons/bs";
+import QuickField, { FinishPrompt } from "@/components/QuickField";
 import Toast from "@/components/Toast";
 import Unsaved from "@/components/Unsaved";
 import { fold } from "@/lib/list-filters";
@@ -18,7 +19,8 @@ import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import DateField from "@/components/DateField";
 import { formatPartialDate } from "@/lib/draft-fields";
 import type { GamesSummary } from "@/lib/games";
-import type { ActionResult } from "@/app/(panel)/juegos/actions";
+import type { ActionResult, QuickGameField } from "@/app/(panel)/juegos/actions";
+import { quickText } from "@/lib/quick-edit";
 
 const field =
   "rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
@@ -48,6 +50,7 @@ export default function GamesModule({
     setStatus: (id: string, status: GameDraft["status"]) => Promise<ActionResult>;
     addStore: (name: string) => Promise<ActionResult>;
     removeStore: (id: string) => Promise<ActionResult>;
+    quick: (id: string, field: QuickGameField, raw: string) => Promise<ActionResult>;
   };
 }) {
   const router = useRouter();
@@ -61,6 +64,9 @@ export default function GamesModule({
   const [onlyPrice, setOnlyPrice] = useState<"" | "missing" | "set">("");
   const [managing, setManaging] = useState(false);
   const [newStore, setNewStore] = useState("");
+  // Rows become fields: Tab walks the library, each field saves on leaving.
+  const [quickMode, setQuickMode] = useState(false);
+  const [askFinish, setAskFinish] = useState<string | null>(null);
 
   const stores = summary.stores;
 
@@ -385,6 +391,20 @@ export default function GamesModule({
             {managing ? "Ocultar tiendas" : "Tiendas"}
           </button>
 
+          <button
+            type="button"
+            aria-pressed={quickMode}
+            onClick={() => setQuickMode((v) => !v)}
+            title="Precio, horas y fechas editables en cada fila; Tab pasa al siguiente y cada campo se guarda al salir"
+            className={`rounded border px-2.5 py-1.5 text-[11px] transition-colors ${
+              quickMode
+                ? "border-neutral-500 bg-neutral-800 text-neutral-100"
+                : "border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+            }`}
+          >
+            Edición rápida
+          </button>
+
           {shown.length !== summary.games.length ? (
             <span className="text-[11px] text-neutral-600">
               {shown.length} de {summary.games.length}
@@ -475,10 +495,8 @@ export default function GamesModule({
       ) : (
         <ul className="flex flex-col divide-y divide-neutral-900 overflow-hidden rounded-lg border border-neutral-900">
           {shown.map((game) => (
-            <li
-              key={game.id}
-              className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap"
-            >
+            <li key={game.id} className="flex flex-col gap-2 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm text-neutral-200">
                   {game.title}
@@ -510,11 +528,13 @@ export default function GamesModule({
                 className={`${field} shrink-0`}
                 value={game.status}
                 disabled={pending}
-                onChange={(e) =>
-                  run(() =>
-                    actions.setStatus(game.id, e.target.value as GameDraft["status"]),
-                  )
-                }
+                onChange={(e) => {
+                  const status = e.target.value as GameDraft["status"];
+                  run(
+                    () => actions.setStatus(game.id, status),
+                    () => setAskFinish(status === "finished" && !game.finishedAt ? game.id : null),
+                  );
+                }}
               >
                 {statuses.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -558,6 +578,47 @@ export default function GamesModule({
                   <BsTrash className="h-3.5 w-3.5" aria-hidden />
                 </button>
               </span>
+            </div>
+
+            {askFinish === game.id && !game.finishedAt ? (
+              <FinishPrompt
+                pending={pending}
+                onToday={() => run(() => actions.quick(game.id, "finishedAt", "today"), () => setAskFinish(null))}
+                onOtherDay={() => {
+                  setAskFinish(null);
+                  setQuickMode(true);
+                }}
+                onDismiss={() => setAskFinish(null)}
+              />
+            ) : null}
+
+            {quickMode ? (
+              <div className="flex flex-wrap gap-3">
+                {(
+                  [
+                    ["price", "Precio", game.price, "w-24", "decimal"],
+                    ["hours", "Horas", game.hours, "w-16", "decimal"],
+                    ["purchasedAt", "Compra", game.purchasedAt, "w-28", "text"],
+                    ["finishedAt", "Fin", game.finishedAt, "w-28", "text"],
+                  ] as const
+                ).map(([key, title, value, width, inputMode]) => (
+                  <QuickField
+                    key={`${key}:${quickText(value)}`}
+                    label={title}
+                    value={quickText(value)}
+                    width={width}
+                    inputMode={inputMode}
+                    placeholder={inputMode === "text" ? "2024-08" : "—"}
+                    onSave={async (raw) => {
+                      const outcome = await actions.quick(game.id, key, raw);
+                      if (outcome.ok) router.refresh();
+                      else setResult(outcome);
+                      return outcome;
+                    }}
+                  />
+                ))}
+              </div>
+            ) : null}
             </li>
           ))}
         </ul>

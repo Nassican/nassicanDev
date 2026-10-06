@@ -58,7 +58,7 @@ export type JournalWeekView = {
 };
 
 /** Rows whose diff did not name the thing — `setStatus` once logged only the status. */
-const NAMED = new Set(["game", "book", "subscription"]);
+const NAMED = new Set(["game", "book", "subscription", "course"]);
 
 /**
  * The audit trail between two local days (`to` excluded), as journal lines.
@@ -81,7 +81,7 @@ export async function readActivity(
   const ids = (type: string) => [
     ...new Set(audit.filter((a) => a.entityType === type && a.entityId && NAMED.has(type)).map((a) => a.entityId!)),
   ];
-  const [games, books, subscriptions] = await Promise.all([
+  const [games, books, subscriptions, courses] = await Promise.all([
     ids("game").length
       ? db.game.findMany({ where: { id: { in: ids("game") } }, select: { id: true, title: true, finishedAt: true } })
       : [],
@@ -91,15 +91,20 @@ export async function readActivity(
     ids("subscription").length
       ? db.subscription.findMany({ where: { id: { in: ids("subscription") } }, select: { id: true, name: true } })
       : [],
+    ids("course").length
+      ? db.course.findMany({ where: { id: { in: ids("course") } }, select: { id: true, title: true, finishedAt: true } })
+      : [],
   ]);
   const names = new Map<string, string>([
     ...games.map((g): [string, string] => [g.id, g.title]),
     ...books.map((b): [string, string] => [b.id, b.title]),
     ...subscriptions.map((s): [string, string] => [s.id, s.name]),
+    ...courses.map((c): [string, string] => [c.id, c.title]),
   ]);
   const finishes = new Map<string, string | null>([
     ...games.map((g): [string, string | null] => [g.id, g.finishedAt]),
     ...books.map((b): [string, string | null] => [b.id, b.finishedAt]),
+    ...courses.map((c): [string, string | null] => [c.id, c.finishedAt]),
   ]);
 
   return audit.flatMap((row) => {

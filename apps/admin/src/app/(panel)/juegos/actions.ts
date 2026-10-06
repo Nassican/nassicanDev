@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { db } from "@nassican/db";
+import { calendarDate } from "@nassican/shared";
+import { parseQuick, type QuickKind } from "@/lib/quick-edit";
+import { getTimezone } from "@/lib/site-config";
 import { logAudit } from "@/lib/audit";
 import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 import { gameProblems, type GameDraft } from "@/lib/game-draft";
@@ -140,4 +144,34 @@ export async function deleteStore(id: string): Promise<ActionResult> {
         ? `«${name}» eliminada. ${orphaned} ${orphaned === 1 ? "juego quedó" : "juegos quedaron"} sin tienda.`
         : `«${name}» eliminada.`,
   };
+}
+
+/** The fields a row can edit, and how each is read. Anything else is refused. */
+const quickGameFields = {
+  price: "money",
+  hours: "decimal",
+  purchasedAt: "date",
+  finishedAt: "date",
+} as const satisfies Record<string, QuickKind>;
+
+export type QuickGameField = keyof typeof quickGameFields;
+
+/**
+ * One field from the list row. «today» for the end date is resolved here,
+ * against the configured timezone, because the browser's day may not be
+ * Bogotá's — the same rule capture follows in Pendientes.
+ */
+export async function quickEditGame(id: string, field: QuickGameField, raw: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const kind = quickGameFields[field];
+  if (!kind) return { ok: false, message: "Ese campo no se edita desde la lista." };
+
+  const text = field === "finishedAt" && raw === "today" ? calendarDate(await getTimezone()) : raw;
+  const parsed = parseQuick(kind, text);
+  if (!parsed.ok) return parsed;
+
+  const game = await db.game.update({ where: { id }, data: { [field]: parsed.value }, select: { title: true } });
+  await logAudit({ userId: user.id, action: "update", entityType: "game", entityId: id, diff: { title: game.title, [field]: parsed.value } });
+  revalidatePath("/juegos");
+  return { ok: true, message: `«${game.title}» guardado.` };
 }

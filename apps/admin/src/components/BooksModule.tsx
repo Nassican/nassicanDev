@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BsPencil, BsPlus, BsTrash } from "react-icons/bs";
+import QuickField, { FinishPrompt } from "@/components/QuickField";
 import Toast from "@/components/Toast";
 import Unsaved from "@/components/Unsaved";
 import { fold } from "@/lib/list-filters";
@@ -20,7 +21,8 @@ import DateField from "@/components/DateField";
 import { formatPartialDate } from "@/lib/draft-fields";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import type { BooksSummary } from "@/lib/books";
-import type { ActionResult, LookupOutcome } from "@/app/(panel)/libros/actions";
+import type { ActionResult, LookupOutcome, QuickBookField } from "@/app/(panel)/libros/actions";
+import { quickText } from "@/lib/quick-edit";
 
 const field =
   "rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
@@ -49,6 +51,7 @@ export default function BooksModule({
     remove: (id: string, title: string) => Promise<ActionResult>;
     setStatus: (id: string, status: BookDraft["status"]) => Promise<ActionResult>;
     lookup: (isbn: string) => Promise<LookupOutcome>;
+    quick: (id: string, field: QuickBookField, raw: string) => Promise<ActionResult>;
   };
 }) {
   const router = useRouter();
@@ -57,6 +60,9 @@ export default function BooksModule({
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [onlyStatus, setOnlyStatus] = useState<BookDraft["status"] | "">("");
+  // Rows become fields: Tab walks the shelf, each field saves on leaving.
+  const [quickMode, setQuickMode] = useState(false);
+  const [askFinish, setAskFinish] = useState<string | null>(null);
 
   const dirty = draft !== null && isDirty(baselineFor(draft, summary), draft);
   useUnsavedChanges(dirty);
@@ -370,6 +376,19 @@ export default function BooksModule({
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            aria-pressed={quickMode}
+            onClick={() => setQuickMode((v) => !v)}
+            title="Páginas, precio y fecha de fin editables en cada fila; Tab pasa al siguiente y cada campo se guarda al salir"
+            className={`rounded border px-2.5 py-1.5 text-[11px] transition-colors ${
+              quickMode
+                ? "border-neutral-500 bg-neutral-800 text-neutral-100"
+                : "border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+            }`}
+          >
+            Edición rápida
+          </button>
           {shown.length !== summary.books.length ? (
             <span className="text-[11px] text-neutral-600">
               {shown.length} de {summary.books.length}
@@ -393,10 +412,8 @@ export default function BooksModule({
             const ratio = progressRatio(book.pages, book.pagesRead);
 
             return (
-              <li
-                key={book.id}
-                className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap"
-              >
+              <li key={book.id} className="flex flex-col gap-2 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-neutral-200">
                     {book.title}
@@ -428,11 +445,13 @@ export default function BooksModule({
                   className={`${field} shrink-0`}
                   value={book.status}
                   disabled={pending}
-                  onChange={(e) =>
-                    run(() =>
-                      actions.setStatus(book.id, e.target.value as BookDraft["status"]),
-                    )
-                  }
+                  onChange={(e) => {
+                    const status = e.target.value as BookDraft["status"];
+                    run(
+                      () => actions.setStatus(book.id, status),
+                      () => setAskFinish(status === "finished" && !book.finishedAt ? book.id : null),
+                    );
+                  }}
                 >
                   {statuses.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -463,6 +482,47 @@ export default function BooksModule({
                     <BsTrash className="h-3.5 w-3.5" aria-hidden />
                   </button>
                 </span>
+              </div>
+
+              {askFinish === book.id && !book.finishedAt ? (
+                <FinishPrompt
+                  pending={pending}
+                  onToday={() => run(() => actions.quick(book.id, "finishedAt", "today"), () => setAskFinish(null))}
+                  onOtherDay={() => {
+                    setAskFinish(null);
+                    setQuickMode(true);
+                  }}
+                  onDismiss={() => setAskFinish(null)}
+                />
+              ) : null}
+
+              {quickMode ? (
+                <div className="flex flex-wrap gap-3">
+                  {(
+                    [
+                      ["pagesRead", "Leídas", book.pagesRead, "w-16", "numeric"],
+                      ["pages", "Páginas", book.pages, "w-16", "numeric"],
+                      ["price", "Precio", book.price, "w-24", "decimal"],
+                      ["finishedAt", "Fin", book.finishedAt, "w-28", "text"],
+                    ] as const
+                  ).map(([key, title, value, width, inputMode]) => (
+                    <QuickField
+                      key={`${key}:${quickText(value)}`}
+                      label={title}
+                      value={quickText(value)}
+                      width={width}
+                      inputMode={inputMode}
+                      placeholder={inputMode === "text" ? "2024-08" : "—"}
+                      onSave={async (raw) => {
+                        const outcome = await actions.quick(book.id, key, raw);
+                        if (outcome.ok) router.refresh();
+                        else setResult(outcome);
+                        return outcome;
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : null}
               </li>
             );
           })}

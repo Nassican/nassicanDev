@@ -5,6 +5,7 @@ import {
   changeStatus,
   deleteSubscription,
   payNow,
+  quickEditSubscription,
   savePayment,
   saveSubscription,
   togglePaidMonth,
@@ -25,6 +26,7 @@ export default async function SuscripcionesPage() {
         pay: payNow,
         toggleMonth: togglePaidMonth,
         savePayment,
+        quick: quickEditSubscription,
       }}
     />
   );

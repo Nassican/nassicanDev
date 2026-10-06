@@ -13,6 +13,7 @@ import {
 } from "react-icons/bs";
 import type { Currency, SubscriptionStatus } from "@nassican/db";
 import DateField from "@/components/DateField";
+import QuickField from "@/components/QuickField";
 import Toast from "@/components/Toast";
 import Unsaved from "@/components/Unsaved";
 import { formatPartialDate } from "@/lib/draft-fields";
@@ -32,7 +33,7 @@ import {
 } from "@/lib/subscription-draft";
 import type { PaymentRow, SubscriptionRow, SubscriptionsSummary } from "@/lib/subscriptions";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
-import type { ActionResult } from "@/app/(panel)/suscripciones/actions";
+import type { ActionResult, QuickSubscriptionField } from "@/app/(panel)/suscripciones/actions";
 
 const field =
   "rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none";
@@ -70,6 +71,7 @@ type Actions = {
     paymentId: string,
     fields: { amount: string; paidAt: string; note: string },
   ) => Promise<ActionResult>;
+  quick: (id: string, field: QuickSubscriptionField, raw: string) => Promise<ActionResult>;
 };
 
 /**
@@ -93,6 +95,8 @@ export default function SubscriptionsModule({
   const [query, setQuery] = useState("");
   const [onlyStatus, setOnlyStatus] = useState<SubscriptionStatus | "">("");
   const [open, setOpen] = useState<string | null>(null);
+  // Price and next renewal as fields in each row, Tab from one to the next.
+  const [quickMode, setQuickMode] = useState(false);
   const [year, setYear] = useState(() => Number(summary.today.slice(0, 4)));
 
   const dirty = draft !== null && isDirty(baselineFor(draft, summary), draft);
@@ -366,6 +370,19 @@ export default function SubscriptionsModule({
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          aria-pressed={quickMode}
+          onClick={() => setQuickMode((v) => !v)}
+          title="Precio y próxima renovación editables en cada fila; Tab pasa al siguiente y cada campo se guarda al salir"
+          className={`rounded border px-2.5 py-1.5 text-xs transition-colors ${
+            quickMode
+              ? "border-neutral-500 bg-neutral-800 text-neutral-100"
+              : "border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+          }`}
+        >
+          Edición rápida
+        </button>
         {shown.length !== summary.subscriptions.length ? (
           <span className="text-xs text-neutral-500">
             {shown.length} de {summary.subscriptions.length}
@@ -395,6 +412,31 @@ export default function SubscriptionsModule({
                   run(() => actions.remove(sub.id, sub.name));
                 }}
               />
+              {quickMode ? (
+                <div className="flex flex-wrap gap-3">
+                  {(
+                    [
+                      ["price", `Precio (${sub.currency})`, String(sub.price), "w-24", "decimal"],
+                      ["nextRenewal", "Próxima renovación", sub.nextRenewal ?? "", "w-32", "text"],
+                    ] as const
+                  ).map(([key, title, value, width, inputMode]) => (
+                    <QuickField
+                      key={`${key}:${value}`}
+                      label={title}
+                      value={value}
+                      width={width}
+                      inputMode={inputMode}
+                      placeholder={inputMode === "text" ? "2026-11-05" : "—"}
+                      onSave={async (raw) => {
+                        const outcome = await actions.quick(sub.id, key, raw);
+                        if (outcome.ok) router.refresh();
+                        else setResult(outcome);
+                        return outcome;
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : null}
               {open === sub.id ? (
                 <Months
                   sub={sub}

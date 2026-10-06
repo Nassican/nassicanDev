@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { db } from "@nassican/db";
+import { calendarDate } from "@nassican/shared";
+import { parseQuick, type QuickKind } from "@/lib/quick-edit";
+import { getTimezone } from "@/lib/site-config";
 import { logAudit } from "@/lib/audit";
 import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 import { bookProblems, normaliseIsbn, type BookDraft, type BookFacts } from "@/lib/book-draft";
@@ -95,4 +99,30 @@ export async function findBookByIsbn(raw: string): Promise<LookupOutcome> {
   if (!isbn) return { ok: false, message: "El ISBN no cuadra: revisa los dígitos." };
 
   return lookupIsbn(isbn);
+}
+
+/** The fields a row can edit, and how each is read. Anything else is refused. */
+const quickBookFields = {
+  price: "money",
+  pages: "integer",
+  pagesRead: "integer",
+  finishedAt: "date",
+} as const satisfies Record<string, QuickKind>;
+
+export type QuickBookField = keyof typeof quickBookFields;
+
+/** One field from the list row; «today» is resolved in the configured timezone. */
+export async function quickEditBook(id: string, field: QuickBookField, raw: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const kind = quickBookFields[field];
+  if (!kind) return { ok: false, message: "Ese campo no se edita desde la lista." };
+
+  const text = field === "finishedAt" && raw === "today" ? calendarDate(await getTimezone()) : raw;
+  const parsed = parseQuick(kind, text);
+  if (!parsed.ok) return parsed;
+
+  const book = await db.book.update({ where: { id }, data: { [field]: parsed.value }, select: { title: true } });
+  await logAudit({ userId: user.id, action: "update", entityType: "book", entityId: id, diff: { title: book.title, [field]: parsed.value } });
+  revalidatePath("/libros");
+  return { ok: true, message: `«${book.title}» guardado.` };
 }

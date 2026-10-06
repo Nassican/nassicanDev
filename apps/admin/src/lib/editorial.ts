@@ -131,6 +131,20 @@ export async function setStage(id: string, stage: IdeaStage): Promise<string> {
 }
 
 /**
+ * A readable slug for a new draft, from its title, with a numeric suffix when
+ * another post already has it. Shared by ideas and notes: both become drafts.
+ */
+export async function freeSlug(title: string): Promise<string> {
+  const base = slugify(title) || `borrador-${Date.now().toString(36)}`;
+  const taken = new Set(
+    (await db.post.findMany({ where: { slug: { startsWith: base } }, select: { slug: true } })).map((p) => p.slug),
+  );
+  let slug = base;
+  for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
+  return slug;
+}
+
+/**
  * Turns an idea into a real draft in Blogs and links the two.
  *
  * The slug comes from the title, readable from the first save, with a numeric
@@ -142,12 +156,7 @@ export async function ideaToDraft(id: string, authorId: string): Promise<{ postI
   const idea = await db.contentIdea.findUniqueOrThrow({ where: { id } });
   if (idea.postId) return { postId: idea.postId, title: idea.title };
 
-  const base = slugify(idea.title) || `borrador-${Date.now().toString(36)}`;
-  const taken = new Set(
-    (await db.post.findMany({ where: { slug: { startsWith: base } }, select: { slug: true } })).map((p) => p.slug),
-  );
-  let slug = base;
-  for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
+  const slug = await freeSlug(idea.title);
 
   const post = await db.$transaction(async (tx) => {
     const created = await tx.post.create({

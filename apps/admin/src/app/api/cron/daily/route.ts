@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { syncAnalytics } from "@/lib/analytics";
 import { checkOutboundLinks } from "@/lib/link-check";
+import { syncPageSpeed } from "@/lib/pagespeed";
 import { syncSearchConsole } from "@/lib/search-console";
 import { snapshotStats } from "@/lib/stats";
 import { TRASH_DAYS, purgeTrash } from "@/lib/trash";
@@ -130,6 +131,13 @@ export async function GET(request: Request) {
       const r = await syncDeployments();
       if (!r.ok) throw new Error(r.reason);
       return `${r.rows} filas`;
+    }),
+    // The slowest of the five — Lighthouse takes 10 to 30 s a page — and the
+    // pages run in parallel inside it, so it fits the same window.
+    step("pagespeed", async () => {
+      const r = await syncPageSpeed();
+      if (!r.ok) throw new Error(r.reason);
+      return [`${r.rows} mediciones`, r.note].filter(Boolean).join(" · ");
     }),
   ]);
 

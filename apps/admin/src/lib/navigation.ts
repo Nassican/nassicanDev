@@ -36,7 +36,12 @@ export type NavIcon =
   | "task"
   | "goal"
   | "calendar"
-  | "focus";
+  | "focus"
+  | "speed"
+  | "course"
+  | "note"
+  | "work"
+  | "budget";
 
 export type NavEntry = {
   label: string;
@@ -73,6 +78,8 @@ export const navigation: NavSection[] = [
       { label: "Dashboard", href: "/", icon: "dashboard", ready: true },
       { label: "Pendientes", href: "/pendientes", icon: "task", ready: true },
       { label: "Enfoque", href: "/enfoque", icon: "focus", ready: true },
+      { label: "Notas", href: "/notas", icon: "note", ready: true },
+      { label: "Oportunidades", href: "/oportunidades", icon: "work", ready: true },
     ],
   },
   {
@@ -93,10 +100,12 @@ export const navigation: NavSection[] = [
     collapsible: true,
     entries: [
       { label: "Movimientos", href: "/finanzas", icon: "finance", ready: true },
+      { label: "Presupuesto", href: "/presupuesto", icon: "budget", ready: true },
       { label: "Metas y hábitos", href: "/metas", icon: "goal", ready: true },
       { label: "Suscripciones", href: "/suscripciones", icon: "subscription", ready: true },
       { label: "Juegos", href: "/juegos", icon: "game", ready: true },
       { label: "Libros", href: "/libros", icon: "book", ready: true },
+      { label: "Aprendizaje", href: "/aprendizaje", icon: "course", ready: true },
       { label: "Bitácora", href: "/bitacora", icon: "journal", ready: true },
     ],
   },
@@ -108,6 +117,7 @@ export const navigation: NavSection[] = [
       // SEO sits here rather than under administration: half of it edits
       // metadata, but what you open it for is the Search Console numbers.
       { label: "SEO", href: "/seo", icon: "seo", ready: true },
+      { label: "Rendimiento", href: "/rendimiento", icon: "speed", ready: true },
     ],
   },
   {

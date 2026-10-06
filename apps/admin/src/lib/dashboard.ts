@@ -2,6 +2,8 @@ import "server-only";
 
 import { db } from "@nassican/db";
 import { getStats } from "@/lib/stats";
+import { budgetWarnings } from "@/lib/budget";
+import { pageSpeedDrops } from "@/lib/pagespeed";
 import {
   sinceLabel,
   sourceLabels,
@@ -84,7 +86,7 @@ export async function getDashboard(): Promise<Dashboard> {
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 7);
 
-  const [stats, settings, audit, warnings, vercel, ga4, runs, lastBackup] = await Promise.all([
+  const [stats, settings, audit, warnings, vercel, ga4, runs, lastBackup, speedDrops, budget] = await Promise.all([
     getStats(),
     db.siteSettings.findUnique({ where: { id: 1 }, select: { maintenanceMode: true } }),
     db.auditLog.findMany({
@@ -117,6 +119,8 @@ export async function getDashboard(): Promise<Dashboard> {
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     }),
+    pageSpeedDrops(),
+    budgetWarnings(),
   ]);
 
   const pending: Pending[] = [];
@@ -236,6 +240,48 @@ export async function getDashboard(): Promise<Dashboard> {
       detail: "Es accesibilidad, no cosmética: sin alt la imagen no existe para quien no la ve.",
       href: "/contenido/multimedia",
       action: "Describir",
+    });
+  }
+
+  // A drop the operator caused is best caught the day after, while the change
+  // that caused it is still the last thing they remember shipping.
+  if (speedDrops.length > 0) {
+    const [first] = speedDrops;
+    pending.push({
+      id: "pagespeed",
+      tone: "warn",
+      title:
+        speedDrops.length === 1
+          ? `El rendimiento móvil de ${first.label} bajó a ${first.current}`
+          : `El rendimiento móvil bajó en ${speedDrops.length} páginas`,
+      detail: speedDrops
+        .map((d) => (d.previous === null ? `${d.label}: ${d.current}` : `${d.label}: ${d.previous} → ${d.current}`))
+        .join(" · "),
+      href: "/rendimiento",
+      action: "Ver",
+    });
+  }
+
+  // Money is personal, but this is the page opened first every day, and a
+  // warning that waits for Presupuesto to be opened arrives after the money.
+  if (budget.length > 0) {
+    const exceeded = budget.filter((l) => l.pace === "exceeded");
+    const [first] = budget;
+    pending.push({
+      id: "budget",
+      tone: exceeded.length > 0 ? "urgent" : "warn",
+      title:
+        budget.length === 1
+          ? first.pace === "exceeded"
+            ? `Te pasaste del presupuesto de ${first.label}`
+            : `${first.label} va camino de pasarse del presupuesto`
+          : `${budget.length} límites del presupuesto en riesgo`,
+      detail: budget
+        .slice(0, 3)
+        .map((l) => `${l.label}: ${Math.round(l.ratio * 100)} % con el mes al ${Math.round(l.elapsed * 100)} %`)
+        .join(" · "),
+      href: "/presupuesto",
+      action: "Ver",
     });
   }
 

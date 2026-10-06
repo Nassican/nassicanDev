@@ -100,6 +100,7 @@ enum SyncSource {
   content_stats
   link_check
   wallet
+  pagespeed
 }
 
 enum SyncStatus {
@@ -227,6 +228,7 @@ model Post {
   revisions    PostRevision[]
   tags         PostTag[]
   idea         ContentIdea?
+  note         Note?
 
   @@index([status, publishedAt])
   @@map("posts")
@@ -678,6 +680,7 @@ model Certificate {
 
   file         Media?                   @relation("CertificateFile", fields: [fileMediaId], references: [id], onDelete: SetNull)
   translations CertificateTranslation[]
+  course       Course?
 
   @@map("certificates")
 }
@@ -1517,6 +1520,9 @@ enum TrashKind {
   goal
   habit
   idea
+  note
+  course
+  opportunity
 }
 
 /// What a deletion took away, kept for thirty days so it can be put back.
@@ -1908,4 +1914,207 @@ model ContentIdea {
   post Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
 
   @@map("content_ideas")
+}
+
+// ---------------------------------------------------------------------------
+// Rendimiento: PageSpeed Insights, measured daily
+// ---------------------------------------------------------------------------
+
+/// One Lighthouse run of one page, one strategy, one local day. Replaced if the
+/// day is measured again: the trend is what matters, and a day measured twice
+/// would be a step that never happened. A mirror of Google's measurement, so a
+/// restore keeps it rather than rolling it back.
+model PageSpeedRun {
+  id            String   @id @default(uuid())
+  /// "2026-10-05", in the site's timezone.
+  date          String
+  /// "/", "/projects" — the path measured, on the canonical origin.
+  path          String
+  /// "mobile" or "desktop".
+  strategy      String
+  /// 0–100, Lighthouse's scores. Null when the category did not run.
+  performance   Int?
+  accessibility Int?
+  bestPractices Int?     @map("best_practices")
+  seo           Int?
+  lcpMs         Int?     @map("lcp_ms")
+  fcpMs         Int?     @map("fcp_ms")
+  tbtMs         Int?     @map("tbt_ms")
+  cls           Float?
+  /// What real Chrome users saw (CrUX): FAST, AVERAGE, SLOW — or null when the
+  /// site has too little traffic for Google to say, which is the usual case.
+  fieldCategory String?  @map("field_category")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([date, path, strategy])
+  @@index([path, strategy, date])
+  @@map("pagespeed_runs")
+}
+
+// ---------------------------------------------------------------------------
+// Notas
+// ---------------------------------------------------------------------------
+
+/// What was learnt, kept where it can be found. Markdown, because notes are
+/// typed fast and read later; the article a note becomes is blocks, like every
+/// other body.
+model Note {
+  id     String   @id @default(uuid())
+  title  String
+  /// Markdown. [[Otra nota]] links to another note by its title.
+  body   String   @default("")
+  tags   String[] @default([])
+  pinned Boolean  @default(false)
+  /// The draft it became, once «Convertir en artículo» was pressed.
+  postId String?  @unique @map("post_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([updatedAt])
+  @@map("notes")
+}
+
+// ---------------------------------------------------------------------------
+// Aprendizaje
+// ---------------------------------------------------------------------------
+
+/// Same states as the two libraries, and backlog is again the useful one:
+/// courses signed up for and never started.
+enum CourseStatus {
+  wishlist
+  backlog
+  in_progress
+  finished
+  dropped
+}
+
+model Course {
+  id            String       @id @default(uuid())
+  title         String
+  /// "Platzi", "Udemy": free text, like the stores — a new platform is not a
+  /// migration.
+  provider      String?
+  url           String?
+  status        CourseStatus @default(backlog)
+  /// 0–100, as the platform shows it.
+  progress      Int          @default(0)
+  /// Length as advertised, and hours actually spent: both optional, and
+  /// unknown is not zero.
+  hours         Float?
+  hoursSpent    Float?       @map("hours_spent")
+  price         Decimal?     @db.Decimal(14, 2)
+  /// Partial dates as text, as everywhere else.
+  startedAt     String?      @map("started_at")
+  targetDate    String?      @map("target_date")
+  finishedAt    String?      @map("finished_at")
+  note          String?
+  /// The certificate it became on the public site, if it did.
+  certificateId String?      @unique @map("certificate_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  certificate Certificate? @relation(fields: [certificateId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("courses")
+}
+
+// ---------------------------------------------------------------------------
+// Oportunidades
+// ---------------------------------------------------------------------------
+
+enum OpportunityKind {
+  job
+  client
+  recruiter
+  collaboration
+  other
+}
+
+/// Open stages first, then the two ways it ends. «Cerrada» is two values on
+/// purpose: what was won and what was lost answer different questions later.
+enum OpportunityStage {
+  lead
+  contacted
+  conversation
+  proposal
+  won
+  lost
+}
+
+model Opportunity {
+  id           String           @id @default(uuid())
+  title        String
+  kind         OpportunityKind  @default(job)
+  stage        OpportunityStage @default(lead)
+  organization String?
+  contactName  String?          @map("contact_name")
+  /// Email, phone or a profile link — whatever reaches them.
+  contact      String?
+  url          String?
+  /// What happens next, and when. The «when» is what keeps a reply from being
+  /// forgotten — the same rule as Pendientes: a full day, not a month.
+  nextStep     String?          @map("next_step")
+  nextStepOn   String?          @map("next_step_on")
+  /// Salary or budget, in its own currency.
+  amount       Decimal?         @db.Decimal(14, 2)
+  currency     Currency?
+  closedAt     DateTime?        @map("closed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  entries OpportunityEntry[]
+
+  @@index([stage, nextStepOn])
+  @@map("opportunities")
+}
+
+/// A line of the conversation: what was said, sent or agreed, on a day.
+model OpportunityEntry {
+  id            String   @id @default(uuid())
+  opportunityId String   @map("opportunity_id")
+  /// "2026-10-05", or with its hour.
+  at            String
+  text          String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId, at])
+  @@map("opportunity_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Presupuesto del mes
+// ---------------------------------------------------------------------------
+
+/// What a limit applies to: the whole month, one of Wallet's category groups,
+/// or one category. Both levels exist because Wallet's data needs both —
+/// «Food & Drinks» is one budget, «Software, apps, games» is another.
+enum BudgetScope {
+  total
+  group
+  category
+}
+
+/// A monthly limit, in pesos, against the Wallet mirror. Kept here and never in
+/// Wallet: the panel does not write there, by construction.
+model BudgetLine {
+  id           String      @id @default(uuid())
+  scope        BudgetScope
+  /// The group or category name, as Wallet spells it. Empty for total.
+  key          String      @default("")
+  monthlyLimit Decimal     @map("monthly_limit") @db.Decimal(14, 2)
+  position     Int         @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([scope, key])
+  @@map("budget_lines")
 }

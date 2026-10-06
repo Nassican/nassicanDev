@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { db } from "@nassican/db";
+import { parseQuick } from "@/lib/quick-edit";
 import type { SubscriptionStatus } from "@nassican/db";
 import { logAudit } from "@/lib/audit";
 import { fieldProblems, formatPartialDate } from "@/lib/draft-fields";
@@ -111,4 +113,40 @@ export async function savePayment(
   const label = await updatePayment(paymentId, fields);
   refresh();
   return { ok: true, message: `Pago de ${label} guardado.` };
+}
+
+export type QuickSubscriptionField = "price" | "nextRenewal";
+
+/**
+ * Price and next renewal from the row. The price is required here, unlike the
+ * libraries: a subscription with no price is not «unknown», it is unusable for
+ * every total on the page.
+ */
+export async function quickEditSubscription(
+  id: string,
+  field: QuickSubscriptionField,
+  raw: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (field !== "price" && field !== "nextRenewal") return { ok: false, message: "Ese campo no se edita desde la lista." };
+
+  const parsed = parseQuick(field === "price" ? "money" : "date", raw);
+  if (!parsed.ok) return parsed;
+  if (field === "price" && parsed.value === null) return { ok: false, message: "Una suscripción necesita su precio." };
+
+  const subscription = await db.subscription.update({
+    where: { id },
+    data: { [field]: parsed.value },
+    select: { name: true },
+  });
+  await logAudit({
+    userId: user.id,
+    action: "update",
+    entityType: "subscription",
+    entityId: id,
+    diff: { name: subscription.name, [field]: parsed.value },
+  });
+  revalidatePath("/suscripciones");
+  revalidatePath("/");
+  return { ok: true, message: `«${subscription.name}» guardada.` };
 }

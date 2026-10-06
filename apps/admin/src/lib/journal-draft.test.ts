@@ -160,3 +160,24 @@ test("apuntar una idea es rutina; empezar a escribirla, no", () => {
     { text: "Empezaste a escribir «Neon»", kind: "content", highlight: true, tally: undefined },
   );
 });
+
+test("cursos: terminar se afirma solo con fecha que lo respalde, y publicar llega al sitio", () => {
+  const finished = (finishedAt: string | null) =>
+    describeAudit({ action: "update", entityType: "course", diff: { title: "Git", status: "finished" }, on: "2026-10-05", finishedAt });
+  assert.equal(finished("2026-10-05")?.text, "Terminaste el curso «Git»");
+  assert.equal(finished("2026-10-05")?.tally, "course-finished");
+  assert.equal(finished(null)?.highlight, false);
+  assert.equal(
+    describeAudit({ action: "publish", entityType: "certificate", diff: { title: "Curso de Git" } })?.text,
+    "Publicaste el certificado «Curso de Git»",
+  );
+});
+
+test("oportunidades: ganar destaca, anotar es mantenimiento", () => {
+  const won = describeAudit({ action: "update", entityType: "opportunity", diff: { title: "Acme", stage: "won" } });
+  assert.equal(won?.text, "Ganaste «Acme»");
+  assert.equal(won?.tally, "opportunity-won");
+  const note = describeAudit({ action: "update", entityType: "opportunity", diff: { title: "Acme", entry: true } });
+  assert.equal(note?.text, "Anotaste en «Acme»");
+  assert.equal(note?.highlight, false);
+});
