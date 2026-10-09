@@ -1917,9 +1917,164 @@ el fallo que se estaba arreglando. Los dos recorren solo los bloques `heading` y
 en el mismo orden, así que no se pueden desalinear.
 
 Se oculta con menos de dos entradas: uno no es un índice, es la primera línea del
-artículo repetida. Y es servidor y `<a>` pelados — un resaltado que sigue al lector
-es bonito y también es un componente de cliente en cada página de artículo, y esto
-se gana su sitio sin uno.
+artículo repetida. Es servidor y `<a>` pelados: funciona sin JavaScript, y el
+resaltado que sigue al lector es otro componente.
+
+#### La línea de tiempo que sigue al lector
+
+`components/ui/ReadingTimeline.tsx`. El índice de arriba se pasa una vez; con los
+primeros artículos largos —dieciocho secciones— dejó de bastar, porque para saber
+dónde ibas había que subir. Así que la decisión de arriba se revisó: **ahora sí
+hay un componente de cliente en cada artículo**, y es este.
+
+- **En pantalla ancha (`xl`) vive en el margen derecho**, como una línea con un punto por
+  sección: relleno lo leído, con anillo la actual, hueco lo que falta. El estado
+  va en la forma del punto además de en el color. Arriba, el porcentaje leído.
+  La caja del índice se oculta ahí (`xl:hidden`) para no decir lo mismo dos veces.
+- **Por debajo no hay margen**, así que es una barra bajo la cabecera: «11/18» y
+  el nombre de la sección actual, que se despliega en la misma lista y se abre
+  ya desplazada a donde vas. Solo aparece entre la primera sección y el final
+  del artículo.
+
+Cuatro decisiones que el código no explica solo:
+
+- **Es `sticky` dentro de una rejilla, no `fixed`.** La página pasa a tres
+  columnas —una vacía, el texto y la línea a la derecha; la vacía mide lo mismo,
+  que es lo que mantiene el texto centrado— y la línea se detiene con el artículo en vez de montarse sobre
+  el pie.
+- **Lee el scroll con `useSyncExternalStore`**, un aviso por fotograma, y lo que
+  guarda son dos números y un booleano: un desplazamiento que no cambia ninguno
+  no renderiza nada. En el servidor valen −1 y 0, así que el HTML no lleva una
+  posición que no casaría al hidratar.
+- **La sección actual es la última cuyo título cruzó la línea bajo la cabecera**
+  (128 px, justo después de donde aterriza un ancla con `scroll-mt-28`). Al
+  final del artículo gana la última, porque las secciones cortas del cierre
+  nunca llegarían a esa línea.
+- **La barra móvil es opaca y sin `backdrop-filter`.** Con transparencia, el
+  texto del artículo se leía a través de la lista abierta; y un desenfoque se
+  recalcularía a todo el ancho en cada fotograma de scroll — la lección de la
+  paleta del panel.
+
+**La línea se dibuja por tramos, dos por sección**: la mitad de arriba de su
+punto y la de abajo. Así el relleno termina justo en el punto actual y no en el
+borde de una fila, y la línea no asoma sobre el primer punto ni bajo el último,
+que no tienen esa mitad. La primera versión era el borde izquierdo de cada fila:
+sobresalía por los dos extremos y el relleno se cortaba entre dos puntos. Lo leído
+es una línea de 2 px que pasa continua por sus puntos; un hueco alrededor de cada
+uno la troceaba en guiones. Solo el punto actual abre espacio para su halo. Cuando
+la lista no cabe, se desplaza sola y los dos extremos se desvanecen, con la sección
+actual siempre a 48 px de ellos.
+
+El progreso se mide contra `<article data-reading-root>`, un atributo y no un
+`id`: los `id` de esa página salen de los títulos, y uno llamado «contenido»
+habría chocado.
+
+Solo está en los artículos del blog. Los casos de estudio de Proyectos usan el
+mismo `Prose` y no tienen índice todavía.
+
+### Diagramas: un bloque de código que se dibuja
+
+El primer artículo con un diagrama lo traía en ASCII, y se veía mal por dos
+motivos que no dependen de quién lo dibuje: las rayas y las barras de una fuente
+del sistema **no se unen**, y en un teléfono el dibujo se corta y hay que
+desplazarlo de lado.
+
+No se añadió un tipo de bloque. Un bloque `code` con lenguaje `diagram` lleva el
+texto, y `Prose` lo dibuja (`components/ui/Diagram.tsx`); el editor, la vista
+Markdown y la forma guardada no cambian. Lo único que sabe que existe un diagrama
+es el renderizador, que es donde este documento dice que deben quedar contenidos
+estos cambios.
+
+```text
+# Dos aplicaciones, dos paquetes y una base de datos
+Sitio público | nassican.com | apps/web
+Panel de gestión | app.nassican.com | apps/admin
+--- importan ---
+packages/shared | tipos y funciones puras
+packages/db | esquema y cliente de datos
+---
+PostgreSQL
+```
+
+Una caja por línea, con su título y los detalles tras `|`. Una línea de guiones
+empieza la capa siguiente y puede nombrar la flecha. `#` es el pie.
+
+- **Solo capas, a propósito.** Cajas y flechas arbitrarias necesitan un motor de
+  maquetación, y los que existen son cientos de kilobytes de JavaScript de
+  cliente para una figura que no cambia nunca. Las capas cubren lo que un
+  artículo de software suele tener que enseñar.
+- **Se dibuja en HTML, no en SVG**, para que se parta: en un teléfono tres cajas
+  son dos líneas, no una figura que desplazar. Y el texto es texto: se
+  selecciona y un lector de pantalla lo recorre como una lista de listas.
+- **Lo que no se puede leer se queda como código.** `parseDiagram` devuelve
+  `null` —nada dentro, o una capa sin cajas— y el bloque se muestra como se
+  escribió, que es mejor que una figura con un hueco. El editor del panel lo
+  avisa en ámbar bajo el bloque.
+
+El parser vive en `packages/shared/src/diagram.ts`, puro y con prueba, porque el
+sitio lo dibuja y el panel lo explica.
+
+### La página de un artículo, con la estructura de los blogs que se leen
+
+Antes de escribir nada se miró cómo arman un artículo Vercel, web.dev y Josh W.
+Comeau, y se copió lo que tienen en común, no lo que tiene cada uno:
+
+| pieza | de dónde sale | aquí |
+| --- | --- | --- |
+| etiqueta de categoría sobre el título | Vercel, Comeau | la primera etiqueta del artículo |
+| título grande y entradilla | Vercel, web.dev | `title` y `description`, que ya existían |
+| autor con foto, fecha y actualización | web.dev | una fila bajo la entradilla |
+| ruta de navegación | web.dev | Inicio › Blog, la misma del JSON-LD |
+| secciones y subsecciones (H2/H3) | los tres | `level: 3` en el bloque de encabezado |
+| el título de sección es su propio enlace | Comeau | `#` al pasar el ratón o con el foco |
+| código con lenguaje y botón de copiar | Comeau | cabecera sobre cada bloque |
+| «más artículos» al terminar | Vercel | «Sigue leyendo», tres como mucho |
+
+Y al final, lo que ve quien llegó hasta abajo: etiquetas, compartir (copiar enlace,
+LinkedIn, X), la ficha del autor con sus redes, «Sigue leyendo» y la vuelta al
+índice. Antes la página simplemente se acababa.
+
+**Lo que no se copió, y por qué:** boletín, comentarios y contador de visitas son
+servicios que mantener para un blog que aún no tiene lectores; las cajas de aviso
+(«Nota», «Punto clave») necesitan contenido que las use y ningún artículo las
+tiene todavía.
+
+Seis decisiones que el código no explica solo:
+
+- **Dos profundidades y no seis.** El encabezado gana un `level?: 3`; ausente es
+  sección. En Markdown `#` y `##` son sección y todo lo más hondo, subsección: un
+  documento pegado no pierde su esquema, y una tercera profundidad en un artículo
+  suele ser señal de que son dos artículos. `normaliseBody` quita un `level` que
+  no sea 3, igual que quita `ordered: false`. El índice numera las secciones y
+  sangra las subsecciones; la línea de tiempo también.
+- **`Prose` no recibe diccionario**, así que el texto del botón de copiar le
+  llega por la prop `copy`. Sin ella el botón no se dibuja: Proyectos y las
+  páginas personalizadas siguen como estaban hasta que se la pasen.
+- **Copiar no dice «copiado» si el portapapeles se niega.** Un origen inseguro o
+  un permiso denegado dejan el botón como estaba: era lo único que no sería
+  cierto. Se descubrió probándolo: Chrome sin interfaz lo deniega siempre.
+- **La tarjeta entera es el enlace** (`after:absolute after:inset-0` sobre el del
+  título) y «Leer artículo» pasa a ser decoración: un objetivo y un nombre, no
+  dos enlaces con el mismo destino.
+- **El índice destaca el más reciente** a todo el ancho y reparte el resto. Sin
+  portada es la misma tarjeta sin imagen, no una con un recuadro gris.
+- **`getListedPosts()`: en vista previa, las listas incluyen borradores.** El
+  índice y «Sigue leyendo» son parte de cómo se ve un artículo, y con cero
+  publicados eran los dos sitios que una vista previa no podía enseñar. Un
+  borrador enlazado desde ahí abre, porque la vista previa sigue encendida. El
+  sitemap, el feed y `generateStaticParams` siguen usando `getPublishedPosts`.
+
+`relatedBySharedTags` (en `packages/shared`, con prueba) ordena por etiquetas
+compartidas y **rellena con lo más nuevo**: con pocos artículos, «nada comparte
+etiqueta» es el caso normal, y un «Sigue leyendo» vacío le diría al lector que
+terminó que aquí no hay nada más.
+
+La foto del autor sale de `profile.avatar`; sin ella, el logo.
+
+**Cómo se verificó.** En Chrome a 1440 y 390 px y en los dos temas: cabecera,
+código, cierre e índice, con los seis borradores en vista previa. Pulsando de
+verdad los dos botones de copiar, con un portapapeles de sustitución. La
+jerarquía se leyó del DOM: un solo `h1`, y `h3` solo bajo su `h2`.
 
 ### Libros: la misma idea con otros sustantivos
 
@@ -2897,7 +3052,7 @@ artículos prerenderizar, así que sin base no hay build.
 ### Cuerpo de artículos y casos de estudio
 
 No se **guarda** Markdown ni MDX: el cuerpo es un arreglo de `ContentBlock`
-(`paragraph`, `heading`, `list`, `code`, `quote`, `image`) que renderiza
+(`paragraph`, `heading` —sección o subsección—, `list`, `code`, `quote`, `image`) que renderiza
 `src/components/Prose.tsx`. Es a propósito — un bloque mal formado o una
 traducción faltante falla en `tsc` en lugar de renderizarse mal en producción.
 Si algún día se migra a MDX, el cambio debería quedar contenido en `Prose`.

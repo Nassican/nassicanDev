@@ -88,6 +88,27 @@ export const getPublishedPosts = unstable_cache(
   { tags: [cacheTags.posts], revalidate: CACHE_SECONDS },
 );
 
+/**
+ * What a listing shows: the published posts — or, inside a preview, every post
+ * that is written in both languages, drafts included.
+ *
+ * The index and «keep reading» are part of how an article looks, and with
+ * nothing published yet they were the two places a preview could not show. A
+ * draft linked from them opens, because the preview that listed it is still on.
+ * The sitemap, the feed and static generation keep to `getPublishedPosts`.
+ */
+export async function getListedPosts(): Promise<Post[]> {
+  if (!(await isPreview())) return getPublishedPosts();
+
+  const rows = await db.post.findMany({
+    include: postWithContent,
+    // Drafts have no publication date and sort first, which is where the
+    // thing being written belongs.
+    orderBy: [{ publishedAt: { sort: "desc", nulls: "first" } }, { updatedAt: "desc" }],
+  });
+  return rows.map((row) => toPost(row as PostRow)).filter((p): p is Post => p !== null);
+}
+
 export async function getPost(slug: string): Promise<Post | undefined> {
   /**
    * A preview skips both the status filter and the cache.

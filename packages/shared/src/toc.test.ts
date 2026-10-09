@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { tableOfContents, type ContentBlock } from "./content";
+import { relatedBySharedTags, tableOfContents, type ContentBlock } from "./content";
+import { blocksToMarkdown, markdownToBlocks } from "./markdown";
 
 const heading = (text: string): ContentBlock => ({ type: "heading", text });
 const para = (text: string): ContentBlock => ({ type: "paragraph", text });
@@ -14,9 +15,14 @@ test("saca los encabezados en orden y se salta el resto", () => {
   ]);
 
   assert.deepEqual(toc, [
-    { id: "el-problema", text: "El problema" },
-    { id: "la-solucion", text: "La solución" },
+    { id: "el-problema", text: "El problema", level: 2 },
+    { id: "la-solucion", text: "La solución", level: 2 },
   ]);
+});
+
+test("una subsección lleva su nivel, y lo demás es sección", () => {
+  const toc = tableOfContents([heading("Tipos"), { type: "heading", text: "Monolito", level: 3 }]);
+  assert.deepEqual(toc.map((e) => e.level), [2, 3]);
 });
 
 /**
@@ -51,4 +57,25 @@ test("un cuerpo sin encabezados no tiene índice", () => {
 
 test("el texto se conserva tal cual, con acentos y mayúsculas", () => {
   assert.equal(tableOfContents([heading("Qué Aprendí")])[0].text, "Qué Aprendí");
+});
+
+test("sigue leyendo: primero lo que comparte más etiquetas, y se rellena con lo más nuevo", () => {
+  const post = (slug: string, ...tags: string[]) => ({ slug, tags });
+  const current = post("a", "Claude Code", "Windows");
+  const all = [post("nuevo"), post("a", "Claude Code", "Windows"), post("uno", "Claude Code"), post("dos", "Windows", "Claude Code"), post("viejo")];
+
+  assert.deepEqual(relatedBySharedTags(current, all, 3).map((p) => p.slug), ["dos", "uno", "nuevo"]);
+  assert.deepEqual(relatedBySharedTags(current, [current]), []);
+});
+
+test("la vista Markdown conserva secciones y subsecciones, y una sección no lleva nivel", () => {
+  const { blocks, losses } = markdownToBlocks("# Título pegado\n\n## Sección\n\n### Subsección\n\n#### Más honda");
+  assert.deepEqual(losses, []);
+  assert.deepEqual(blocks, [
+    { type: "heading", text: "Título pegado" },
+    { type: "heading", text: "Sección" },
+    { type: "heading", text: "Subsección", level: 3 },
+    { type: "heading", text: "Más honda", level: 3 },
+  ]);
+  assert.equal(blocksToMarkdown(blocks), "## Título pegado\n\n## Sección\n\n### Subsección\n\n### Más honda");
 });

@@ -16,6 +16,9 @@ export {
   headingId,
   tableOfContents,
   extractLinks,
+  relatedBySharedTags,
+  parseDiagram,
+  DIAGRAM_LANGUAGE,
   type TocEntry,
   type ContentBlock,
 } from "@nassican/shared";

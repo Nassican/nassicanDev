@@ -8,7 +8,12 @@
  */
 export type ContentBlock =
   | { type: "paragraph"; text: string }
-  | { type: "heading"; text: string }
+  /**
+   * `level: 3` is a subsection; absent is a section. One optional field and
+   * not a number from 1 to 6: a body has a title above it and two depths below,
+   * and a third depth in an article is a sign it wants to be two articles.
+   */
+  | { type: "heading"; text: string; level?: 3 }
   | { type: "list"; items: string[]; ordered?: boolean }
   | { type: "code"; language?: string; code: string }
   | { type: "quote"; text: string }
@@ -150,7 +155,7 @@ export function extractMediaIds(body: ContentBlock[]): string[] {
   ];
 }
 
-export type TocEntry = { id: string; text: string };
+export type TocEntry = { id: string; text: string; level: 2 | 3 };
 
 /**
  * The headings of a body, with ids that are actually unique.
@@ -179,8 +184,35 @@ export function tableOfContents(blocks: ContentBlock[]): TocEntry[] {
     const taken = seen.get(root) ?? 0;
     seen.set(root, taken + 1);
 
-    entries.push({ id: taken === 0 ? root : `${root}-${taken + 1}`, text: block.text });
+    entries.push({
+      id: taken === 0 ? root : `${root}-${taken + 1}`,
+      text: block.text,
+      level: block.level === 3 ? 3 : 2,
+    });
   }
 
   return entries;
+}
+
+/**
+ * What to read next: the other posts that share the most tags with this one,
+ * newest first among equals, and then simply the newest.
+ *
+ * Padded with unrelated posts on purpose. With a handful of articles, «nothing
+ * shares a tag» is the common case, and an empty «keep reading» is the one
+ * place a reader who finished an article is told there is nothing else here.
+ * `all` is expected newest first, which is how the site reads them.
+ */
+export function relatedBySharedTags<T extends { slug: string; tags: string[] }>(
+  current: T,
+  all: T[],
+  limit = 3,
+): T[] {
+  const mine = new Set(current.tags);
+  return all
+    .filter((post) => post.slug !== current.slug)
+    .map((post, order) => ({ post, order, shared: post.tags.filter((tag) => mine.has(tag)).length }))
+    .sort((a, b) => b.shared - a.shared || a.order - b.order)
+    .slice(0, limit)
+    .map((entry) => entry.post);
 }

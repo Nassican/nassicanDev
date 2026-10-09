@@ -24,6 +24,8 @@ export type Profile = {
   name: string;
   title: Localized<string>;
   email: string;
+  /** `/media/<checksum>.webp`, when a photo has been set in the panel. */
+  avatar?: string;
   location: { city: string; region: string; country: string };
   socials: SocialLink[];
   /** Downloadable CV, one file per language. */
@@ -42,6 +44,7 @@ async function readProfile(): Promise<Profile> {
     where: { id: 1 },
     include: {
       translations: true,
+      avatar: { select: { url: true } },
       cvs: { include: { translations: true }, orderBy: { position: "asc" } },
     },
   });
@@ -62,6 +65,7 @@ async function readProfile(): Promise<Profile> {
       (l) => row.translations.find((t) => t.locale === l)?.headline ?? "",
     ),
     email: row.email,
+    avatar: row.avatar?.url,
     location: (row.location ?? {}) as Profile["location"],
     socials: ((row.socials as { items?: SocialLink[] } | null)?.items ?? []),
     cv: row.cvs.map((cv) => ({

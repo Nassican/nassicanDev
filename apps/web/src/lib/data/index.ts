@@ -33,6 +33,14 @@ export type {
 
 export type { Post, PostMeta, PostTranslation } from "./posts/types";
 
-export { readingMinutes, wordCount, headingId, tableOfContents } from "./content";
+export {
+  readingMinutes,
+  wordCount,
+  headingId,
+  tableOfContents,
+  relatedBySharedTags,
+  parseDiagram,
+  DIAGRAM_LANGUAGE,
+} from "./content";
 export type { TocEntry } from "./content";
 export type { ContentBlock } from "./content";

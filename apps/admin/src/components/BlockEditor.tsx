@@ -3,11 +3,13 @@
 import Image from "next/image";
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import {
+  DIAGRAM_LANGUAGE,
   blocksToMarkdown,
   contentBlockTypes,
   describeLoss,
   imageIndex,
   markdownToBlocks,
+  parseDiagram,
   type ContentBlock,
   type MarkdownLoss,
 } from "@nassican/shared";
@@ -391,7 +393,7 @@ export default function BlockEditor({
                 <input
                   className={field}
                   value={block.language ?? ""}
-                  placeholder="Lenguaje (opcional): ts, bash, sql…"
+                  placeholder="Lenguaje (opcional): ts, bash, sql… · «diagram» dibuja un diagrama"
                   onChange={(e) =>
                     replace(index, { ...block, language: e.target.value || undefined })
                   }
@@ -402,6 +404,13 @@ export default function BlockEditor({
                   placeholder="Código"
                   onChange={(e) => replace(index, { ...block, code: e.target.value })}
                 />
+                {block.language === DIAGRAM_LANGUAGE ? (
+                  <p className={`text-[11px] ${parseDiagram(block.code) ? "text-neutral-500" : "text-amber-500"}`}>
+                    {parseDiagram(block.code)
+                      ? "Diagrama por capas: una caja por línea (Título | detalle | detalle), «---» o «--- etiqueta ---» entre capas, y «# texto» para el pie."
+                      : "Así no se puede dibujar y saldrá como código: cada capa necesita al menos una caja, y cada caja un título. Una caja por línea, «---» entre capas."}
+                  </p>
+                ) : null}
               </>
             ) : block.type === "image" ? (
               <>
@@ -452,6 +461,18 @@ export default function BlockEditor({
                 onChange={(e) => replace(index, { ...block, text: e.target.value })}
               />
             )}
+            {block.type === "heading" ? (
+              <label className="flex items-center gap-1.5 text-xs text-neutral-500">
+                <input
+                  type="checkbox"
+                  checked={block.level === 3}
+                  onChange={(e) =>
+                    replace(index, e.target.checked ? { ...block, level: 3 } : { type: "heading", text: block.text })
+                  }
+                />
+                Subsección (va dentro de la sección anterior)
+              </label>
+            ) : null}
           </div>
         </article>
       ))}

@@ -40,6 +40,13 @@ export function normaliseBody(blocks: ContentBlock[]): ContentBlock[] {
       const { ordered, ...rest } = block;
       return ordered ? { ...rest, ordered: true } : rest;
     }
+    if (block.type === "heading" && block.level !== 3) {
+      // A section is the absence of a level, the same way a bullet list is the
+      // absence of `ordered`.
+      const { level, ...rest } = block;
+      void level;
+      return rest;
+    }
     if (block.type === "image" && !block.caption) {
       const { caption, ...rest } = block;
       void caption;
@@ -95,7 +102,7 @@ export function blocksToMarkdown(blocks: ContentBlock[]): string {
   const parts = blocks.map((block) => {
     switch (block.type) {
       case "heading":
-        return `## ${block.text}`;
+        return `${block.level === 3 ? "###" : "##"} ${block.text}`;
       case "paragraph":
         return block.text;
       case "quote":
@@ -222,7 +229,9 @@ export function markdownToBlocks(
     if (heading) {
       flushParagraph();
       const text = flatten(heading[2], lineNumber, losses);
-      if (text) blocks.push({ type: "heading", text });
+      // `#` and `##` are a section, anything deeper a subsection: two depths
+      // is all a body has, and a pasted document should not lose its outline.
+      if (text) blocks.push({ type: "heading", text, ...(heading[1].length >= 3 ? { level: 3 as const } : {}) });
       i += 1;
       continue;
     }

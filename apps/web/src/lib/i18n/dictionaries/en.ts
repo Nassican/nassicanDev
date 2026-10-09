@@ -111,6 +111,18 @@ export const en: Dictionary = {
   blog: {
     title: "Blog",
     toc: "Contents",
+    readingProgress: "Reading progress",
+    share: "Share",
+    shareOn: "Share on",
+    copyLink: "Copy link",
+    linkCopied: "Link copied",
+    copyCode: "Copy",
+    codeCopied: "Copied",
+    writtenBy: "Written by",
+    contact: "Contact",
+    keepReading: "Keep reading",
+    newest: "Latest",
+    rss: "Subscribe via RSS",
     listDescription:
       "Technical notes on web development: Next.js, TypeScript, frontend and backend architecture.",
     metaDescription:
@@ -180,6 +192,7 @@ export const en: Dictionary = {
 
   breadcrumb: {
     home: "Home",
+    label: "Breadcrumb",
   },
 
   preview: {

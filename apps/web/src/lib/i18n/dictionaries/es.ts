@@ -112,6 +112,21 @@ export const es = {
     title: "Blog",
     /** Heading above the list of a post's sections. */
     toc: "Índice",
+    /** Names the bar that fills as the article is read. */
+    readingProgress: "Progreso de lectura",
+    share: "Compartir",
+    /** Followed by the network's name: «Compartir en LinkedIn». */
+    shareOn: "Compartir en",
+    copyLink: "Copiar enlace",
+    linkCopied: "Enlace copiado",
+    copyCode: "Copiar",
+    codeCopied: "Copiado",
+    writtenBy: "Escrito por",
+    contact: "Contacto",
+    keepReading: "Sigue leyendo",
+    /** The label on the newest post, at the top of the index. */
+    newest: "Lo más reciente",
+    rss: "Suscribirse por RSS",
     listDescription:
       "Notas técnicas sobre desarrollo web: Next.js, TypeScript, arquitectura de frontend y backend.",
     metaDescription:
@@ -181,6 +196,8 @@ export const es = {
 
   breadcrumb: {
     home: "Inicio",
+    /** Names the trail for a screen reader. */
+    label: "Ruta de navegación",
   },
 
   preview: {
