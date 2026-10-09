@@ -222,13 +222,12 @@ export default function ReadingTimeline({
           </div>
           <div className="overflow-hidden rounded-full">{bar}</div>
           {/*
-            Its height stops short of the two floating buttons in the bottom
-            right corner. When the list is taller than that it scrolls, and both
-            ends fade out: a title cut in half by a hard edge looked like a
+            When the list is taller than the window it scrolls, and both ends
+            fade out: a title cut in half by a hard edge looked like a
             rendering fault. The padding is the fade's own height, so the first
             and last items rest clear of it when the list is at either end.
           */}
-          <ol ref={rail} className="relative max-h-[calc(100vh-18rem)] overflow-y-auto py-5 pl-1.5 pr-1 [mask-image:linear-gradient(to_bottom,transparent,black_1.25rem,black_calc(100%-1.25rem),transparent)] [scrollbar-width:none]"
+          <ol ref={rail} className="relative max-h-[calc(100vh-12rem)] overflow-y-auto py-5 pl-1.5 pr-1 [mask-image:linear-gradient(to_bottom,transparent,black_1.25rem,black_calc(100%-1.25rem),transparent)] [scrollbar-width:none]"
           >
             {items()}
           </ol>

@@ -12,6 +12,7 @@ import Education from "@/components/sections/Education";
 import Projects from "@/components/sections/Projects";
 import Contact from "@/components/sections/Contact";
 import LatestPosts from "@/components/sections/LatestPosts";
+import SectionNavigator from "@/components/SectionNavigator";
 import { getDictionary, type Dictionary } from "@/lib/i18n";
 import { isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { homeJsonLd } from "@/lib/seo";
@@ -76,6 +77,7 @@ export default async function Home({ params }: PageParams) {
   };
 
   return (
+    <>
     <main className="mx-auto max-w-full">
       {/* ProfilePage + project list; the Person/WebSite graph lives in the layout */}
       <script
@@ -88,5 +90,14 @@ export default async function Home({ params }: PageParams) {
         .filter((section) => section.isVisible)
         .map((section) => render[section.key]())}
     </main>
+    {/*
+      Here and not in the layout. The arrows step between this page's sections;
+      on an article or the blog index there are none, and they sat in the corner
+      doing nothing — over the reading timeline, on a wide screen.
+    */}
+    {settings.showSectionNavigator ? (
+      <SectionNavigator previousLabel={t.nav.previousSection} nextLabel={t.nav.nextSection} />
+    ) : null}
+    </>
   );
 }

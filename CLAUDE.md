@@ -912,7 +912,7 @@ operador.
 | `brandLine` | la línea bajo el nombre en el pie |
 | `copyrightName` | el nombre del aviso de copyright |
 | `latestPostsCount` | cuántos artículos adelanta la portada |
-| `showSectionNavigator` | las flechas flotantes entre secciones |
+| `showSectionNavigator` | las flechas flotantes entre secciones, solo en la portada |
 
 Se borraron dos columnas que el esquema traía sin usar. `contactEmail`, porque
 `profile.email` ya es esa dirección y una segunda columna con lo mismo es una
@@ -3253,6 +3253,20 @@ foco atrapado y Escape sin librería. Las imágenes van `unoptimized`: ya son We
 su tamaño final bajo una URL inmutable, y reoptimizarlas gastaría cuota de Vercel
 para nada.
 ## Tema claro / oscuro
+
+**La barra de desplazamiento sigue al tema.** Fina, sin flechas, con dos grises
+que `.dark` redefine (`--scrollbar-thumb` y su versión al pasar el ratón), medidos
+contra el fondo de cada tema: 3,4 sobre blanco y 3,5 sobre el oscuro. Son las
+mismas reglas que las del panel, con la misma trampa: Chrome ignora los
+`::-webkit-scrollbar` en cuanto ve `scrollbar-width`, así que las propiedades
+estándar van solo para quien no tiene los pseudo-elementos. **Chrome sin interfaz
+no pinta la barra en una captura**, ni forzándola: se comprobó por los estilos
+calculados en los dos temas y porque la página le reserva 10 px y no los 15 de la
+barra nativa.
+
+Las flechas flotantes entre secciones se montan **en la portada** y no en el
+layout: saltan entre las secciones de esa página, y en un artículo se quedaban en
+la esquina sin hacer nada.
 
 - **Por defecto oscuro.** Sin preferencia guardada, el sitio se ve en oscuro; no
   se sigue la preferencia del sistema. Ese valor lo decide ahora

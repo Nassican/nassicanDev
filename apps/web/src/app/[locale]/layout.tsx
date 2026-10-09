@@ -5,7 +5,6 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { Analytics } from "@vercel/analytics/next";
 import "../globals.css";
 import Navigation from "@/components/Navigation";
-import SectionNavigator from "@/components/SectionNavigator";
 import Footer from "@/components/Footer";
 import Maintenance from "@/components/Maintenance";
 import PreviewBanner from "@/components/PreviewBanner";
@@ -212,12 +211,6 @@ export default async function RootLayout({
               copyrightName={settings.copyrightName}
             />
             {preview ? <PreviewBanner t={t} back={localePath(locale, "/")} /> : null}
-            {settings.showSectionNavigator ? (
-              <SectionNavigator
-                previousLabel={t.nav.previousSection}
-                nextLabel={t.nav.nextSection}
-              />
-            ) : null}
           </>
         )}
         {/*
