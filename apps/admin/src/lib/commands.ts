@@ -12,7 +12,7 @@ import type { Command } from "@/components/CommandPalette";
  * this is the function that changes — nothing in the component.
  */
 export async function listCommands(): Promise<Command[]> {
-  const [posts, projects, pages, games, books, subscriptions, tasks, ideas, courses, work] = await Promise.all([
+  const [posts, projects, pages, games, books, subscriptions, tasks, ideas, courses, work, wishes] = await Promise.all([
     db.post.findMany({
       take: 50,
       orderBy: { updatedAt: "desc" },
@@ -35,9 +35,13 @@ export async function listCommands(): Promise<Command[]> {
     db.contentIdea.findMany({ where: { postId: null }, take: 100, select: { id: true, title: true } }),
     db.course.findMany({ take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
     db.clientProject.findMany({ take: 100, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, company: true } }),
+    db.wishItem.findMany({ where: { status: "wanted" }, take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
   ]);
 
   return [
+    // The list itself too: it is a tab inside Metas, so the menu does not name it.
+    { id: "wishlist", label: "Lista de deseos", kind: "Módulo", href: "/metas/deseos" },
+    ...wishes.map((wish) => ({ id: `wish:${wish.id}`, label: wish.title, kind: "Deseo", href: "/metas/deseos" })),
     ...courses.map((course) => ({ id: `course:${course.id}`, label: course.title, kind: "Curso", href: "/aprendizaje" })),
     ...work.map((w) => ({ id: `work:${w.id}`, label: `${w.title} · ${w.company}`, kind: "Trabajo", href: "/trabajos" })),
     ...posts.map((post) => ({

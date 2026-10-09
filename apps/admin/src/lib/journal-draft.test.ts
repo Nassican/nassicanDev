@@ -13,6 +13,38 @@ import {
   zonedMidnight,
 } from "./journal-draft";
 
+test("wishes: buying is claimed only with its date, saving is shown without weight", () => {
+  const bought = describeAudit({
+    action: "update",
+    entityType: "wish",
+    diff: { title: "Mouse", status: "bought", boughtAt: "2026-10-08" },
+    on: "2026-10-08",
+  });
+  assert.equal(bought?.text, "Compraste «Mouse»");
+  assert.equal(bought?.tally, "wish-bought");
+
+  const old = describeAudit({
+    action: "update",
+    entityType: "wish",
+    diff: { title: "Teclado", status: "bought", boughtAt: "2025-03-02" },
+    on: "2026-10-08",
+  });
+  assert.equal(old?.text, "Marcaste como comprado «Teclado» (2025)");
+  assert.equal(old?.highlight, false);
+
+  const saved = describeAudit({ action: "update", entityType: "wish", diff: { title: "Laptop", saved: 200000, currency: "COP" } });
+  assert.match(saved?.text ?? "", /^Apartaste .*200.000 para «Laptop»$/);
+  assert.equal(saved?.highlight, false);
+
+  const taken = describeAudit({ action: "update", entityType: "wish", diff: { title: "Laptop", saved: -50000, currency: "COP" } });
+  assert.match(taken?.text ?? "", /^Retiraste .*50.000 de lo ahorrado para «Laptop»$/);
+
+  const moved = describeAudit({ action: "update", entityType: "wish", diff: { title: "Laptop", saved: 80000, currency: "COP", from: "Mouse" } });
+  assert.match(moved?.text ?? "", /^Pasaste .*80.000 de «Mouse» a «Laptop»$/);
+
+  assert.equal(describeAudit({ action: "create", entityType: "wish", diff: { title: "Disco" } })?.highlight, false);
+});
+
 test("la semana empieza el lunes, también desde un domingo", () => {
   assert.equal(mondayOf("2026-10-04"), "2026-09-28"); // a Sunday
   assert.equal(mondayOf("2026-09-28"), "2026-09-28");

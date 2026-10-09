@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BsArchive, BsArrowCounterclockwise, BsCheck2, BsDash, BsPencil, BsPlus, BsTrash } from "react-icons/bs";
 import type { GoalSource, GoalStatus } from "@nassican/db";
 import DateField from "@/components/DateField";
+import GoalsTabs from "@/components/GoalsTabs";
 import Toast from "@/components/Toast";
 import Unsaved from "@/components/Unsaved";
 import { formatPartialDate } from "@/lib/draft-fields";
@@ -103,6 +104,8 @@ export default function GoalsModule({ summary, actions }: { summary: GoalsSummar
 
   return (
     <div className="flex flex-col gap-8">
+      <GoalsTabs current="goals" />
+
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Metas y hábitos</h1>
         <p className="mt-1 text-sm text-neutral-500">

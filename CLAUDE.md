@@ -2164,6 +2164,70 @@ borrarlo lo lleva a la papelera con todos sus días.
 final del bucle, porque los dos fallos donde **empezó** la racha se leían como si la
 amenazaran. Ahora el riesgo existe solo mientras queda racha que salvar.
 
+### Lista de deseos: lo que quieres tener, y lo apartado para cada cosa
+
+En `app.nassican.com/metas/deseos`, como **pestaña de Metas** y no como entrada
+propia del menú: es la misma pregunta —hacia qué voy— con otro sustantivo.
+`GoalsTabs` enlaza las dos mitades; son dos rutas, así que cada una tiene su
+dirección y su esqueleto, y `activeHref()` mantiene «Metas y hábitos» encendido
+por subárbol sin tocar nada. La paleta sí la nombra («Lista de deseos»), porque
+el menú no lo hace.
+
+**Su propia tabla, no una `Goal`.** Una meta es una conducta y el formulario se
+niega a guardarla sin su plan «si… entonces…»; una laptop no tiene plan que
+escribir, tiene un precio al que llegar. Meterla en `goals` habría obligado a
+aflojar la única regla de ese módulo.
+
+**Lo ahorrado no se guarda: se suma.** `wish_savings` tiene una fila por cada vez
+que se aparta algo, con su día y su nota, y «cuánto llevo» es la suma. Retirar es
+una fila **negativa** —se escribe con un − delante— y no una edición: una cifra
+corregida a mano borra lo que pasó, y el historial es lo que explica el total. No
+se puede retirar más de lo que hay.
+
+Apartar es **un campo en la propia tarjeta**: un ahorro que cuesta abrir un editor
+es un ahorro que no se anota, y entonces la barra miente. La fecha y la nota
+aparecen al desplegar la tarjeta.
+
+Cuatro decisiones que el código no explica solo:
+
+- **No toca Wallet ni lee de él.** Lo ahorrado es lo que el operador dice haber
+  apartado, y la página lo dice con esas palabras. Deducirlo del saldo de una
+  cuenta sería la cuarta agrupación ingeniosa sobre esos movimientos, y el panel
+  solo escribe presupuestos en Wallet.
+- **«Falta» se suma deseo por deseo**, no como coste menos ahorro: lo que sobra
+  en uno no paga otro hasta que se mueve. Para eso está «Pasar lo ahorrado a…»,
+  que escribe una retirada en un lado y un ingreso en el otro, en una
+  transacción y nombrándose mutuamente. Solo entre deseos de la misma moneda.
+- **Descartar no borra el ahorro.** Un deseo descartado con dinero apartado lo
+  dice en ámbar —«ahorrados sin destino»— y ofrece moverlo. Volver a «lo quiero»
+  borra la fecha y el precio de compra: algo que se quiere otra vez no se compró.
+- **«Para cuándo» da una cifra mensual**, no un aviso: lo que falta entre los
+  meses que quedan, nunca menos de uno. Una fecha `2026-12` llega hasta el 31,
+  y solo «se pasó» cuando el mes termina — la regla del calendario editorial.
+
+**Las monedas no se mezclan sin tasa.** Cada deseo ahorra en su moneda, fija en
+cuanto tiene un ahorro anotado. Los totales van en pesos con la TRM de
+Suscripciones; sin tasa para todas, cada moneda por separado.
+
+**«Comprado» pregunta cuándo y por cuánto** en la misma tarjeta, y la fecha viaja
+en la fila de auditoría. La bitácora dice «Compraste…» —y lo cuenta como «deseo
+cumplido»— solo si esa fecha cae a una semana de la marca; si no, «Marcaste como
+comprado (2025)», en rutina. Apartar aparece como «Apartaste $ 200.000 para…»,
+sin peso de hito. A la papelera va con sus ahorros y vuelve entero.
+
+**El mismo choque de clases que `w-full`, ahora con colores.** `small` trae su
+borde y su texto grises; añadirle `border-green-800 text-green-300` deja las dos
+clases en la lista y **gana la gris**. El botón «Comprado» salió gris en la
+primera captura. Aquí `smallShape` es la forma sin color y cada variante
+—neutra, verde, roja— es su propia clase. El patrón viejo sigue en otros módulos
+(«Lograda» en Metas): no asumas que esos botones se ven como dice su clase.
+
+**Cómo se verificó.** Contra la base real con filas desechables: la suma con una
+retirada, el total por moneda, mover entre deseos (y negarse entre monedas),
+comprar y volver atrás, y la papelera ida y vuelta con sus cuatro ahorros. En
+Chrome, a 1440 y 390 px y en los dos temas, y **pulsando los botones de verdad**:
+apartar, intentar retirar de más y comprar.
+
 ### «Hoy»: el día en la cabecera del dashboard
 
 `lib/today.ts` y `components/TodayPanel.tsx`. El resto del dashboard mira atrás

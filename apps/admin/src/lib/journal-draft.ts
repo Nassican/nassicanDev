@@ -163,7 +163,8 @@ export type Tally =
   | "goal-achieved"
   | "habit-done"
   | "course-finished"
-  | "work-finished";
+  | "work-finished"
+  | "wish-bought";
 
 export type AuditLine = {
   text: string;
@@ -200,6 +201,7 @@ const nouns: Record<string, string> = {
   client_project: "el trabajo",
   "wallet-budget": "el presupuesto de Wallet",
   certificate: "el certificado",
+  wish: "el deseo",
 };
 
 const kinds: Record<string, LineKind> = {
@@ -218,6 +220,7 @@ const kinds: Record<string, LineKind> = {
   certificate: "learning",
   client_project: "work",
   "wallet-budget": "data",
+  wish: "goals",
 };
 
 const verbs: Record<string, string> = {
@@ -308,6 +311,31 @@ export function describeAudit(fact: AuditFact): AuditLine | null {
     if (status === "not_started") return line(`Devolviste a no iniciado${quoted(name)}`, false);
   }
 
+  /*
+   * The wish list. Buying something off it is the news, and it is claimed only
+   * with the purchase date in the same row — ticking off what was bought last
+   * year is the other reason to press the button. Setting money aside is how
+   * the list is kept, so it is shown without the weight of a highlight.
+   */
+  if (entityType === "wish") {
+    if (action === "create") return line(`Apuntaste en la lista de deseos${quoted(name)}`, false);
+    if (action === "update" && typeof diff.saved === "number") {
+      const amount = formatMoney(Math.abs(diff.saved), pick("currency"));
+      const from = pick("from");
+      if (from) return line(`Pasaste ${amount} de «${from}» a${quoted(name)}`, false);
+      return diff.saved > 0
+        ? line(`Apartaste ${amount} para${quoted(name)}`, false)
+        : line(`Retiraste ${amount} de lo ahorrado para${quoted(name)}`, false);
+    }
+    if (status === "bought") {
+      return finishedAround(pick("boughtAt"), fact.on)
+        ? line(`Compraste${quoted(name)}`, true, "wish-bought")
+        : line(`Marcaste como comprado${quoted(name)}${when(pick("boughtAt"))}`, false);
+    }
+    if (status === "dropped") return line(`Quitaste de la lista de deseos${quoted(name)}`, false);
+    if (status === "wanted") return line(`Devolviste a la lista de deseos${quoted(name)}`, false);
+  }
+
   if (entityType === "subscription") {
     const paid = pick("paid");
     if (paid) {
@@ -395,6 +423,13 @@ function when(finishedAt: string | null | undefined): string {
   return finishedAt ? ` (${finishedAt.slice(0, 4)})` : "";
 }
 
+/** «$ 200.000», or the bare number when the row did not say in what. */
+function formatMoney(amount: number, currency: string | null): string {
+  return currency
+    ? amount.toLocaleString("es-CO", { style: "currency", currency, maximumFractionDigits: 0 })
+    : amount.toLocaleString("es-CO");
+}
+
 function formatPeriod(period: string): string {
   const [y, m] = period.split("-").map(Number);
   return m ? `${MONTHS[m - 1]} ${y}` : period;
@@ -451,6 +486,7 @@ const tallyWords: Record<Tally, [string, string]> = {
   "habit-done": ["hábito cumplido", "hábitos cumplidos"],
   "course-finished": ["curso terminado", "cursos terminados"],
   "work-finished": ["trabajo terminado", "trabajos terminados"],
+  "wish-bought": ["deseo cumplido", "deseos cumplidos"],
 };
 
 const tallyKinds: Record<Tally, LineKind> = {
@@ -466,6 +502,7 @@ const tallyKinds: Record<Tally, LineKind> = {
   "habit-done": "goals",
   "course-finished": "learning",
   "work-finished": "work",
+  "wish-bought": "goals",
 };
 
 /**

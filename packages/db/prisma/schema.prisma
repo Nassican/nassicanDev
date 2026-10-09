@@ -1521,6 +1521,7 @@ enum TrashKind {
   idea
   course
   client_project
+  wish
 }
 
 /// What a deletion took away, kept for thirty days so it can be put back.
@@ -2050,4 +2051,70 @@ model ClientProjectEntry {
 
   @@index([projectId, at])
   @@map("client_project_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Lista de deseos: lo que se quiere conseguir, y lo apartado para cada cosa
+// ---------------------------------------------------------------------------
+
+enum WishStatus {
+  wanted
+  bought
+  dropped
+}
+
+enum WishPriority {
+  high
+  medium
+  low
+}
+
+/// Something to get — a laptop, a disk, a mouse — with what it costs.
+///
+/// Its own table and not a `Goal`: a goal is a behaviour and refuses to be
+/// stored without its «si… entonces…» plan, and a thing to buy has no plan to
+/// write, only a price to reach. It lives under the same page because it is the
+/// same question — what am I working towards.
+model WishItem {
+  id         String       @id @default(uuid())
+  title      String
+  url        String?
+  note       String?
+  priority   WishPriority @default(medium)
+  status     WishStatus   @default(wanted)
+  /// What it is expected to cost. Null is «not looked up yet», not free.
+  price      Decimal?     @db.Decimal(14, 2)
+  /// Savings are kept in this same currency.
+  currency   Currency     @default(COP)
+  /// Partial dates as text, as everywhere else.
+  targetDate String?      @map("target_date")
+  boughtAt   String?      @map("bought_at")
+  /// What it actually cost, once bought.
+  paid       Decimal?     @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  savings WishSaving[]
+
+  @@index([status])
+  @@map("wish_items")
+}
+
+/// Money set aside for one wish, on one day. Negative when it was taken back
+/// out: the saved figure is the sum, so a withdrawal is a row and not an edit
+/// that erases what happened.
+model WishSaving {
+  id        String   @id @default(uuid())
+  itemId    String   @map("item_id")
+  /// "2026-10-08", the operator's local day.
+  at        String
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  item WishItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, at])
+  @@map("wish_savings")
 }

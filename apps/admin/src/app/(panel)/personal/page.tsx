@@ -4,6 +4,7 @@ import { BsArrowRight } from "react-icons/bs";
 import { getPersonalOverview } from "@/lib/personal";
 import { formatPartialDate } from "@/lib/draft-fields";
 import { getSubscriptions } from "@/lib/subscriptions";
+import { getWishlist } from "@/lib/wishes";
 
 export const metadata: Metadata = { title: "Personal" };
 
@@ -21,9 +22,10 @@ const label = "font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500
  * deciding which module to open.
  */
 export default async function PersonalPage() {
-  const [{ games, books, money: wallet }, subs] = await Promise.all([
+  const [{ games, books, money: wallet }, subs, wishes] = await Promise.all([
     getPersonalOverview(),
     getSubscriptions(),
+    getWishlist(),
   ]);
 
   // The soonest active renewal: the one thing on that panel worth acting on.
@@ -31,7 +33,17 @@ export default async function PersonalPage() {
     .filter((s) => s.status === "active" && s.nextRenewal)
     .sort((a, b) => (a.nextRenewal! < b.nextRenewal! ? -1 : 1))[0];
 
-  const wishlist = games.wishlist + books.wishlist;
+  const wishlist = games.wishlist + books.wishlist + wishes.summary.wanted;
+  // The wish closest to being paid for: the next thing that can be bought.
+  const nextWish = wishes.rows
+    .filter((w) => w.status === "wanted" && w.ratio !== null)
+    .sort((a, b) => (b.ratio ?? 0) - (a.ratio ?? 0))[0];
+  const wishFigure = (key: "cost" | "saved" | "missing") =>
+    wishes.summary.cop
+      ? money(wishes.summary.cop[key])
+      : wishes.summary.totals
+          .map((t) => t[key].toLocaleString("es-CO", { style: "currency", currency: t.currency, maximumFractionDigits: 0 }))
+          .join(" + ") || "—";
   const backlogSpend = games.backlogSpend + books.backlogSpend;
 
   return (
@@ -162,6 +174,25 @@ export default async function PersonalPage() {
           <Line label="Activas" value={String(subs.counts.active)} />
           {nextRenewal ? (
             <Line label={`Próxima: ${nextRenewal.name}`} value={formatPartialDate(nextRenewal.nextRenewal)} />
+          ) : null}
+        </Panel>
+
+        <Panel
+          title="Lista de deseos"
+          href="/metas/deseos"
+          action="Abrir"
+          empty={wishes.summary.wanted === 0}
+          emptyNote="Nada en la lista todavía."
+        >
+          <Line label="Quiero" value={String(wishes.summary.wanted)} strong />
+          <Line label="Cuestan" value={wishFigure("cost")} />
+          <Line label="Ahorrado" value={wishFigure("saved")} />
+          <Line label="Falta" value={wishFigure("missing")} />
+          {nextWish ? (
+            <Line
+              label={`${nextWish.ready ? "Ya alcanza" : "Más cerca"}: ${nextWish.title}`}
+              value={`${Math.round((nextWish.ratio ?? 0) * 100)} %`}
+            />
           ) : null}
         </Panel>
 
