@@ -21,12 +21,14 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     background_color: "#ffffff",
     theme_color: "#0a0a0a",
     lang: htmlLang[defaultLocale],
+    /*
+     * Sized copies and not the 1080 px original. Chrome fetches a manifest icon
+     * on the first visit, and the original was 355 KB downloading alongside the
+     * page on a phone — the heaviest request the home page made.
+     */
     icons: [
-      {
-        src: "/brand/LogoNassican.png",
-        sizes: "any",
-        type: "image/png",
-      },
+      { src: "/brand/icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/brand/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
   };
 }

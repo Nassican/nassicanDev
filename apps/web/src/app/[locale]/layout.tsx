@@ -1,7 +1,7 @@
 import { isIndexableDeployment, serializeJsonLd } from "@nassican/shared";
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import "../globals.css";
 import Navigation from "@/components/Navigation";
@@ -35,6 +35,12 @@ type LayoutParams = { params: Promise<{ locale: string }> };
  * page source. Admin settings take precedence; the environment is a fallback.
  */
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
+/**
+ * Only a well-formed measurement id is written into the page: it is spliced
+ * into an inline script, and it can come from a field in the panel.
+ */
+const GA_ID = /^G-[A-Z0-9]{4,20}$/;
 
 /** One static branch per language; there is no runtime locale detection. */
 export function generateStaticParams() {
@@ -219,9 +225,28 @@ export default async function RootLayout({
           backstop that keeps a local `.env.local` from sending development
           sessions into the same property the dashboard reads.
         */}
-        {(seo?.ga4MeasurementId || gaMeasurementId) && isIndexableDeployment(process.env) ? (
-          <GoogleAnalytics gaId={(seo?.ga4MeasurementId || gaMeasurementId)!} />
-        ) : null}
+        {/*
+          Loaded after the page, not with it. `@next/third-parties` preloaded
+          gtag.js in the <head> at high priority — 177 KB from another origin
+          competing with the page on a phone — and blocking it alone took the
+          mobile Lighthouse score of the home page from 66 to 95 (FCP 3.3 s →
+          1.9 s, LCP 6.6 s → 2.6 s). `lazyOnload` waits for the load event and
+          an idle moment, so the visit is still counted, a moment later. The
+          cost is the visitor who leaves before the page finished loading, which
+          GA4 already cannot see reliably.
+        */}
+        {(() => {
+          const id = (seo?.ga4MeasurementId || gaMeasurementId || "").trim();
+          if (!GA_ID.test(id) || !isIndexableDeployment(process.env)) return null;
+          return (
+            <>
+              <Script id="ga-init" strategy="lazyOnload">
+                {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(id)});`}
+              </Script>
+              <Script id="ga" strategy="lazyOnload" src={`https://www.googletagmanager.com/gtag/js?id=${id}`} />
+            </>
+          );
+        })()}
         {/*
           Vercel Web Analytics measures something GA4 does not: it counts every
           visit without cookies, so it needs no consent banner and is not lost

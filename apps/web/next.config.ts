@@ -11,6 +11,13 @@ const monorepoRoot = path.join(import.meta.dirname, "..", "..");
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  /*
+   * No `experimental.inlineCss`, though Lighthouse lists the stylesheet as
+   * render-blocking. It was measured (October 2026, seven mobile runs each way):
+   * LCP the same, FCP 160 ms worse, and the HTML 20 % heavier compressed — the
+   * CSS went into the page twice, as <style> and inside the RSC payload, and
+   * stopped being cached between pages. Do not turn it on without measuring.
+   */
   outputFileTracingRoot: monorepoRoot,
   turbopack: {
     root: monorepoRoot,

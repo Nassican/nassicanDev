@@ -702,17 +702,17 @@ conviene saber por qué antes de perder una tarde con ellos:
 
 - **Google Tag Manager**: no hay contenedor de GTM en la página. Cero
   apariciones de `gtm.js`. El sitio carga GA4 directamente con
-  `@next/third-parties`, sin GTM de por medio.
-- **Google Analytics**: en el HTML inicial solo hay un
-  `<link rel="preload" href="…gtag/js?id=…" as="script">`. La etiqueta
-  `<script>` de verdad la inyecta `next/script` tras la hidratación, y el
-  verificador de Google **no ejecuta JavaScript**: busca el fragmento en el HTML
-  crudo y solo encuentra una pista de precarga.
+  `next/script`, sin GTM de por medio.
+- **Google Analytics**: en el HTML inicial no hay nada: la etiqueta
+  `<script>` la inyecta `next/script` después del evento `load` (ver «Velocidad
+  en móvil»), y el verificador de Google **no ejecuta JavaScript**: busca el
+  fragmento en el HTML crudo y no encuentra nada.
 
 Esto no afecta a la medición —el script sí se carga en el navegador, y hay datos
 reales en GA4—, solo a los verificadores que leen HTML sin ejecutarlo. Si alguna
 vez hiciera falta el fragmento en el HTML inicial, habría que renderizarlo en el
-layout en lugar de delegarlo a `@next/third-parties`.
+layout como `<script>` normal en lugar de con `lazyOnload`, y eso devolvería el
+coste en móvil que se quitó.
 
 #### Un despliegue, varios hostnames, una sola copia indexable
 
@@ -3252,6 +3252,62 @@ cursor. En `/certificates` cada diploma se amplía en un `<dialog>` modal nativo
 foco atrapado y Escape sin librería. Las imágenes van `unoptimized`: ya son WebP a
 su tamaño final bajo una URL inmutable, y reoptimizarlas gastaría cuota de Vercel
 para nada.
+### Velocidad en móvil: lo que de verdad la frenaba
+
+PageSpeed daba a la portada en móvil **FCP 3,1 s y LCP 4,5 s**. Antes de tocar
+nada se midió con Lighthouse en producción, y luego quitando una cosa cada vez:
+
+| prueba (portada, móvil, producción) | puntos | FCP | LCP |
+| --- | --- | --- | --- |
+| tal cual | 66 | 3,3 s | 6,6 s |
+| bloqueando solo Google Analytics | **95** | 1,9 s | 2,6 s |
+| bloqueando solo el logo de 355 KB | 72 | 3,3 s | 5,0 s |
+
+**El culpable era Google Analytics.** `@next/third-parties` precargaba `gtag.js`
+en el `<head>` con prioridad alta: 177 KB de otro origen compitiendo con la
+página. Ahora el layout lo carga con `next/script` y `strategy="lazyOnload"`,
+cuando la página ya terminó; se comprobó en un navegador que se pide unos 50 ms
+después del evento `load` y que sigue enviando su `config`. El coste es la
+visita que se va antes de que la página termine de cargar. El identificador se
+valida (`G-…`) antes de escribirlo en el script en línea, porque sale de un
+campo del panel. El paquete `@next/third-parties` se desinstaló.
+
+Tres cosas más, de menos peso:
+
+- **El manifest servía el logo original**, 1080 px y 355 KB, que Chrome descarga
+  en la primera visita. Ahora apunta a `brand/icon-192.png` y `icon-512.png`
+  (11 KB y 47 KB). Si cambia el logo, hay que regenerar esas dos copias.
+- **Tecnologías se partió en dos.** Era un componente de cliente que recibía el
+  SVG de cada logo y el diccionario entero como props, y todo lo que recibe un
+  componente de cliente viaja dos veces: como HTML y dentro de la página para
+  hidratar. Ahora `Skills` (servidor) dibuja el sprite y `SkillsBoard` (cliente)
+  solo recibe nombres, colores y dos etiquetas.
+- **El CSS sigue siendo un archivo**, aunque PageSpeed lo marque como bloqueante.
+  Se probó `experimental.inlineCss` con siete mediciones de cada lado: LCP
+  igual, FCP 160 ms peor y HTML un 20 % más pesado comprimido, porque el CSS iba
+  dos veces y dejaba de cachearse entre páginas. El motivo está en
+  `next.config.ts`.
+
+**Lo que no se tocó, a propósito:** el aviso de «JavaScript antiguo» son los
+polyfills de `next/dist/build/polyfills/polyfill-module.js`, que Next incluye
+siempre. Pesan 1,4 KB, no los 14 KiB que estima Lighthouse, y quitarlos exigiría
+parchear Next por dentro. El «JavaScript sin usar» que queda es el propio
+`gtag.js` y el chunk de React, que no tienen recorte razonable.
+
+En local, con el mismo método (Lighthouse móvil, siete pasadas antes y tres
+después, sin enviar visitas a GA): **de 80 a 92–93 puntos**, LCP de 4,9 s a
+3,1–3,2 s y TBT de ~155 ms a ~85 ms. **Las cifras de producción solo se sabrán
+tras desplegar.** En local el LCP sigue pesando por los chunks de JavaScript que
+el navegador pide antes del primer pintado, que Lighthouse simula como si
+compitieran con el documento.
+
+**Una advertencia para quien mida esto en local:** el build local sí carga GA,
+porque `isIndexableDeployment` es cierto con `NODE_ENV=production` y sin
+`VERCEL_ENV`. Cada pasada de Lighthouse contra `localhost` envía una visita real
+a la propiedad. Usa `--blocked-url-patterns` con `*google-analytics.com*` y
+`*analytics.google.com*`: `gtag.js` se sigue cargando y midiendo, pero no envía
+nada.
+
 ## Tema claro / oscuro
 
 **La barra de desplazamiento sigue al tema.** Fina, sin flechas, con dos grises
