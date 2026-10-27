@@ -2611,6 +2611,104 @@ instalado fuera del repositorio, con una sesión de prueba y datos desechables�
 1440 px y a 390 px. Es el método a repetir con cualquier pantalla nueva: **una
 interfaz no está comprobada hasta que alguien la ha visto.**
 
+### Precios: el piso sale de los costos, no del cliente
+
+En `app.nassican.com/precios`, en «Personal». Calcular, Cotizaciones, Mercado,
+Regiones y Parámetros son rutas distintas, con sus propios esqueletos. Es un
+módulo privado, en español: no publica ni necesita una traducción al inglés.
+
+**La capacidad no abarata el trabajo.** El piso sale del ingreso objetivo, los
+gastos fijos, las horas facturables, los costos directos y los viáticos; nunca
+baja del mínimo del servicio. La capacidad y el mercado deciden dónde situarse
+por encima. Si la capacidad queda por debajo, se avisa y se ofrecen tres
+salidas: reducir alcance, cobrar en cuotas o no tomar el proyecto. Bajar el piso
+para acomodar al cliente habría convertido una calculadora en una forma de
+ocultar pérdidas. El precio final sí se puede elegir, con un aviso si queda por
+debajo de los costos.
+
+**El 1 % es mensual y operacional.** Los tramos de empresas parten del 1 % de
+41, no de todos los ingresos ni de una cifra anual sin convertir: los periodos
+anuales se dividen entre doce. Después actúan la salud financiera y el tope,
+inicialmente el 20 % de la utilidad operacional mensual. Así, 1.500 millones de
+ingresos con 3 % de margen dejan una cuota máxima de 9 millones. Con pérdidas,
+ese tope es cero; sin datos de utilidad, se dice que el tope no pudo comprobarse
+y la capacidad queda estimada.
+
+**61 ya es el costo final.** Nunca se le suman 62 ni clase 7. Cuando falta, se
+intenta inventario inicial + compras menos inventario final; después 62 sola;
+por último clase 7, solo si tampoco hay 62. Las casillas de Parámetros habilitan
+esas alternativas, no el doble conteo. Un 61 igual a cero está registrado y no
+activa una alternativa. Cada aproximación reduce la confianza. Los nombres
+NIIF apuntan a los mismos campos, y el formulario 210 usa un único renglón de
+costos y deducciones para no volver a restarlos como gastos.
+
+**Una región no demuestra ingresos.** Sin factor se usa 1 y se declara que no
+había datos. Los factores manuales son estimaciones y necesitan fecha y, si
+difieren de 1, justificación, también protegida por una restricción de Postgres.
+Un factor observado exige tres precios observados en cada región, comparables
+por servicio, alcance, unidad y modalidad; una misma cotización no cuenta en
+los dos grupos. Se divide una mediana por la otra. La cascada es municipio,
+departamento, país y general. Solo se ajustan el mercado y los ingresos
+estimados, no los costos ni un ingreso conocido. Una estimación municipal ya
+local no vuelve a recibir el mismo ajuste: se usa la razón de factores entre
+destino y región de la tabla. En presencial e híbrido, los viáticos sí entran
+en el piso. Los seguidores se guardan por red como contexto declarado y no se
+convierten en dinero.
+
+DIVIPOLA viene del catálogo oficial del DANE `gdxc-w37w`, mediante
+`npm run geo:import`; `-- --dry` informa sin escribir. Se conserva el código
+como texto, incluido su cero inicial, y se actualiza por esa clave. Otros
+países conservan campos de texto libre. Las monedas del mercado solo se mezclan
+si hay tasa: USD usa la TRM oficial existente; sin tasa para EUR, se excluye y
+se explica. Un valor atípico muestra la mediana sin sustituir a escondidas el
+promedio que usa la fórmula.
+
+**Cada cotización congela su evidencia.** El snapshot conserva entradas,
+parámetros, periodo financiero, procedencia y ajuste de los comparables,
+ubicaciones y desglose. Sugerido y final quedan además en columnas Decimal.
+Cambiar un porcentaje mañana no vuelve a calcular lo acordado ayer. El
+formulario exige revisar la evidencia completa antes de guardar y comprueba en
+el servidor que la sugerencia no cambió mientras se editaba el precio final.
+El motor puro usa centavos enteros y fracciones decimales: redondear primero
+1/12 había perdido pesos en los ingresos anuales grandes y su prueba lo
+encontró. El rango describe las referencias antes del redondeo; la sugerencia
+redondea hacia arriba para no perforar el piso.
+
+**Aceptar crea un trabajo una sola vez.** La aceptación toma el bloqueo de la
+cotización antes de crear `ClientProject`, y enlaza cliente, monto final y
+moneda dentro de la misma transacción. Dos clics simultáneos no crean dos
+trabajos. Una aceptación conserva su acuerdo; una propuesta distinta necesita
+otra cotización. La papelera del cliente lleva periodos y señales, y restaura
+también los enlaces `SET NULL` de cotizaciones y trabajos. Borrar una cotización
+conserva su trabajo. Las doce tablas nuevas participan de la restauración de
+copias, incluida la tabla explícita de ingresos estimados.
+
+«Cotizaste…» es rutina en Bitácora; «Aceptaron la cotización…» es un hito. «Hoy»
+recuerda las enviadas sin respuesta durante más de siete días y las abiertas
+que vencen en los próximos tres. Una vigencia por mes acaba el último día de
+ese mes. Las pestañas y las cotizaciones también aparecen en la paleta.
+
+**Cómo se verificó.** Cada una de las cinco fases pasó `npm run typecheck`,
+`npm run lint`, `npm test` y `npm run build` desde la raíz. La última suite
+sumó 352 pruebas sin fallos. `PrismaClient` no apareció en
+`apps/admin/.next/static`. `scripts/check-pricing.ts`, ejecutado con `tsx
+--conditions=react-server --tsconfig apps/admin/tsconfig.json` y `--phase1`
+hasta `--phase5`, creó y borró sus propias filas: comprobó snapshots,
+contabilidad, mercado, cascadas, restricciones de evidencia, aceptación
+concurrente sin trabajos duplicados y restauración con enlaces recuperados.
+
+Chrome real, dirigido por `scripts/check-pricing-ui.cjs`, recorrió 56 variantes
+a 1440 y 390 px, en claro y oscuro, y pulsó guardar, editar, enviar, aceptar,
+restaurar y abrir la paleta. `puppeteer-core` se instaló solo en el directorio
+temporal `nassican-pricing-qa`, fuera del repositorio. Mirar las capturas
+encontró lo que los comandos no: títulos aplastados, un resultado fijo más
+alto que la pantalla y columnas móviles que crecían con nombres largos. Se
+corrigieron y se repitió la revisión, incluida la fila de papelera con datos.
+Los registros y la sesión temporal de QA se retiraron al terminar. La carga
+real de DIVIPOLA incorporó 1122 lugares; repetir `geo:import -- --dry` informó
+cero altas y cero cambios. Los catálogos oficiales y los parámetros iniciales
+sí se conservan. No hubo commit ni despliegue.
+
 ### Presupuesto: los presupuestos de Wallet, editados aquí
 
 En `app.nassican.com/presupuesto`, junto a Movimientos. **Es la única parte del

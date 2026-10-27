@@ -12,7 +12,7 @@ import type { Command } from "@/components/CommandPalette";
  * this is the function that changes — nothing in the component.
  */
 export async function listCommands(): Promise<Command[]> {
-  const [posts, projects, pages, games, books, subscriptions, tasks, ideas, courses, work, wishes] = await Promise.all([
+  const [posts, projects, pages, games, books, subscriptions, tasks, ideas, courses, work, wishes, quotes] = await Promise.all([
     db.post.findMany({
       take: 50,
       orderBy: { updatedAt: "desc" },
@@ -36,9 +36,15 @@ export async function listCommands(): Promise<Command[]> {
     db.course.findMany({ take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
     db.clientProject.findMany({ take: 100, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, company: true } }),
     db.wishItem.findMany({ where: { status: "wanted" }, take: 100, orderBy: { title: "asc" }, select: { id: true, title: true } }),
+    db.pricingQuote.findMany({ take: 100, orderBy: { updatedAt: "desc" }, select: { id: true, title: true } }),
   ]);
 
   return [
+    { id: "pricing-quotes", label: "Cotizaciones", kind: "Precios", href: "/precios/cotizaciones" },
+    { id: "pricing-market", label: "Mercado de precios", kind: "Precios", href: "/precios/mercado" },
+    { id: "pricing-regions", label: "Regiones de precios", kind: "Precios", href: "/precios/regiones" },
+    { id: "pricing-settings", label: "Parámetros de precios", kind: "Precios", href: "/precios/parametros" },
+    ...quotes.map((q) => ({ id: `pricing:${q.id}`, label: q.title, kind: "Cotización", href: `/precios/cotizaciones?q=${q.id}` })),
     // The list itself too: it is a tab inside Metas, so the menu does not name it.
     { id: "wishlist", label: "Lista de deseos", kind: "Módulo", href: "/metas/deseos" },
     ...wishes.map((wish) => ({ id: `wish:${wish.id}`, label: wish.title, kind: "Deseo", href: "/metas/deseos" })),

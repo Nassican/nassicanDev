@@ -5,6 +5,11 @@ import { KEPT_ON_RESTORE, REPLACED_ON_RESTORE, modelInfo, modelNames, tableOrder
 const replaced = new Set<string>(REPLACED_ON_RESTORE);
 const kept = new Set<string>(KEPT_ON_RESTORE);
 
+test("pricing evidence and all its catalogs are restored together", () => {
+  for (const model of ["PricingClient", "PricingClientFinancial", "PricingClientSignal", "PricingService", "PricingTier", "PricingSettings", "GeoPlace", "PricingRegion", "PricingRegionFactor", "PricingIncomeEstimate", "MarketQuote", "PricingQuote"]) assert.ok(replaced.has(model), `${model} is missing from restore policy`);
+  assert.ok(modelInfo.ClientProject.foreignKeys.some((fk) => fk.target === "PricingClient" && fk.nullable && fk.onDelete === "SetNull"));
+});
+
 test("ninguna tabla se reemplaza y se conserva a la vez", () => {
   assert.deepEqual([...replaced].filter((m) => kept.has(m)), []);
 });

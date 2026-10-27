@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ComponentType } from "react";
 import {
+  BsCalculator,
   BsBarChart,
   BsFileText,
   BsFiles,
@@ -51,6 +52,7 @@ import {
 } from "@/lib/navigation";
 
 const icons: Record<NavIcon, ComponentType<{ className?: string }>> = {
+  pricing: BsCalculator,
   dashboard: BsSpeedometer2,
   post: BsFileText,
   project: BsKanban,

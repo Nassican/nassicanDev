@@ -104,10 +104,10 @@ export default function TrashModule({
             const left = daysLeft(entry.expiresAt, now);
             return (
               <li key={entry.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-                <span className="w-20 shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500">
+                <span className="w-full shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500 sm:w-20">
                   {entry.kindLabel}
                 </span>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
                   <p className="truncate text-sm text-neutral-100" title={entry.label}>
                     {entry.label}
                   </p>
@@ -121,7 +121,7 @@ export default function TrashModule({
                 >
                   {left === 0 ? "Se elimina hoy" : `${left} ${left === 1 ? "día" : "días"}`}
                 </span>
-                <div className="flex shrink-0 gap-2">
+                <div className="ml-auto flex shrink-0 gap-2 sm:ml-0">
                   <button
                     type="button"
                     className={button}

@@ -11,6 +11,7 @@ import { addDays, longDayLabel, mondayOf } from "@/lib/journal-draft";
 import { getTimezone } from "@/lib/site-config";
 import { renewalState } from "@/lib/subscription-draft";
 import { groupOf } from "@/lib/task-draft";
+import { pricingToday } from "@/lib/pricing";
 
 /**
  * «Hoy»: what today asks of you, on one screen.
@@ -32,6 +33,7 @@ const DEADLINE_DAYS = 7;
 const YESTERDAY_LINES = 4;
 
 export type TodayView = {
+  pricing: Awaited<ReturnType<typeof pricingToday>>;
   today: string;
   label: string;
   tasks: { id: string; title: string; plannedFor: string | null; late: boolean }[];
@@ -54,7 +56,7 @@ export async function getToday(): Promise<TodayView> {
   const today = calendarDate(timezone);
   const yesterday = addDays(today, -1);
 
-  const [tasks, habits, priorities, subscriptions, goals, activity, review, editorial, focus, work] = await Promise.all([
+  const [tasks, habits, priorities, subscriptions, goals, activity, review, editorial, focus, work, pricing] = await Promise.all([
     db.task.findMany({
       where: { status: "planned" },
       orderBy: { plannedFor: "asc" },
@@ -79,9 +81,11 @@ export async function getToday(): Promise<TodayView> {
     lateEditorial(today),
     focusBetween(today, addDays(today, 1), timezone),
     activeWork(today),
+    pricingToday(today, timezone),
   ]);
 
   return {
+    pricing,
     today,
     label: longDayLabel(today),
     tasks: tasks.flatMap((t) => {

@@ -14,6 +14,9 @@ export type ActionResult =
 
 /** Where each kind lives in the panel, so its list shows the restored row. */
 const listPaths: Record<TrashKind, string> = {
+  pricing_client: "/precios",
+  pricing_quote: "/precios/cotizaciones",
+  market_quote: "/precios/mercado",
   post: "/contenido/blogs",
   project: "/contenido/proyectos",
   page: "/contenido/paginas",

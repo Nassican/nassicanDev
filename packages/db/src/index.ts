@@ -9,6 +9,7 @@ import "server-only";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient, type Locale as DbLocale } from "../generated/prisma";
 import type { Snapshot } from "./backup";
+import type { PricingSnapshot } from "@nassican/shared";
 import {
   isContentBody,
   type ContentBlock,
@@ -130,6 +131,16 @@ function createBaseClient() {
 function extend(base: PrismaClient) {
   return base.$extends({
     result: {
+      pricingQuote: {
+        snapshot: {
+          needs: { snapshot: true },
+          compute: (row): PricingSnapshot => {
+            const value = row.snapshot;
+            if (value && typeof value === "object" && !Array.isArray(value) && value.version === 1 && value.inputs && value.parameters && value.result) return value as unknown as PricingSnapshot;
+            throw new Error("Malformed pricing snapshot");
+          },
+        },
+      },
       postTranslation: {
         body: {
           needs: { body: true, postId: true, locale: true },

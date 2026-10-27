@@ -503,6 +503,9 @@ export const REPLACED_ON_RESTORE = [
   "WeekPriority", "Task", "Goal", "Habit", "HabitCheck", "ContentIdea",
   "FocusBlock", "Course", "ClientProject", "ClientProjectEntry",
   "WishItem", "WishSaving",
+  "PricingClient", "PricingClientFinancial", "PricingClientSignal", "PricingService",
+  "PricingTier", "PricingSettings", "GeoPlace", "PricingRegion", "PricingRegionFactor",
+  "PricingIncomeEstimate", "MarketQuote", "PricingQuote",
 ] as const satisfies readonly ModelName[];
 
 /**

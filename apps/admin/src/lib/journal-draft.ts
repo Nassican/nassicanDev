@@ -164,6 +164,7 @@ export type Tally =
   | "habit-done"
   | "course-finished"
   | "work-finished"
+  | "quote-accepted"
   | "wish-bought";
 
 export type AuditLine = {
@@ -179,6 +180,16 @@ export type AuditLine = {
 };
 
 const nouns: Record<string, string> = {
+  pricing_quote: "la cotización",
+  pricing_client: "el cliente",
+  market_quote: "la referencia de mercado",
+  pricing_financial: "el periodo financiero",
+  pricing_service: "el servicio",
+  pricing_settings: "los parámetros de precios",
+  pricing_tiers: "los tramos de precios",
+  pricing_factor: "el factor regional",
+  pricing_income: "el ingreso estimado",
+  pricing_signal: "la señal del cliente",
   post: "el artículo",
   project: "el proyecto",
   page: "la página",
@@ -205,6 +216,9 @@ const nouns: Record<string, string> = {
 };
 
 const kinds: Record<string, LineKind> = {
+  pricing_quote: "work", pricing_client: "work", market_quote: "work",
+  pricing_financial: "work", pricing_service: "work", pricing_settings: "work",
+  pricing_tiers: "work", pricing_factor: "work", pricing_income: "work", pricing_signal: "work",
   game: "games",
   "game-store": "games",
   book: "books",
@@ -257,6 +271,20 @@ export function describeAudit(fact: AuditFact): AuditLine | null {
   const status = pick("status");
   const kind: LineKind = kinds[entityType] ?? "content";
   const line = (text: string, highlight: boolean, tally?: Tally): AuditLine => ({ text, kind, highlight, tally });
+
+  if (entityType === "pricing_quote") {
+    // The amount is the canonical Decimal string written by the action, not a
+    // hand-typed es-CO field. Missing evidence must not become a zero-price deal.
+    const raw = diff.amount;
+    const amount = typeof raw === "number" ? raw : typeof raw === "string" && /^\d+(?:\.\d+)?$/.test(raw) ? Number(raw) : null;
+    const client = pick("client");
+    const detail = `${client ? ` a «${client}»` : ""}${amount !== null ? ` por ${formatMoney(amount, pick("currency"))}` : ""}`;
+    if (action === "create") return line(`Cotizaste${quoted(name)}${detail}`, false);
+    if (action === "update" && status === "accepted") return line(`Aceptaron la cotización${quoted(name)}${detail}`, true, "quote-accepted");
+    if (action === "update" && status === "sent") return line(`Enviaste la cotización${quoted(name)}${detail}`, false);
+    if (action === "update" && status === "rejected") return line(`Rechazaron la cotización${quoted(name)}`, false);
+    if (action === "update" && status === "expired") return line(`Marcaste como vencida la cotización${quoted(name)}`, false);
+  }
 
   if (entityType === "game" && action === "update" && status) {
     if (status === "finished") {
@@ -486,6 +514,7 @@ const tallyWords: Record<Tally, [string, string]> = {
   "habit-done": ["hábito cumplido", "hábitos cumplidos"],
   "course-finished": ["curso terminado", "cursos terminados"],
   "work-finished": ["trabajo terminado", "trabajos terminados"],
+  "quote-accepted": ["cotización aceptada", "cotizaciones aceptadas"],
   "wish-bought": ["deseo cumplido", "deseos cumplidos"],
 };
 
@@ -502,6 +531,7 @@ const tallyKinds: Record<Tally, LineKind> = {
   "habit-done": "goals",
   "course-finished": "learning",
   "work-finished": "work",
+  "quote-accepted": "work",
   "wish-bought": "goals",
 };
 

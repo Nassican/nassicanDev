@@ -55,17 +55,24 @@ export default function TodayPanel({
     view.goals.length === 0 &&
     view.editorial.length === 0 &&
     view.work.length === 0 &&
+    view.pricing.followUps.length === 0 &&
+    view.pricing.expiring.length === 0 &&
     !view.review;
 
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-neutral-800 p-5" aria-labelledby="hoy">
+    <section
+      className="flex flex-col gap-4 rounded-lg border border-neutral-800 p-5"
+      aria-labelledby="hoy"
+    >
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="hoy" className="text-sm font-semibold">
           Hoy <span className="font-normal text-neutral-500">· {view.label}</span>
         </h2>
         {view.habits.length > 0 ? (
           <span className="text-xs text-neutral-500">
-            {habitsLeft === 0 ? "Hábitos de hoy, hechos" : `${habitsLeft} ${habitsLeft === 1 ? "hábito" : "hábitos"} por marcar`}
+            {habitsLeft === 0
+              ? "Hábitos de hoy, hechos"
+              : `${habitsLeft} ${habitsLeft === 1 ? "hábito" : "hábitos"} por marcar`}
           </span>
         ) : null}
       </header>
@@ -83,9 +90,9 @@ export default function TodayPanel({
           .
         </p>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2">
           {/* -------------------------- la columna de hacer -------------------------- */}
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             {view.habits.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 <span className={labelClass}>Hábitos</span>
@@ -127,7 +134,9 @@ export default function TodayPanel({
                         <BsCheck2 className="h-2.5 w-2.5" aria-hidden />
                       </button>
                       <span className="min-w-0 flex-1 text-neutral-200">{t.title}</span>
-                      <span className={`shrink-0 text-[11px] ${t.late ? "text-amber-500" : "text-neutral-500"}`}>
+                      <span
+                        className={`shrink-0 text-[11px] ${t.late ? "text-amber-500" : "text-neutral-500"}`}
+                      >
                         {relativeDay(t.plannedFor, view.today)}
                       </span>
                     </li>
@@ -165,13 +174,19 @@ export default function TodayPanel({
                       >
                         <span
                           className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
-                            p.done ? "border-green-700 bg-green-950 text-green-400" : "border-neutral-600"
+                            p.done
+                              ? "border-green-700 bg-green-950 text-green-400"
+                              : "border-neutral-600"
                           }`}
                           aria-hidden
                         >
                           {p.done ? "✓" : ""}
                         </span>
-                        <span className={p.done ? "text-neutral-500 line-through" : "text-neutral-200"}>{p.text}</span>
+                        <span
+                          className={p.done ? "text-neutral-500 line-through" : "text-neutral-200"}
+                        >
+                          {p.text}
+                        </span>
                       </button>
                     </li>
                   ))}
@@ -181,7 +196,7 @@ export default function TodayPanel({
           </div>
 
           {/* ------------------------- la columna de saber ------------------------- */}
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             {view.review ? (
               <Link
                 href={`/bitacora?semana=${view.review.week}`}
@@ -201,7 +216,9 @@ export default function TodayPanel({
                       <Link href="/suscripciones" className="text-neutral-200 hover:underline">
                         {r.name}
                       </Link>
-                      <span className={`text-[11px] ${r.overdue ? "text-red-400" : "text-amber-500"}`}>
+                      <span
+                        className={`text-[11px] ${r.overdue ? "text-red-400" : "text-amber-500"}`}
+                      >
                         {r.overdue
                           ? `vencida · ${formatPartialDate(r.nextRenewal)}`
                           : r.days === null
@@ -227,8 +244,52 @@ export default function TodayPanel({
                       <Link href="/metas" className="text-neutral-200 hover:underline">
                         {g.title}
                       </Link>
-                      <span className={`text-[11px] ${g.overdue ? "text-red-400" : "text-amber-500"}`}>
-                        {g.overdue ? "pasó la fecha" : g.days === null ? "este mes" : g.days === 0 ? "hoy" : `en ${g.days} días`}
+                      <span
+                        className={`text-[11px] ${g.overdue ? "text-red-400" : "text-amber-500"}`}
+                      >
+                        {g.overdue
+                          ? "pasó la fecha"
+                          : g.days === null
+                            ? "este mes"
+                            : g.days === 0
+                              ? "hoy"
+                              : `en ${g.days} días`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {view.pricing.followUps.length || view.pricing.expiring.length ? (
+              <div className="flex flex-col gap-1.5">
+                <span className={labelClass}>Cotizaciones</span>
+                <ul className="flex flex-col gap-2 text-sm">
+                  {view.pricing.followUps.map((q) => (
+                    <li key={`follow:${q.id}`} className="flex items-start justify-between gap-3">
+                      <Link
+                        href={`/precios/cotizaciones?q=${q.id}`}
+                        className="min-w-0 flex-1 break-words text-neutral-200 hover:underline"
+                      >
+                        {q.title}
+                        <span className="block text-xs text-neutral-500">{q.client}</span>
+                      </Link>
+                      <span className="shrink-0 text-[11px] text-amber-500">
+                        {q.days} días sin respuesta
+                      </span>
+                    </li>
+                  ))}
+                  {view.pricing.expiring.map((q) => (
+                    <li key={`expiry:${q.id}`} className="flex items-start justify-between gap-3">
+                      <Link
+                        href={`/precios/cotizaciones?q=${q.id}`}
+                        className="min-w-0 flex-1 break-words text-neutral-200 hover:underline"
+                      >
+                        {q.title}
+                        <span className="block text-xs text-neutral-500">{q.client}</span>
+                      </Link>
+                      <span className="shrink-0 text-[11px] text-amber-500">
+                        {q.days === 0 ? "vence hoy" : `vence en ${q.days} días`}
                       </span>
                     </li>
                   ))}
@@ -242,10 +303,15 @@ export default function TodayPanel({
                 <ul className="flex flex-col gap-1 text-sm">
                   {view.work.map((w) => (
                     <li key={w.id} className="flex justify-between gap-3">
-                      <Link href="/trabajos" className="min-w-0 truncate text-neutral-200 hover:underline">
+                      <Link
+                        href="/trabajos"
+                        className="min-w-0 truncate text-neutral-200 hover:underline"
+                      >
                         {w.title} <span className="text-neutral-500">· {w.company}</span>
                       </Link>
-                      <span className={`shrink-0 text-[11px] ${w.late ? "text-red-400" : w.quiet ? "text-amber-500" : "text-neutral-500"}`}>
+                      <span
+                        className={`shrink-0 text-[11px] ${w.late ? "text-red-400" : w.quiet ? "text-amber-500" : "text-neutral-500"}`}
+                      >
                         {w.late
                           ? "entrega vencida"
                           : w.daysQuiet === null
@@ -273,7 +339,9 @@ export default function TodayPanel({
                         {e.title}
                       </Link>
                       <span className="shrink-0 text-[11px] text-amber-500">
-                        {e.targetDate.slice(0, 10) === view.today ? "era para hoy" : `era para ${formatPartialDate(e.targetDate)}`}
+                        {e.targetDate.slice(0, 10) === view.today
+                          ? "era para hoy"
+                          : `era para ${formatPartialDate(e.targetDate)}`}
                       </span>
                     </li>
                   ))}

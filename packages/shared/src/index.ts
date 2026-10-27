@@ -12,3 +12,4 @@ export * from "./svg-icon";
 
 // Pure, like the rest: the site draws diagrams and the panel explains them.
 export * from "./diagram";
+export * from "./pricing";

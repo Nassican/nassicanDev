@@ -35,6 +35,16 @@ const entityWords: Record<string, string> = {
   navigation: "la navegación",
   user: "un usuario",
   session: "una sesión",
+  pricing_client: "un cliente de Precios",
+  pricing_financial: "un periodo financiero",
+  pricing_signal: "una señal del cliente",
+  pricing_service: "un servicio",
+  pricing_settings: "los parámetros de Precios",
+  pricing_tiers: "los tramos de ingresos",
+  pricing_quote: "una cotización",
+  market_quote: "una referencia de mercado",
+  pricing_factor: "un factor regional",
+  pricing_income: "una estimación de ingresos",
 };
 
 const tones: Record<Pending["tone"], string> = {
@@ -172,7 +182,7 @@ export default async function DashboardPage() {
         />
       </dl>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
         {/* ----------------------------- tráfico ---------------------------- */}
         <section className="flex flex-col gap-3 rounded-lg border border-neutral-900 p-5">
           <div className="flex items-baseline justify-between gap-2">

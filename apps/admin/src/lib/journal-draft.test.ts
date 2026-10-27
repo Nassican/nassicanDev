@@ -13,6 +13,20 @@ import {
   zonedMidnight,
 } from "./journal-draft";
 
+test("pricing: quoting is routine, acceptance is a milestone with its actual final amount", () => {
+  const diff = { title: "Sitio web", client: "Acme", amount: "2500000", currency: "COP" };
+  const quote = describeAudit({ action: "create", entityType: "pricing_quote", diff });
+  assert.match(quote?.text ?? "", /^Cotizaste «Sitio web» a «Acme» por .*2.500.000$/);
+  assert.equal(quote?.highlight, false);
+  assert.equal(quote?.kind, "work");
+  const accepted = describeAudit({ action: "update", entityType: "pricing_quote", diff: { ...diff, status: "accepted" } });
+  assert.equal(accepted?.highlight, true);
+  assert.equal(accepted?.tally, "quote-accepted");
+  assert.match(accepted?.text ?? "", /^Aceptaron la cotización/);
+  assert.equal(describeAudit({ action: "update", entityType: "pricing_quote", diff: { ...diff, status: "sent" } })?.highlight, false);
+  assert.ok(!describeAudit({ action: "create", entityType: "pricing_quote", diff: { title: "Sin precio" } })?.text.includes("por 0"));
+});
+
 test("wishes: buying is claimed only with its date, saving is shown without weight", () => {
   const bought = describeAudit({
     action: "update",

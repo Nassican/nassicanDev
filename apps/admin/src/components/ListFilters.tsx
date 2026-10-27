@@ -32,6 +32,7 @@ export default function ListFilters({
   statuses,
   total,
   shown,
+  extraParams = {},
 }: {
   /** The list's own path, e.g. `/contenido/blogs`. */
   base: string;
@@ -40,12 +41,17 @@ export default function ListFilters({
   statuses: { value: string; label: string }[];
   total: number;
   shown: number;
+  /** Preserve a module's additional URL filters while changing the shared ones. */
+  extraParams?: Record<string, string>;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState(filters.search ?? "");
 
-  const go = (next: Partial<Filters>) =>
-    router.push(`${base}${listParams({ ...filters, ...next })}`);
+  const go = (next: Partial<Filters>) => {
+    const params = new URLSearchParams(listParams({ ...filters, ...next }));
+    for (const [key, value] of Object.entries(extraParams)) if (value) params.set(key, value);
+    router.push(`${base}${params.size ? `?${params}` : ""}`);
+  };
 
   const filtered = shown !== total;
 

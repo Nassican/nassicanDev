@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { activeHref, navigation } from "./navigation";
 
+test("Precios belongs to Personal and owns its tabs", () => {
+  assert.ok(navigation.find((s) => s.label === "Personal")?.entries.some((e) => e.href === "/precios" && e.icon === "pricing"));
+  assert.equal(activeHref("/precios/cotizaciones"), "/precios");
+});
+
 test("el dashboard solo coincide exacto", () => {
   assert.equal(activeHref("/"), "/");
   assert.equal(activeHref("/juegos"), "/juegos");

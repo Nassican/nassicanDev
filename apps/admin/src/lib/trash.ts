@@ -26,6 +26,9 @@ import { cacheTags, postTags } from "@nassican/shared";
 export const TRASH_DAYS = 30;
 
 const roots: Record<TrashKind, ModelName> = {
+  pricing_client: "PricingClient",
+  pricing_quote: "PricingQuote",
+  market_quote: "MarketQuote",
   post: "Post",
   project: "Project",
   page: "Page",
@@ -44,6 +47,9 @@ const roots: Record<TrashKind, ModelName> = {
 };
 
 export const kindLabels: Record<TrashKind, string> = {
+  pricing_client: "Cliente de precios",
+  pricing_quote: "Cotización",
+  market_quote: "Referencia de mercado",
   post: "Artículo",
   project: "Proyecto",
   page: "Página",
@@ -91,6 +97,8 @@ function labelOf(kind: TrashKind, snapshot: Snapshot): string {
     text(rowsOf(snapshot, model).find((r) => r.locale === "es")?.[field]);
 
   switch (kind) {
+    case "pricing_client": return String(root.name);
+    case "market_quote": return String(root.description);
     case "post":
       return spanish("PostTranslation", "title") ?? String(root.slug);
     case "project":
@@ -133,6 +141,9 @@ export function siteTagsFor(kind: TrashKind, root: Row): string[] {
 
 function remove(kind: TrashKind, id: string) {
   switch (kind) {
+    case "pricing_client": return dbBase.pricingClient.delete({ where: { id } });
+    case "pricing_quote": return dbBase.pricingQuote.delete({ where: { id } });
+    case "market_quote": return dbBase.marketQuote.delete({ where: { id } });
     case "post":
       return dbBase.post.delete({ where: { id } });
     case "project":

@@ -1507,6 +1507,9 @@ model Book {
 // ---------------------------------------------------------------------------
 
 enum TrashKind {
+  pricing_client
+  pricing_quote
+  market_quote
   post
   project
   page
@@ -2030,6 +2033,9 @@ model ClientProject {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  clientId String? @map("client_id")
+  client PricingClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  pricingQuote PricingQuote?
   entries ClientProjectEntry[]
 
   @@index([status])
@@ -2117,4 +2123,297 @@ model WishSaving {
 
   @@index([itemId, at])
   @@map("wish_savings")
+}
+
+
+/// Provenance remains visible even when an estimate happens to be accurate.
+enum PricingOrigin {
+  observed
+  declared
+  estimated
+  missing
+}
+/// Manual factors remain estimates; observed factors need comparable samples.
+enum PricingFactorOrigin {
+  observed
+  manual
+}
+enum PricingClientType {
+  person
+  company
+}
+enum PricingUnit {
+  project
+  monthly
+  hour
+}
+enum PricingMode {
+  remote
+  onsite
+  hybrid
+}
+enum PricingScope {
+  basic
+  standard
+  advanced
+}
+enum PricingStatus {
+  draft
+  sent
+  accepted
+  rejected
+  expired
+}
+enum PricingNetwork {
+  instagram
+  facebook
+  linkedin
+  tiktok
+  youtube
+  x
+  other
+}
+enum PricingFinancialSource {
+  statements
+  tax_return
+  declared
+  estimated
+}
+enum MarketQuoteSource {
+  received
+  published
+  own
+  other
+}
+
+/// Client identity is separate from a quote's immutable evidence.
+model PricingClient {
+  id String @id @default(uuid())
+  type PricingClientType @default(person)
+  name String
+  country String @default("Colombia")
+  department String?
+  municipality String?
+  zone String @default("urban")
+  stratum Int?
+  monthlyIncome Decimal? @map("monthly_income") @db.Decimal(18, 2)
+  incomeOrigin PricingOrigin @default(missing) @map("income_origin")
+  activity String?
+  foundedAt String? @map("founded_at")
+  notes String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  financials PricingClientFinancial[]
+  signals PricingClientSignal[]
+  quotes PricingQuote[]
+  projects ClientProject[]
+  @@map("pricing_clients")
+}
+
+/// One period, not a rolling total; missing accounts are distinct from zero.
+model PricingClientFinancial {
+  id String @id @default(uuid())
+  clientId String @map("client_id")
+  start String
+  end String
+  annual Boolean @default(true)
+  source PricingFinancialSource
+  format String @default("puc")
+  assets Decimal? @db.Decimal(18, 2)
+  currentAssets Decimal? @map("current_assets") @db.Decimal(18, 2)
+  liabilities Decimal? @db.Decimal(18, 2)
+  currentLiabilities Decimal? @map("current_liabilities") @db.Decimal(18, 2)
+  equity Decimal? @db.Decimal(18, 2)
+  revenue41 Decimal? @map("revenue_41") @db.Decimal(18, 2)
+  revenue42 Decimal? @map("revenue_42") @db.Decimal(18, 2)
+  expense51 Decimal? @map("expense_51") @db.Decimal(18, 2)
+  expense52 Decimal? @map("expense_52") @db.Decimal(18, 2)
+  expense53 Decimal? @map("expense_53") @db.Decimal(18, 2)
+  expense54 Decimal? @map("expense_54") @db.Decimal(18, 2)
+  cost61 Decimal? @map("cost_61") @db.Decimal(18, 2)
+  purchases62 Decimal? @map("purchases_62") @db.Decimal(18, 2)
+  class7 Decimal? @map("class_7") @db.Decimal(18, 2)
+  depreciation Decimal? @db.Decimal(18, 2)
+  inventoryStart Decimal? @map("inventory_start") @db.Decimal(18, 2)
+  inventoryEnd Decimal? @map("inventory_end") @db.Decimal(18, 2)
+  combinedDeductions Decimal? @map("combined_deductions") @db.Decimal(18, 2)
+  client PricingClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  @@unique([clientId, start, end])
+  @@map("pricing_client_financials")
+}
+
+/// Social signals are evidence, never an invented income formula.
+model PricingClientSignal {
+  id String @id @default(uuid())
+  clientId String @map("client_id")
+  network PricingNetwork
+  followers Int
+  client PricingClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  @@unique([clientId, network])
+  @@map("pricing_client_signals")
+}
+
+model PricingService {
+  id String @id @default(uuid())
+  name String @unique
+  unit PricingUnit @default(project)
+  typicalHours Decimal @map("typical_hours") @db.Decimal(10, 2)
+  incomePercent Decimal @map("income_percent") @db.Decimal(10, 6)
+  minimum Decimal @db.Decimal(18, 2)
+  active Boolean @default(true)
+  quotes PricingQuote[]
+  marketQuotes MarketQuote[]
+  factors PricingRegionFactor[]
+  @@map("pricing_services")
+}
+
+/// Monthly operational income brackets, independently bounded.
+model PricingTier {
+  id String @id @default(uuid())
+  fromIncome Decimal @unique @map("from_income") @db.Decimal(18, 2)
+  toIncome Decimal? @map("to_income") @db.Decimal(18, 2)
+  percent Decimal @default(0.01) @db.Decimal(10, 6)
+  minimum Decimal @default(0) @db.Decimal(18, 2)
+  maximum Decimal @db.Decimal(18, 2)
+  @@map("pricing_tiers")
+}
+
+/// Singleton. All adjustable arithmetic lives in columns, not opaque JSON.
+model PricingSettings {
+  id String @id @default("singleton")
+  targetIncome Decimal @default(6000000) @map("target_income") @db.Decimal(18, 2)
+  fixedCosts Decimal @default(1000000) @map("fixed_costs") @db.Decimal(18, 2)
+  billableHours Decimal @default(100) @map("billable_hours") @db.Decimal(10, 2)
+  margin Decimal @default(0.3) @db.Decimal(10, 6)
+  projectWeight Decimal @default(0.5) @map("project_weight") @db.Decimal(10, 6)
+  capacityWeight Decimal @default(0.25) @map("capacity_weight") @db.Decimal(10, 6)
+  marketWeight Decimal @default(0.25) @map("market_weight") @db.Decimal(10, 6)
+  confidenceHigh Decimal @default(0.75) @map("confidence_high") @db.Decimal(10, 6)
+  confidenceMedium Decimal @default(0.5) @map("confidence_medium") @db.Decimal(10, 6)
+  outlierMultiplier Decimal @default(3) @map("outlier_multiplier") @db.Decimal(10, 6)
+  rounding Decimal @default(10000) @db.Decimal(18, 2)
+  profitCap Decimal @default(0.2) @map("profit_cap") @db.Decimal(10, 6)
+  debtLow Decimal @default(0.6) @map("debt_low") @db.Decimal(10, 6)
+  debtHigh Decimal @default(0.8) @map("debt_high") @db.Decimal(10, 6)
+  debtMediumFactor Decimal @default(0.85) @map("debt_medium_factor") @db.Decimal(10, 6)
+  debtHighFactor Decimal @default(0.7) @map("debt_high_factor") @db.Decimal(10, 6)
+  negativeEquityFactor Decimal @default(0.5) @map("negative_equity_factor") @db.Decimal(10, 6)
+  marginLow Decimal @default(0.05) @map("margin_low") @db.Decimal(10, 6)
+  marginHigh Decimal @default(0.15) @map("margin_high") @db.Decimal(10, 6)
+  negativeMarginFactor Decimal @default(0.7) @map("negative_margin_factor") @db.Decimal(10, 6)
+  lowMarginFactor Decimal @default(0.85) @map("low_margin_factor") @db.Decimal(10, 6)
+  highMarginFactor Decimal @default(1.1) @map("high_margin_factor") @db.Decimal(10, 6)
+  liquidityThreshold Decimal @default(1) @map("liquidity_threshold") @db.Decimal(10, 6)
+  liquidityFactor Decimal @default(0.85) @map("liquidity_factor") @db.Decimal(10, 6)
+  healthMinimum Decimal @default(0.5) @map("health_minimum") @db.Decimal(10, 6)
+  useInventory Boolean @default(true) @map("use_inventory")
+  usePurchases Boolean @default(true) @map("use_purchases")
+  useClass7 Boolean @default(true) @map("use_class_7")
+  quoteMaxMonths Int @default(18) @map("quote_max_months")
+  transport Decimal @default(0) @db.Decimal(18, 2)
+  lodging Decimal @default(0) @db.Decimal(18, 2)
+  food Decimal @default(0) @db.Decimal(18, 2)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("pricing_settings")
+}
+
+/// Keyed by DANE code so importing a new edition updates, never duplicates.
+model GeoPlace {
+  code String @id
+  departmentCode String @map("department_code")
+  department String
+  municipality String
+  @@index([departmentCode])
+  @@map("geo_places")
+}
+
+/// An empty municipality/department means its parent region.
+model PricingRegion {
+  id String @id @default(uuid())
+  country String
+  department String @default("")
+  municipality String @default("")
+  factors PricingRegionFactor[]
+  incomes PricingIncomeEstimate[]
+  @@unique([country, department, municipality])
+  @@map("pricing_regions")
+}
+
+/// A manual difference from 1 needs a reason and date, validated on write.
+model PricingRegionFactor {
+  id String @id @default(uuid())
+  regionId String @map("region_id")
+  serviceId String? @map("service_id")
+  mode PricingMode
+  factor Decimal @db.Decimal(10, 6)
+  origin PricingFactorOrigin
+  justification String
+  date String
+  region PricingRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  service PricingService? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  @@index([regionId, serviceId, mode])
+  @@map("pricing_region_factors")
+}
+
+/// Explicit estimates instead of hard-coded income stereotypes by stratum.
+model PricingIncomeEstimate {
+  id String @id @default(uuid())
+  regionId String @map("region_id")
+  stratum Int
+  income Decimal @db.Decimal(18, 2)
+  justification String
+  date String
+  region PricingRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  @@unique([regionId, stratum])
+  @@map("pricing_income_estimates")
+}
+
+model MarketQuote {
+  id String @id @default(uuid())
+  serviceId String @map("service_id")
+  scope PricingScope
+  description String
+  price Decimal @db.Decimal(18, 2)
+  unit PricingUnit
+  currency Currency @default(COP)
+  provider String
+  country String @default("Colombia")
+  department String @default("")
+  municipality String @default("")
+  clientCountry String? @map("client_country")
+  clientDepartment String? @map("client_department")
+  clientMunicipality String? @map("client_municipality")
+  mode PricingMode
+  date String
+  source MarketQuoteSource
+  url String?
+  origin PricingOrigin @default(observed)
+  createdAt DateTime @default(now()) @map("created_at")
+  service PricingService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  @@index([serviceId, scope, unit])
+  @@map("market_quotes")
+}
+
+/// The snapshot freezes evidence, parameters and explanation at decision time.
+model PricingQuote {
+  id String @id @default(uuid())
+  clientId String? @map("client_id")
+  serviceId String @map("service_id")
+  title String
+  snapshot Json
+  suggested Decimal @db.Decimal(18, 2)
+  final Decimal @db.Decimal(18, 2)
+  currency Currency @default(COP)
+  unit PricingUnit
+  status PricingStatus @default(draft)
+  validUntil String? @map("valid_until")
+  sentAt DateTime? @map("sent_at")
+  projectId String? @unique @map("project_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  client PricingClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  service PricingService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  project ClientProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  @@index([status, createdAt])
+  @@map("pricing_quotes")
 }

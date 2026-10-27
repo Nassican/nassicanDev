@@ -13,6 +13,7 @@
  * it is planned rather than the day it works.
  */
 export type NavIcon =
+  | "pricing"
   | "dashboard"
   | "post"
   | "project"
@@ -98,6 +99,7 @@ export const navigation: NavSection[] = [
     collapsible: true,
     entries: [
       { label: "Movimientos", href: "/finanzas", icon: "finance", ready: true },
+      { label: "Precios", href: "/precios", icon: "pricing", ready: true },
       { label: "Presupuesto", href: "/presupuesto", icon: "budget", ready: true },
       { label: "Metas y hábitos", href: "/metas", icon: "goal", ready: true },
       { label: "Suscripciones", href: "/suscripciones", icon: "subscription", ready: true },
