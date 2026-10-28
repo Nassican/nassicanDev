@@ -2929,8 +2929,37 @@ escribir, cancelación, creación, componentes de un paquete y guardado y recarg
 de un servicio desechable, en escritorio y móvil, claro y oscuro. Pasaron tipos,
 lint, 382 pruebas y build; no hay PrismaClient en los bundles del navegador.
 
+**Estudio de mercado ampliado, consulta del 28 de octubre de 2026.**
+`scripts/data/pricing-market-study-2026-10.json` añade 29 ofertas públicas de
+16 proveedores para 13 servicios: 19 proyectos, 8 mensualidades y 2 horas.
+`docs/estudio-mercado-precios-2026-10-28.md` documenta importes, fuentes,
+condiciones, interpretación y carencias. Se verificaron páginas de los propios
+proveedores; no es una encuesta representativa, ni acredita ventas o alcances
+idénticos. Se distinguen planes, precios desde y promociones. Rangos sin precio
+puntual, suscripciones de productos POS, cargos mixtos, monedas extranjeras
+aproximadas e importes ilegibles no se convierten en cotizaciones equivalentes.
+
+`npm run pricing:market` simula; `-- --apply` crea solo referencias nuevas,
+identificadas por `[Estudio mercado:clave]`, con copia previa y auditoría.
+Conserva filas personalizadas y evita duplicados equivalentes. Usa transacción
+serializable y comprueba que no cambien servicios, componentes, parámetros,
+descuento familiar, tramos, acuerdos ni referencias anteriores. No se ejecuta
+el configurador general del portafolio para añadir el estudio. Cada referencia
+conserva unidad, fuente, fecha de consulta y condiciones; la comparación se
+marca estimada. Pasto tiene la landing de Enkrevolt y el mantenimiento ITN de
+cuatro horas; no se distribuyen esas tarifas a otros municipios. Repetir la
+carga dejó cero cambios. Las 13 referencias del catálogo base siguen presentes,
+con su fecha original, y las ofertas publicadas cargadas suman 42.
+
+Pasaron tipos, lint, 382 pruebas y build; el importador también se comprobó
+con TypeScript de forma independiente. Chrome verificó enlaces y etiquetas de
+las fichas, comparación mensual de Pasto, separación de la tarifa por hora y
+landing de Pasto: 12 capturas a 1440 y 390 px, claro y oscuro, revisadas sin
+errores de página ni desbordamiento del documento. La tabla permite desplazar
+columnas en móvil. No hay PrismaClient en los bundles del navegador.
+
 **Los paquetes suman un alcance explícito.** El catálogo tiene 22 servicios y
-13 referencias publicadas. El paquete Esferas Shop + App reúne dos componentes:
+13 referencias publicadas de base, más 29 del estudio ampliado. El paquete Esferas Shop + App reúne dos componentes:
 tienda conectada e inventario de distribuidora. Sus 300 horas y 33 millones COP
 son una estimación
 para reimplementar ese alcance; no una venta observada ni un valor aplicado

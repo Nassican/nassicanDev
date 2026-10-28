@@ -26,6 +26,7 @@
     "pricing:configure": "tsx --conditions=react-server --tsconfig apps/admin/tsconfig.json scripts/configure-pricing-portfolio.ts",
     "pricing:regions": "tsx --conditions=react-server --tsconfig apps/admin/tsconfig.json scripts/configure-pricing-regions.ts",
     "pricing:strata": "tsx --conditions=react-server --tsconfig apps/admin/tsconfig.json scripts/configure-pricing-strata.ts",
+    "pricing:market": "tsx --conditions=react-server --tsconfig apps/admin/tsconfig.json scripts/configure-pricing-market.ts",
     "games:list": "tsx --conditions=react-server scripts/import-games-list.ts",
     "backup:restore": "tsx --conditions=react-server scripts/restore-backup.ts",
     "certificates:platzi": "tsx --conditions=react-server scripts/import-platzi-certificates.ts",

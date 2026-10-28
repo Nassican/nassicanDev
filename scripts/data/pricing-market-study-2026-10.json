@@ -1,0 +1,381 @@
+{
+  "version": 1,
+  "checkedAt": "2026-10-28",
+  "currency": "COP",
+  "method": "Revisión documental de ofertas públicas de los propios proveedores. Muestra intencional, no encuesta representativa ni cotizaciones recibidas. Se conserva el importe del plan o precio desde, sin inventar promedios de rangos. La fecha es de consulta. Alcance y modalidad son una clasificación comercial estimada. Las referencias no demuestran ventas cerradas ni equivalencia funcional.",
+  "regionalPolicy": "Una página dirigida explícitamente a Pasto o Medellín se registra allí; la sede de un proveedor no convierte su oferta nacional en una cotización local. Sin evidencia local, se registra Colombia sin municipio. No se fabrican precios por municipio o estrato.",
+  "comparisonPolicy": "No convertir bolsas mensuales a tarifa horaria, ni multiplicar planes de 2 horas para simular uno de 4. Cada plan conserva su unidad y horas incluidas. No sumar ofertas independientes para valorar un paquete integrado. El promedio de la muestra no es el precio recomendado del portafolio.",
+  "references": [
+    {
+      "key": "ictus-landing",
+      "service": "landing",
+      "provider": "Ictus Co",
+      "price": 1290000,
+      "unit": "project",
+      "scope": "standard",
+      "priceKind": "plan",
+      "url": "https://ictusco.com/precios/",
+      "description": "Landing de hasta 6 secciones. Incluye textos, analítica, dominio/hosting un año y mantenimiento inicial. Precio final según proveedor; alcance distinto a siete secciones propias."
+    },
+    {
+      "key": "ictus-corporate-essential",
+      "service": "corporate",
+      "provider": "Ictus Co",
+      "price": 1830000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "plan",
+      "url": "https://ictusco.com/precios/",
+      "description": "Esencial: hasta 4 páginas, blog, textos y alojamiento inicial. Precio final del proveedor. Menos páginas que el servicio propio."
+    },
+    {
+      "key": "ictus-corporate-professional",
+      "service": "corporate",
+      "provider": "Ictus Co",
+      "price": 2850000,
+      "unit": "project",
+      "scope": "standard",
+      "priceKind": "plan",
+      "url": "https://ictusco.com/precios/",
+      "description": "Profesional: hasta 8 páginas, diseño, animaciones y medición de conversiones. Precio final publicado; páginas y contenidos difieren del alcance propio."
+    },
+    {
+      "key": "ictus-commerce",
+      "service": "commerce",
+      "provider": "Ictus Co",
+      "price": 4450000,
+      "unit": "project",
+      "scope": "standard",
+      "priceKind": "plan",
+      "url": "https://ictusco.com/precios/",
+      "description": "WooCommerce con 30 productos y pagos PSE, Nequi y tarjetas. Dominio/hosting iniciales incluidos. Precio final publicado; no equivale a construir un motor de comercio propio."
+    },
+    {
+      "key": "ictus-maintenance-pro",
+      "service": "maintenance-web",
+      "provider": "Ictus Co",
+      "price": 150000,
+      "unit": "monthly",
+      "scope": "basic",
+      "priceKind": "plan",
+      "url": "https://ictusco.com/precios/",
+      "description": "Mantenimiento Pro: 2 horas de contenido mensuales y seguridad. Se conserva la mensualidad publicada; no es la bolsa propia de 4 horas ni el precio anual descontado."
+    },
+    {
+      "key": "enkrevolt-pasto-landing",
+      "service": "landing",
+      "provider": "Enkrevolt",
+      "price": 499000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "department": "NARIÑO",
+      "municipality": "PASTO",
+      "url": "https://enkrevolt.com/diseno-web-pasto/",
+      "description": "Oferta para Pasto, Emprendedor: hasta 5 secciones y 2 revisiones. Trabajo remoto explícito. Precio de entrada, sin equivalencia con siete secciones propias; confirmar alojamiento, impuestos y renovación."
+    },
+    {
+      "key": "enkrevolt-pasto-corporate",
+      "service": "corporate",
+      "provider": "Enkrevolt",
+      "price": 1200000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "department": "NARIÑO",
+      "municipality": "PASTO",
+      "url": "https://enkrevolt.com/diseno-web-pasto/",
+      "description": "Oferta para Pasto, Negocio: hasta 10 secciones, blog o catálogo y hosting inicial. Remoto. Secciones no significan diez páginas; confirmar impuestos y condiciones de renovación."
+    },
+    {
+      "key": "alvaro-personal",
+      "service": "personal",
+      "provider": "Álvaro Cárdenas Orozco",
+      "price": 1400000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "plan",
+      "url": "https://alvarocardenasorozco.com/otros-servicios-digitales.html",
+      "description": "Sitio profesional de una página, adaptable y con contacto. Dominio aparte. No incluye necesariamente las cinco secciones del portafolio propio; confirmar impuestos."
+    },
+    {
+      "key": "alvaro-engineering-hour",
+      "service": "hour",
+      "provider": "Álvaro Cárdenas Orozco",
+      "price": 120000,
+      "unit": "hour",
+      "scope": "standard",
+      "priceKind": "plan",
+      "url": "https://alvarocardenasorozco.com/otros-servicios-digitales.html",
+      "description": "Ingeniería de software virtual por hora: análisis, arquitectura o desarrollo, pruebas y documentación. El profesional declara título de ingeniería; tarifa publicada, no cotización recibida. Confirmar impuestos."
+    },
+    {
+      "key": "logan-panel-pro",
+      "service": "panel",
+      "provider": "Logan Web Solutions",
+      "price": 6000000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "url": "https://www.loganwebsolutions.com/precios",
+      "description": "Pro: web de 4–6 páginas, panel de 2 módulos y WhatsApp API. Alojamiento y consumos Meta aparte. Paquete más amplio que un panel aislado; impuestos sin especificar."
+    },
+    {
+      "key": "logan-payment-integration",
+      "service": "integration",
+      "provider": "Logan Web Solutions",
+      "price": 2000000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "url": "https://www.loganwebsolutions.com/precios",
+      "description": "Conexión de un sistema con pasarela de pagos, como Wompi o PayU. Solo la integración publicada; comisiones y alcance final aparte. Impuestos sin especificar."
+    },
+    {
+      "key": "logan-inventory-module",
+      "service": "module",
+      "provider": "Logan Web Solutions",
+      "price": 3000000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "url": "https://www.loganwebsolutions.com/precios",
+      "description": "Integración de un módulo de inventario o e-commerce en sistemas existentes. No es construir toda una distribuidora con FEFO ni un POS multisede. Impuestos sin especificar."
+    },
+    {
+      "key": "bagu-module",
+      "service": "module",
+      "provider": "Bagú Medios",
+      "price": 1500000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "url": "https://bagumedios.com/tecnologia/software-a-la-medida",
+      "description": "Un módulo web, con roles, reportes y entrega de código. Antes de IVA; módulos adicionales aparte. Se define por escrito la complejidad. Oferta nacional, no una venta observada en Bogotá."
+    },
+    {
+      "key": "lyroo-api-module",
+      "service": "integration",
+      "provider": "Lyroo Build",
+      "price": 2500000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "url": "https://lyroo.com.co/build",
+      "description": "Build Básico: módulo o integración de 1–3 endpoints/vistas y documentación. No conecta por ese importe todo Esferas y Deligurt. Confirmar impuestos."
+    },
+    {
+      "key": "lyroo-maintenance-standard",
+      "service": "maintenance-app",
+      "provider": "Lyroo Build",
+      "price": 1200000,
+      "unit": "monthly",
+      "scope": "standard",
+      "priceKind": "plan",
+      "url": "https://lyroo.com.co/build",
+      "description": "Mantenimiento Estándar: correcciones, pequeñas funciones y soporte prioritario. No publica horas incluidas; no se equipara a la bolsa propia de 10 horas. Confirmar impuestos."
+    },
+    {
+      "key": "lyroo-maintenance-premium",
+      "service": "maintenance-app",
+      "provider": "Lyroo Build",
+      "price": 2500000,
+      "unit": "monthly",
+      "scope": "advanced",
+      "priceKind": "plan",
+      "url": "https://lyroo.com.co/build",
+      "description": "Premium mensual: evolución continua, SLA y gestor dedicado. Horas sin publicar; alcance superior y contrato distinto a una bolsa de 10 horas. Confirmar impuestos."
+    },
+    {
+      "key": "codario-landing-launch",
+      "service": "landing",
+      "provider": "Codario Labs",
+      "price": 2900000,
+      "unit": "project",
+      "scope": "standard",
+      "priceKind": "promotion",
+      "url": "https://www.codariolabs.com/",
+      "description": "Lanzamiento 2026: web o landing a medida de hasta 6 secciones, analítica y garantía. Precio promocional antes de IVA; confirmar vigencia. No incluye tienda o panel propio."
+    },
+    {
+      "key": "codario-automation-launch",
+      "service": "integration",
+      "provider": "Codario Labs",
+      "price": 7500000,
+      "unit": "project",
+      "scope": "advanced",
+      "priceKind": "promotion",
+      "url": "https://www.codariolabs.com/",
+      "description": "Lanzamiento: automatización con IA, chatbot y conexión de 1–2 sistemas. Antes de IVA; confirmar vigencia y consumos. Incluye funciones adicionales a una API sencilla."
+    },
+    {
+      "key": "codario-business-software-launch",
+      "service": "erp",
+      "provider": "Codario Labs",
+      "price": 22000000,
+      "unit": "project",
+      "scope": "standard",
+      "priceKind": "promotion",
+      "url": "https://www.codariolabs.com/",
+      "description": "Software de gestión a medida, arquitectura, panel, roles e integraciones. Precio de entrada de lanzamiento, antes de IVA y sujeto a alcance. No garantiza un ERP completo por ese importe."
+    },
+    {
+      "key": "tidecore-mvp-three-features",
+      "service": "erp",
+      "provider": "Tidecore",
+      "price": 22800000,
+      "unit": "project",
+      "scope": "standard",
+      "priceKind": "plan",
+      "url": "https://tidecore.co/recursos/blog/cuanto-cuesta-software-a-la-medida-colombia",
+      "description": "Oferta propia de MVP con hasta 3 funcionalidades y precio fijo en COP. No se toma el promedio de sus rangos de mercado. No acredita contabilidad completa ni el mismo alcance de un ERP; confirmar impuestos."
+    },
+    {
+      "key": "devaspros-essential",
+      "service": "erp",
+      "provider": "Dev As Pros",
+      "price": 3000000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "url": "https://www.devaspros.com/precios/",
+      "description": "Esencial: funcionalidad principal, pruebas y despliegue; una revisión. El proveedor actualizó la página el 2026-08-20. Menor alcance que un ERP multimódulo; impuestos sin especificar."
+    },
+    {
+      "key": "softhian-desktop-entry",
+      "service": "desktop",
+      "provider": "Softhian",
+      "price": 1000000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "url": "https://softhian.com/servicios/desarrollo-de-aplicaciones-de-escritorio",
+      "description": "Aplicación de escritorio de entrada. Publica Electron entre sus tecnologías, sin cerrar módulos u horas por este importe. No equivale a la ficha propia de 120 horas; confirmar impuestos e integraciones."
+    },
+    {
+      "key": "itn-pasto-maintenance-four-hours",
+      "service": "maintenance-web",
+      "provider": "ITN Colombia SAS",
+      "price": 365000,
+      "unit": "monthly",
+      "scope": "standard",
+      "priceKind": "promotion",
+      "department": "NARIÑO",
+      "municipality": "PASTO",
+      "url": "https://itnarino.com.co/servicio-de-mantenimiento-web/",
+      "description": "Advanced, marcado como oferta: 4 horas mensuales de contenido, actualizaciones WordPress, copias y monitoreo. Permanencia mínima de 6 meses. Confirmar vigencia e impuestos; modalidad remota estimada por soporte mediante tickets."
+    },
+    {
+      "key": "itn-pasto-extra-hour",
+      "service": "hour",
+      "provider": "ITN Colombia SAS",
+      "price": 110000,
+      "unit": "hour",
+      "scope": "basic",
+      "priceKind": "plan",
+      "department": "NARIÑO",
+      "municipality": "PASTO",
+      "url": "https://itnarino.com.co/servicio-de-mantenimiento-web/",
+      "description": "Hora extra de los planes WordPress. Condicionada a contratar un plan; no es una tarifa independiente de desarrollo full stack. Confirmar impuestos y prestación remota."
+    },
+    {
+      "key": "seodigital-maintenance-five-hours",
+      "service": "maintenance-web",
+      "provider": "SEO Digital",
+      "price": 260000,
+      "unit": "monthly",
+      "scope": "basic",
+      "priceKind": "plan",
+      "url": "https://seodigital.com.co/mantenimiento-web/",
+      "description": "Estándar WordPress: 5 horas por mes, actualizaciones, seguridad, copias y contenido. Se registra el total mensual publicado, sin convertirlo en una bolsa de cuatro horas. Confirmar impuestos y licencias."
+    },
+    {
+      "key": "greentic-ecommerce-four-hours",
+      "service": "maintenance-web",
+      "provider": "Greentic",
+      "price": 850000,
+      "unit": "monthly",
+      "scope": "advanced",
+      "priceKind": "plan",
+      "url": "https://somosgreentic.com/soporte.html",
+      "description": "Webmaster Ecommerce: mantenimiento de tienda, checkout, pedidos e integraciones y hasta 4 horas de ajustes menores. Funciones grandes aparte. Mayor responsabilidad operativa que una web informativa; confirmar impuestos."
+    },
+    {
+      "key": "labweb-monthly-care",
+      "service": "maintenance-web",
+      "provider": "Laboratorio Web, Labweb",
+      "price": 500000,
+      "unit": "monthly",
+      "scope": "standard",
+      "priceKind": "plan",
+      "url": "https://www.laboratorioweb.com.co/cuanto-cuesta-el-mantenimiento-de-una-pagina-web-en-colombia/",
+      "description": "Tarifa propia de mantenimiento: seguridad, copias, actualizaciones y cambios menores. Hosting y dominio aparte. No fija número de horas; no se presume una bolsa de cuatro. Confirmar impuestos."
+    },
+    {
+      "key": "webmedellin-care-one-hour",
+      "service": "maintenance-web",
+      "provider": "WebMedellin.co",
+      "price": 199000,
+      "unit": "monthly",
+      "scope": "basic",
+      "priceKind": "plan",
+      "department": "ANTIOQUIA",
+      "municipality": "MEDELLÍN",
+      "url": "https://webmedellin.co/soporte/",
+      "description": "Cuidado web: hosting y hasta 1 hora mensual de cambios pequeños. Opcional, sin permanencia. Oferta dirigida a Medellín; no es la bolsa propia de cuatro horas. Confirmar impuestos y modalidad de atención."
+    },
+    {
+      "key": "damorus-integrated-diamond",
+      "service": "esferas-platform",
+      "provider": "Damorus Projects",
+      "price": 8000000,
+      "unit": "project",
+      "scope": "basic",
+      "priceKind": "starting",
+      "url": "https://damorus.com/software",
+      "description": "Diamante: página conectada al software del negocio, catálogo de hasta 20 ítems y operación entre sedes. COP publicado, no USD convertido. No acredita FEFO ni todas las funciones de Esferas Shop + App; confirmar impuestos."
+    }
+  ],
+  "contextOnly": [
+    {
+      "provider": "Julsmind SAS",
+      "url": "https://julsmind.com/cuanto-cuesta-un-software-a-medida-en-colombia",
+      "finding": "Publica rangos orientativos antes de IVA: ERP/MVP 25–50 millones COP e integraciones 6–15 millones. No se cargan sus extremos como ventas distintas ni se inventa un precio medio."
+    },
+    {
+      "provider": "PowerDevelop",
+      "url": "https://powerdevelopco.com/servicios",
+      "finding": "Publica 80.000–100.000 COP por hora según complejidad. Se conserva como rango de contexto, sin fabricar una oferta puntual."
+    },
+    {
+      "provider": "Onzira Labs",
+      "url": "https://onzira.com/es/desarrollo-saas/colombia",
+      "finding": "Proveedor en India que factura en USD; SaaS MVP 15.000–40.000 USD. No representa una tarifa colombiana ni se carga el equivalente COP aproximado como precio local."
+    },
+    {
+      "provider": "Sin Página",
+      "url": "https://www.sinpagina.com/precios",
+      "finding": "Tienda desde 650.000 COP más 55.000 mensuales. El cargo recurrente impide tratar el desembolso inicial como costo total comparable de construcción independiente."
+    }
+  ],
+  "excluded": [
+    {
+      "provider": "ITN, página de diseño web",
+      "url": "https://itnarino.com.co/paginas-web/",
+      "reason": "La lectura muestra importes incompletos de 300 y 50 junto a otros cargos. No se supone que significan 300.000 o 500.000. Sí se usa la página separada de mantenimiento, con valores explícitos."
+    },
+    {
+      "provider": "HardBoxs",
+      "url": "https://cotiza.hardboxs.com/co/precios/desarrollo-de-software",
+      "reason": "El índice presenta tarifas, pero la apertura directa no estuvo disponible. No se incorpora como referencia verificada en esta carga."
+    }
+  ],
+  "gaps": [
+    "Diagnóstico de alcance de ocho horas: sin oferta comparable cerrada en esta revisión.",
+    "POS/Deligurt con recetas, insumos y sedes: sin cotización de construcción equivalente; una licencia POS no reemplaza ese dato.",
+    "SaaS multiempresa propio: nueva muestra nacional insuficiente para añadir una cotización equivalente.",
+    "Urgencias por hora: sin tarifa puntual comparable verificada; no se inventa un recargo uniforme.",
+    "Tienda conectada e inventario completos: las ofertas genéricas no prueban las mismas funciones ni horas."
+  ],
+  "recommendation": "Conservar las tarifas propias como recomendaciones por alcance y costo. Contrastar por unidad, alcance, horas, infraestructura y soporte. Recortar entregables si se quiere competir con ofertas de entrada; no reducir automáticamente un desarrollo completo al menor precio publicado. Los paquetes Esferas y Deligurt siguen separados y las cotizaciones guardadas no cambian."
+}
