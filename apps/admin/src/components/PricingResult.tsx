@@ -31,9 +31,11 @@ export default function PricingResult({
         <p className="rounded border border-neutral-800 p-3 text-xs text-neutral-300">
           Tarifa familiar: {Math.round(r.family.percent * 10000) / 100} % sobre honorarios. Sugerido
           normal: {money(r.family.normal)}. Descuento efectivo: {money(r.family.discount)}.
-          {r.family.limitedByFloor
-            ? " Limitado por el piso de costos."
-            : " Se conserva el redondeo configurado."}
+          {r.family.unrestricted
+            ? " Descuento completo, sin límite por costos ni redondeo adicional."
+            : r.family.limitedByFloor
+              ? " Limitado por el piso de costos."
+              : " Se conserva el redondeo configurado."}
         </p>
       ) : null}
       <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -43,7 +45,13 @@ export default function PricingResult({
         </div>
         <div>
           <dt className="text-xs text-neutral-500">Mercado</dt>
-          <dd>{r.market === null ? "Sin dato" : money(r.market)}</dd>
+          <dd>
+            {r.market === null
+              ? (snapshot?.service.selectedServices?.length ?? 0) > 1
+                ? "Sin referencia conjunta"
+                : "Sin dato"
+              : money(r.market)}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-neutral-500">Rango de referencias, antes del redondeo</dt>
@@ -56,6 +64,22 @@ export default function PricingResult({
           <dd>{money(r.effectiveHourly)} / hora</dd>
         </div>
       </dl>
+      {snapshot?.service.components?.length ? (
+        <div className="text-xs text-neutral-500">
+          <p className="font-medium">
+            {(snapshot.service.selectedServices?.length ?? 0) > 1
+              ? "Servicios incluidos en la cotización"
+              : "Servicios incluidos en el paquete"}
+          </p>
+          <ul className="mt-2 flex flex-col gap-1">
+            {snapshot.service.components.map((p) => (
+              <li key={p.id}>
+                {p.name}: {p.hours} h, mínimo {money(p.minimum)}.
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {snapshot ? (
         <p className="text-xs text-neutral-500">
           Origen del piso y del proyecto: horas{" "}

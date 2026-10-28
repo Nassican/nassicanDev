@@ -2619,7 +2619,8 @@ módulo privado, en español: no publica ni necesita una traducción al inglés.
 
 **La capacidad no abarata el trabajo.** El piso sale del ingreso objetivo, los
 gastos fijos, las horas facturables, los costos directos y los viáticos; nunca
-baja del mínimo del servicio. La capacidad y el mercado deciden dónde situarse
+baja del mínimo del servicio en la tarifa normal. La tarifa familiar permite
+aplicar el descuento completo por decisión del operador. La capacidad y el mercado deciden dónde situarse
 por encima. Si la capacidad queda por debajo, se avisa y se ofrecen tres
 salidas: reducir alcance, cobrar en cuotas o no tomar el proyecto. Bajar el piso
 para acomodar al cliente habría convertido una calculadora en una forma de
@@ -2663,6 +2664,34 @@ si hay tasa: USD usa la TRM oficial existente; sin tasa para EUR, se excluye y
 se explica. Un valor atípico muestra la mediana sin sustituir a escondidas el
 promedio que usa la fórmula.
 
+**Mercado abre una comparación con datos.** Antes elegía el primer servicio
+alfabético y alcance estándar aunque todas las referencias cargadas fueran
+básicas; cambiar cada selector por separado navegaba con una URL incompleta.
+Ahora el inicio busca un servicio con referencias y su combinación disponible.
+El formulario conserva servicio, alcance, unidad y modalidad juntos hasta
+pulsar «Comparar regiones». La URL conserva los cuatro valores al recargar
+o volver atrás. Cambiar de servicio propone una combinación registrada o su
+unidad de cobro. «Añadir referencia» parte de los filtros aplicados.
+
+Una combinación vacía ofrece las alternativas que sí tienen referencias; un
+servicio sin referencias lo explica. Una sola fila de Colombia significa que
+solo hay precios nacionales registrados: los ingresos DANE no se convierten
+en cotizaciones municipales ficticias. La tabla agrupa precios registrados
+en COP, sin ajuste de factor, usando la ubicación del cliente si se conoce.
+Reutiliza la exclusión de fechas futuras y monedas sin tasa, exige la misma
+modalidad y une ubicaciones equivalentes sin distinguir acentos o mayúsculas.
+La mediana siempre muestra su importe; los valores atípicos se señalan aparte.
+Cinco pruebas cubren selección, URL, combinaciones, monedas, fechas y ubicación.
+`scripts/check-pricing-market-ui.cjs` prueba los cuatro filtros, recuperación
+de un resultado vacío, dos regiones con mediana correcta, recarga, volver atrás
+y las unidades de servicios sin referencias, con filas desechables. Las 16
+variantes a 1440 y 390 px, en claro y oscuro, pasaron sin errores de página ni
+desbordamiento horizontal; la limpieza verificó cero filas temporales restantes.
+La revisión visual detectó además que `hover:bg-white` dejaba el botón primario
+blanco sobre blanco en tema claro. `PricingFields` usa ahora el neutro 200,
+que respeta la paleta invertida; las capturas y la comprobación de estilos
+incluyen el botón bajo el cursor en ambos temas.
+
 **Cada cotización congela su evidencia.** El snapshot conserva entradas,
 parámetros, periodo financiero, procedencia y ajuste de los comparables,
 ubicaciones y desglose. Sugerido y final quedan además en columnas Decimal.
@@ -2680,7 +2709,7 @@ moneda dentro de la misma transacción. Dos clics simultáneos no crean dos
 trabajos. Una aceptación conserva su acuerdo; una propuesta distinta necesita
 otra cotización. La papelera del cliente lleva periodos y señales, y restaura
 también los enlaces `SET NULL` de cotizaciones y trabajos. Borrar una cotización
-conserva su trabajo. Las doce tablas nuevas participan de la restauración de
+conserva su trabajo. Las trece tablas nuevas participan de la restauración de
 copias, incluida la tabla explícita de ingresos estimados.
 
 «Cotizaste…» es rutina en Bitácora; «Aceptaron la cotización…» es un hito. «Hoy»
@@ -2690,7 +2719,7 @@ ese mes. Las pestañas y las cotizaciones también aparecen en la paleta.
 
 **Cómo se verificó.** Cada una de las cinco fases pasó `npm run typecheck`,
 `npm run lint`, `npm test` y `npm run build` desde la raíz. La última suite
-sumó 358 pruebas sin fallos, incluidas las de tarifa familiar. `PrismaClient` no apareció en
+sumó 379 pruebas sin fallos, incluidas las de tarifa familiar, paquetes, selección múltiple, estudio regional, estratos, ciudades y comparación de mercado. `PrismaClient` no apareció en
 `apps/admin/.next/static`. `scripts/check-pricing.ts`, ejecutado con `tsx
 --conditions=react-server --tsconfig apps/admin/tsconfig.json` y `--phase1`
 hasta `--phase5`, creó y borró sus propias filas: comprobó snapshots,
@@ -2715,14 +2744,21 @@ exclusiones y precio normal. El 20 % fue el descuento familiar inicial acordado
 por el operador. El porcentaje vigente vive en `pricing_settings` y se edita en
 «Parámetros», como un número de 0 a 100. El importador lee ese valor y nunca lo
 reemplaza por el del archivo. `npm run pricing:configure -- --dry` calcula sin escribir;
-`-- --apply` configura los servicios y parámetros, audita los cambios y deja
+`-- --apply` configura servicios y tramos, audita los cambios y deja
 una copia previa en el directorio temporal `nassican-pricing-portfolio`.
+Lee los costos y objetivos vigentes del panel; no reemplaza esas preferencias
+con las del archivo. La última carga conservó el objetivo de 5 millones y el
+descuento familiar del 40 % que el operador había guardado en la página.
 Es idempotente por nombre y por clave de referencia. El mínimo del servicio
 es su piso de costos estimado, no el precio comercial recomendado. La tarifa
 familiar se aplica al marcar «Aplicar tarifa familiar» en Calcular, sin inferir
 parentesco. El motor descuenta el honorario del sugerido normal, nunca licencias,
-infraestructura del cliente ni viáticos, y conserva el piso y el redondeo. Si el
-piso limita la rebaja, lo explica y muestra el descuento efectivo. Cambiar la
+infraestructura del cliente ni viáticos. Por petición posterior del operador,
+el descuento se aplica completo, aunque atraviese el piso, sin un segundo
+redondeo que reduzca la rebaja. El piso sigue visible y se avisa si la tarifa
+queda por debajo; ese aviso no impide guardar. Con 100 % y sin costos directos
+ni viáticos, el sugerido es cero. El catálogo muestra la misma política sin
+limitar por el mínimo del servicio. Cambiar la
 casilla restablece el precio final al sugerido; después sigue siendo editable.
 El porcentaje, base normal y descuento efectivo quedan en el snapshot, para
 que otro porcentaje mañana no cambie lo acordado ayer. Los snapshots antiguos
@@ -2739,9 +2775,238 @@ con un precio de entrada de otro proveedor.
 
 La ampliación familiar se comprobó con `scripts/check-pricing.ts --family` y
 `scripts/check-pricing-family-ui.cjs`: rechazo de 101 %, guardado y recarga de
-25 %, cotización familiar y conservación del 25 % después de volver al 20 %.
+100 %, cotización familiar con descuento completo y conservación del 100 %
+en el snapshot después de restaurar el porcentaje vigente.
 Se revisaron doce variantes en Chrome, a 1440 y 390 px en claro y oscuro. El
-porcentaje inicial quedó restaurado y las filas y sesión de prueba se retiraron.
+porcentaje vigente quedó restaurado y las filas y sesión de prueba se retiraron.
+Los snapshots anteriores mantienen su política de piso y redondeo original;
+`family.unrestricted` identifica la política nueva sin alterar acuerdos guardados.
+
+**El estudio regional es documental, no una tarifa del DANE.** La actualización
+de octubre de 2026 usa los anexos de pobreza monetaria de 2025: nacional,
+publicado el 12 de junio de 2026, y departamental, el 12 de agosto de 2026.
+`scripts/extract-pricing-study.py` lee los XLSX oficiales y guarda en
+`scripts/data/pricing-dane-2025.json` URL, publicación, hoja, celda y SHA-256.
+La medida es ingreso mensual per cápita de la unidad de gasto del hogar,
+no salario individual ni ingreso comprobado de un cliente. Colombia registra
+1.281.590 COP, Nariño 783.314 y Pasto 1.370.170. El estrato clasifica viviendas;
+no autoriza inventar un ingreso por estrato.
+
+`npm run pricing:regions` simula; `-- --apply` carga 48 bases generales:
+país, 24 departamentos y 23 capitales con dato municipal comparable. Cada una
+tiene tres factores manuales, uno por modalidad, aplicables a todos los
+servicios: 144 factores. Los demás municipios heredan departamento o país.
+El proxy comercial es `sqrt(ingreso regional / ingreso nacional)`, limitado
+entre 0,8 y 1,2; el suavizado y los límites son política comercial ajustable,
+no resultados publicados por el DANE. Las bases usan `stratum = null`: se usan
+directamente sin estrato conocido y como base del modelo comercial descrito
+más abajo cuando falta una referencia del mismo estrato. No son un desglose
+estadístico por estrato. Una estimación específica o un ingreso
+declarado del cliente mantiene su prioridad. La carga reconoce sus filas por
+`[DANE-PM-2025]`, conserva personalizaciones y su segunda ejecución creó cero
+filas. La pantalla explica la procedencia y la limitación de la medida.
+
+**Un promedio no es un desglose por estrato.** La primera carga solo tenía
+promedios DANE por región. Se retiró la etiqueta «todos los estratos» y la
+sustitución automática de un estrato conocido por ese promedio. La consulta
+de ingresos muestra siete filas (0–6), su importe, año, región y fuente;
+Inicialmente, sin una estimación del mismo estrato, mostraba «Sin dato por
+estrato». La cobertura nacional posterior añade escenarios comerciales
+explícitos para esas celdas. El promedio regional queda separado de las
+referencias desagregadas. Un ingreso real del cliente conserva su prioridad.
+Los snapshots anteriores no se reescriben.
+
+Para Bogotá se verificó la tabla 4, páginas 10–11 del estudio oficial
+SDM–DIM alojado en SIMUR como evaluación de tarifa 2025. Sus importes son
+per cápita mensuales de la Encuesta Multipropósito 2021, llevados por SDM
+a valores de referencia de **2024**: estratos 1 a 6, respectivamente,
+697.880, 1.032.116, 2.132.966, 5.078.140, 7.369.907 y 9.964.612 COP.
+No se presentan como una encuesta de 2024 ni como ingresos medidos en 2026,
+ni se actualizan por una inflación supuesta. La tabla 37 del documento de
+estratificación de SDP no se cargó: mide ingresos totales del hogar y no
+es intercambiable con la referencia per cápita del cálculo.
+
+`scripts/data/pricing-bogota-strata.json` conserva URL, páginas, métrica,
+año de encuesta, año monetario y SHA-256. `extract-pricing-strata.py` reproduce
+las seis filas del PDF y se revisaron visualmente las dos páginas.
+`npm run pricing:strata` simula y `-- --apply` carga solo esas filas, con copia
+previa y auditoría, conservando estimaciones personalizadas. Repetir dejó cero
+cambios. No se extrapolaron los seis importes a otras regiones ni al estrato 0:
+esa fila no aparece en la fuente. Tampoco se fabricaron cruces nacionales que
+los anexos consultados no publican. Las referencias estadísticas de otras
+regiones necesitan fuentes desagregadas verificables; los escenarios
+comerciales de cobertura nacional no se presentan como tales referencias.
+
+`check-pricing-study.ts` comprobó los seis estratos en el motor con filas
+desechables, la falta de dato de Pasto por estrato y de Bogotá 0, la prioridad
+del ingreso declarado y la conservación de snapshots. `check-pricing-strata-ui.cjs`
+comprueba la tabla, el cambio de región, los años y el enlace de fuente en Chrome.
+Pasaron 12 variantes a 1440 y 390 px, en claro y oscuro, sin errores de página
+ni desbordamiento horizontal. Las filas y la sesión de QA se retiraron; las
+seis referencias del estudio se conservan. Tipos, lint, 371 pruebas y build
+pasaron desde la raíz.
+
+**Cada municipio debe decir qué datos tiene antes de elegirlo.** La consulta
+ofrece los 1.122 lugares del catálogo DIVIPOLA. Cada opción indica cuántos
+estratos tienen referencia local registrada y si el modelo usa una base de
+municipio, departamento o país. Los promedios heredados no se cuentan como
+datos locales. La lista se deriva de las filas actuales con claves normalizadas
+y un índice por ubicación; se memoriza en el componente y no consulta la base
+desde el cliente. Los filtros de departamento y municipio permiten acotar la
+ubicación sin recorrer el selector nacional completo.
+
+Medellín ya tenía un promedio per cápita DANE 2025 de 1.929.483 COP; ahora
+aparece explícitamente en el selector y encima de la tabla. Los escenarios
+comerciales se distinguen de los valores desagregados publicados. Se consultaron también la base y
+el diccionario ECV 2025 publicados por la Alcaldía: contienen estrato y
+componentes de ingresos con periodos específicos; no se transcribió uno de
+esos componentes como si fuera ingreso mensual per cápita completo.
+
+«Ingresar valor» abre ciudad y estrato completos; «Editar valor» recupera el
+registro local. El selector de estratos informa si existe una referencia.
+Cambiar región o estrato carga su propio registro o un borrador vacío, para
+no mover ni sobrescribir la estimación de otra combinación. La referencia
+heredada y el escenario del modelo no se copian como observación local. El editor se desplaza a la vista;
+se mantienen validación es-CO, justificación, fecha y auditoría del servidor.
+`check-pricing-strata-ui.cjs --cities` comprueba las etiquetas, la selección de
+Medellín y el registro y edición manual con un país desechable, sin escribir
+valores ficticios en la ciudad real.
+Pasaron 16 variantes de estas pantallas en Chrome a 1440 y 390 px, en claro
+y oscuro, sin errores de página ni desbordamiento horizontal. La prueba
+guardó y editó un ingreso de un país desechable y la limpieza verificó cero
+filas temporales. Tipos, lint, 373 pruebas y build pasaron.
+
+**Cobertura nacional con escenarios explícitos.** `resolveRegionalIncome`
+conserva primero las referencias registradas del mismo estrato. Si faltan,
+solo en Colombia calcula un escenario comercial a partir del promedio más
+específico disponible (municipio, departamento, país). No extrapola los seis
+valores de SDM Bogotá. La política V1 usa coeficientes elegidos para simular
+presupuesto, **no estimados por una encuesta ni una regresión**: estratos
+1–6 = 0,5; 0,75; 1; 1,5; 2,25; 3. Estrato 0 usa 1 como escenario neutral:
+no tener estrato no implica menores ingresos. Redondea a 10.000 COP para no
+atribuir precisión estadística al escenario. No se afirma que el promedio
+ponderado de esos escenarios reproduzca la media regional.
+
+Las celdas muestran «Estimación del modelo comercial», ubicación de la base,
+año de la base, fórmula y justificación con fuente. El año no es una medición
+de ingresos del modelo. Pasto usa su base municipal de 1.370.170 COP; Ipiales,
+la departamental de Nariño; Leticia, la nacional. Un ingreso conocido conserva
+su prioridad. El motor incorpora importe y metodología al snapshot; los
+anteriores permanecen intactos. Los escenarios se calculan al consultar sin
+insertar miles de filas duplicadas ni migrar el esquema. `estimatedRegionalIncome`
+sigue consultando solo registros guardados y el editor nunca intenta modificar
+un ID del modelo ni copia el escenario como observación local. Un valor local
+registrado sustituye el modelo inmediatamente.
+
+La verificación recorre las 7.854 combinaciones de lugar y estrato en la base
+actual: todas tienen referencia positiva. Comprueba la prioridad del ingreso
+conocido y de las seis referencias de Bogotá, la explicación del modelo en
+snapshots de Pasto y la inmutabilidad de acuerdos anteriores. Pasaron tipos,
+lint, 382 pruebas y build desde la raíz. Chrome verificó 36 variantes a 1440
+y 390 px, en claro y oscuro: fuentes y años, Pasto, Ipiales y Leticia, selector
+nacional, Medellín y registro y edición manual en un país desechable. Sin
+errores de página ni desbordamiento del documento; la tabla permite desplazar
+sus columnas en móvil. Se revisaron las capturas y no hay PrismaClient en
+los bundles del navegador.
+
+Los seis tramos propuestos son bandas comerciales de ingresos operacionales
+mensuales, no una clasificación oficial: 0–5, 5–20, 20–100, 100–500,
+500–1.500 y desde 1.500 millones COP. Parten del 1 %, con topes respectivos
+de 50 mil, 200 mil, 1 millón, 5 millones, 15 millones y 50 millones. Sigue
+actuando el tope por utilidad. El editor exige entre 1 y 100: escribir `1`
+significa 1 %. Otros porcentajes se muestran también en unidades humanas;
+solo se convierten a fracción al leer el formulario. Los factores conservan
+su escala multiplicadora.
+
+**Edición de servicios en su propia fila.** En `PricingSettings`, «Editar
+servicio» abre un único editor dentro de la fila pulsada y enfoca el nombre.
+Crear un servicio o paquete usa ese mismo formulario debajo de los botones
+de creación. Se conserva el formulario como JSX, sin definir un componente
+dentro del render que remonte los campos al escribir. Guardar cierra el editor
+y actualiza la lista; cancelar cierra sin guardar. El botón indica su expansión
+y no reinicia un borrador ya abierto. Chrome comprobó la ubicación, foco al
+escribir, cancelación, creación, componentes de un paquete y guardado y recarga
+de un servicio desechable, en escritorio y móvil, claro y oscuro. Pasaron tipos,
+lint, 382 pruebas y build; no hay PrismaClient en los bundles del navegador.
+
+**Los paquetes suman un alcance explícito.** El catálogo tiene 22 servicios y
+13 referencias publicadas. El paquete Esferas Shop + App reúne dos componentes:
+tienda conectada e inventario de distribuidora. Sus 300 horas y 33 millones COP
+son una estimación
+para reimplementar ese alcance; no una venta observada ni un valor aplicado
+retroactivamente a los proyectos. Deligurt POS se cotiza de forma independiente:
+220 horas y 24 millones COP de referencia. La conexión entre ambos sistemas es
+un servicio opcional de 64 horas y 6,9 millones COP; no se incluye en los alcances
+base ni vuelve a cobrar la conexión Shop–App. La separación actualiza el paquete
+existente por su alias, conservando el id y los snapshots anteriores. Se puede
+armar otro paquete con los servicios individuales cuando el cliente necesite
+ambos sistemas y la conexión.
+La revisión del código confirmó los contratos
+de catálogo/pedidos y despacho/recepción, con bases y autenticación separadas.
+No se presupusieron pagos en línea, usuarios unificados ni caja compartida.
+No se ejecutaron pruebas de integración de esos otros repositorios.
+Lyroo y K&T aportan referencias de ofertas o rangos publicados con alcances
+distintos; los precios «desde» siguen clasificados como estimaciones.
+
+**También se combinan servicios en la cotización.** «Proyecto y costos» conserva
+el primer selector y añade «Servicio adicional» / «Añadir servicio», con opciones
+para quitar cada selección. Se pueden combinar paquetes del catálogo y servicios
+individuales sin crear otro servicio persistente. Esferas + Deligurt + integración
+suma 584 horas y 63,9 millones COP de referencia comercial de catálogo. Al cambiar
+la selección se actualizan horas y alcance y se borra el precio final para revisar
+de nuevo. Las horas totales siguen editables. En una tarifa por hora se conserva
+una hora de referencia para la tarifa conjunta, como en los paquetes del catálogo.
+
+`composeQuoteServices` exige unidades iguales, disponibilidad y componentes
+distintos: un paquete más uno de sus componentes se rechaza para no cobrarlo
+dos veces. Suma horas, mínimos y recomendaciones completas; un recomendado
+faltante no se convierte en un total parcial. La capacidad sigue siendo un solo
+presupuesto, usando el mayor porcentaje del servicio; costos directos y viáticos
+se registran una sola vez. El descuento familiar completo actúa sobre el honorario
+conjunto. El servidor vuelve a consultar y validar todas las selecciones.
+
+La columna `serviceId` conserva la primera relación por compatibilidad; los ids,
+nombres y referencias de los servicios seleccionados se congelan en el campo
+opcional `snapshot.service.selectedServices`, junto al desglose de componentes.
+Los snapshots de un servicio continúan siendo compatibles. Aceptar el conjunto
+crea un solo trabajo con el total y alcance acordados. No se reescriben acuerdos
+anteriores si se edita el catálogo.
+
+Una referencia de mercado de un servicio no demuestra el precio de la combinación.
+Las cotizaciones con varias selecciones muestran «Sin referencia conjunta»,
+reparten los pesos entre trabajo y capacidad y conservan la recomendación de
+catálogo como referencia comercial editable. Sus aceptaciones no se incorporan
+como comparables del primer servicio; las aceptaciones individuales mantienen
+su comportamiento. `scripts/check-pricing-multi.ts` comprobó totales, guardas,
+descuento, snapshots, aceptación y comparabilidad con filas desechables.
+`scripts/check-pricing-multi-ui.cjs` añadió, quitó y volvió a añadir servicios,
+comprobó las 584 horas, el bloqueo de componentes repetidos y unidades distintas,
+revisó la tarifa familiar y guardó los cuatro componentes. Se revisaron 12
+variantes en Chrome a 1440 y 390 px, en claro y oscuro, sin errores de página
+ni desbordamiento horizontal. Tipos, lint, 379 pruebas y build pasaron; las
+filas y la sesión de QA se retiraron y el servidor de desarrollo se restauró.
+
+Un paquete necesita al menos dos servicios activos de igual unidad, sin
+anidamiento ni duplicados. `PricingServiceComponent` conserva los enlaces;
+horas y mínimos se recalculan desde los componentes. El porcentaje de ingreso
+es el mayor, no la suma, para no contar varias veces el presupuesto del cliente.
+Un componente usado no se puede desactivar ni cambiar de unidad. La cotización
+congela nombres, horas, mínimos y recomendaciones de sus componentes; cambiar
+el catálogo después no altera el snapshot. Se puede dar una recomendación
+comercial al paquete sin confundirla con la fórmula del precio sugerido.
+
+`scripts/check-pricing-study.ts` comprobó persistencia, composición, restricciones,
+herencia regional, prioridad del ingreso conocido, piso y snapshot inmutable
+con filas desechables. `scripts/check-pricing-study-ui.cjs` comprobó en Chrome
+crear y cotizar un paquete, guardar una estimación sin estrato y aceptar 1 %
+rechazando 0,01. Se revisaron capturas a 1440 y 390 px en claro y oscuro:
+parámetros, editor del paquete, tramos, catálogo, resultado y regiones, sin
+desbordamiento horizontal ni errores de página.
+Con `--split-platform`, el mismo script seleccionó, revisó y guardó por separado
+Esferas (300 horas y dos componentes) y Deligurt (220 horas, sin componentes
+de Esferas). Se revisaron 16 variantes del catálogo y los resultados en Chrome;
+la segunda carga del catálogo dejó cero cambios pendientes. Las pruebas,
+typecheck, lint y build de la raíz pasaron y las filas de QA se retiraron.
 
 ### Presupuesto: los presupuestos de Wallet, editados aquí
 

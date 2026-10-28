@@ -1,6 +1,8 @@
 import "server-only";
 
 import { db, prismaJson } from "@nassican/db";
+import type { Prisma } from "@nassican/db";
+import { composePricingPackage, composeQuoteServices } from "./pricing-package";
 import type { PricingFinancial, PricingParameters, PricingSnapshot } from "@nassican/shared";
 import { companyCapacity, financialAnalysis, financialOrigin } from "./pricing-financial";
 import { financialFields, type PricingFinancialDraft } from "./pricing-draft";
@@ -9,7 +11,7 @@ import { getTrm } from "./trm";
 import { calendarDate } from "@nassican/shared";
 import { getTimezone } from "./site-config";
 import {
-  estimatedRegionalIncome,
+  resolveRegionalIncome,
   resolveRegionFactor,
   type RegionFactorDraft,
   type RegionFactorInput,
@@ -27,11 +29,12 @@ import {
   emptyPricingClient,
   grouped,
   quoteInput,
+  pricingSelectedServiceIds,
   type PricingClientDraft,
   type PricingQuoteDraft,
   type PricingServiceDraft,
 } from "./pricing-draft";
-import { pricingReminders } from "./pricing-draft";
+import { pricingReminders, defaultPricingTiers } from "./pricing-draft";
 
 export async function getPricingParameters(): Promise<PricingParameters> {
   let row = await db.pricingSettings.findUnique({ where: { id: "singleton" } });
@@ -63,11 +66,7 @@ export async function getPricingTiers() {
       maximum: Number(r.maximum),
     }));
   await db.pricingTier.createMany({
-    data: [
-      { fromIncome: 0, toIncome: 100000000, percent: 0.01, minimum: 0, maximum: 1000000 },
-      { fromIncome: 100000000, toIncome: 1500000000, percent: 0.01, minimum: 0, maximum: 15000000 },
-      { fromIncome: 1500000000, toIncome: null, percent: 0.01, minimum: 0, maximum: 100000000 },
-    ],
+    data: defaultPricingTiers,
     skipDuplicates: true,
   });
   return getPricingTiers();
@@ -85,13 +84,40 @@ export async function getPricingClients() {
     monthlyIncome: r.monthlyIncome === null ? null : Number(r.monthlyIncome),
   }));
 }
-export async function getPricingServices() {
-  return (await db.pricingService.findMany({ orderBy: { name: "asc" } })).map((r) => ({
-    ...r,
-    typicalHours: Number(r.typicalHours),
-    incomePercent: Number(r.incomePercent),
-    minimum: Number(r.minimum),
+const serviceInclude = {
+  components: { include: { component: { include: { components: true } } } },
+} as const;
+type ServiceWithParts = Prisma.PricingServiceGetPayload<{ include: typeof serviceInclude }>;
+function pricingServiceRow(r: ServiceWithParts) {
+  const parts = r.components.map(({ component: c }) => ({
+    id: c.id,
+    name: c.name,
+    unit: c.unit,
+    typicalHours: Number(c.typicalHours),
+    minimum: Number(c.minimum),
+    incomePercent: Number(c.incomePercent),
+    recommendedPrice: c.recommendedPrice === null ? null : Number(c.recommendedPrice),
+    active: c.active,
+    componentIds: c.components.map((p) => p.componentId),
   }));
+  const composite = parts.length ? composePricingPackage(parts, r.unit, r.id) : null;
+  return {
+    ...r,
+    typicalHours: composite?.typicalHours ?? Number(r.typicalHours),
+    minimum: composite?.minimum ?? Number(r.minimum),
+    incomePercent: composite?.incomePercent ?? Number(r.incomePercent),
+    recommendedPrice:
+      r.recommendedPrice === null
+        ? (composite?.recommendedPrice ?? null)
+        : Number(r.recommendedPrice),
+    componentIds: parts.map((p) => p.id),
+    components: parts,
+  };
+}
+export async function getPricingServices() {
+  return (
+    await db.pricingService.findMany({ orderBy: { name: "asc" }, include: serviceInclude })
+  ).map(pricingServiceRow);
 }
 export async function getPricingCalculator() {
   const [parameters, tiers, clients, services, financials, geography] = await Promise.all([
@@ -146,6 +172,22 @@ export async function savePricingClient(d: PricingClientDraft) {
     : db.pricingClient.create({ data });
 }
 export async function savePricingService(d: PricingServiceDraft) {
+  const [parts, parents, current] = await Promise.all([
+    d.componentIds.length
+      ? db.pricingService.findMany({
+          where: { id: { in: d.componentIds } },
+          include: serviceInclude,
+        })
+      : [],
+    d.id ? db.pricingServiceComponent.count({ where: { componentId: d.id } }) : 0,
+    d.id ? db.pricingService.findUniqueOrThrow({ where: { id: d.id } }) : null,
+  ]);
+  if (parts.length !== d.componentIds.length) throw new Error("Revisa los servicios del paquete.");
+  if (parents && (!d.active || d.componentIds.length || current?.unit !== d.unit))
+    throw new Error("Este servicio pertenece a un paquete: conserva su unidad y estado activo.");
+  const composition = parts.length
+    ? composePricingPackage(parts.map(pricingServiceRow), d.unit, d.id)
+    : null;
   const data = {
     name: d.name.trim(),
     unit: d.unit,
@@ -153,18 +195,41 @@ export async function savePricingService(d: PricingServiceDraft) {
     incomePercent: (parseNumber(d.incomePercent) ?? 0) / 100,
     minimum: parseNumber(d.minimum) ?? 0,
     active: d.active,
+    description: blankToNull(d.description),
+    recommendedPrice: parseNumber(d.recommendedPrice),
+    ...(composition
+      ? {
+          typicalHours: composition.typicalHours,
+          minimum: composition.minimum,
+          incomePercent: composition.incomePercent,
+          recommendedPrice: parseNumber(d.recommendedPrice) ?? composition.recommendedPrice,
+        }
+      : {}),
   };
-  return d.id
-    ? db.pricingService.update({ where: { id: d.id }, data })
-    : db.pricingService.create({ data });
+  if (data.recommendedPrice !== null && data.recommendedPrice < data.minimum)
+    throw new Error("El precio recomendado no puede quedar bajo el mínimo del servicio.");
+  return db.$transaction(async (tx) => {
+    const saved = d.id
+      ? await tx.pricingService.update({ where: { id: d.id }, data })
+      : await tx.pricingService.create({ data });
+    await tx.pricingServiceComponent.deleteMany({ where: { packageId: saved.id } });
+    if (d.componentIds.length)
+      await tx.pricingServiceComponent.createMany({
+        data: d.componentIds.map((componentId) => ({ packageId: saved.id, componentId })),
+      });
+    return saved;
+  });
 }
 
 export async function pricingSnapshot(draft: PricingQuoteDraft): Promise<PricingSnapshot> {
-  const [parameters, client, service, tiers, financials, marketQuotes, trm, timezone, geography] =
+  const serviceIds = pricingSelectedServiceIds(draft);
+  const [parameters, client, services, tiers, financials, marketQuotes, trm, timezone, geography] =
     await Promise.all([
       getPricingParameters(),
       db.pricingClient.findUniqueOrThrow({ where: { id: draft.clientId } }),
-      db.pricingService.findUniqueOrThrow({ where: { id: draft.serviceId } }),
+      db.pricingService
+        .findMany({ where: { id: { in: serviceIds } }, include: serviceInclude })
+        .then((rows) => rows.map(pricingServiceRow)),
       getPricingTiers(),
       getPricingFinancials(draft.clientId),
       getMarketQuotes(),
@@ -172,7 +237,10 @@ export async function pricingSnapshot(draft: PricingQuoteDraft): Promise<Pricing
       getTimezone(),
       getPricingGeography(),
     ]);
-  if (!service.active) throw new Error("El servicio está inactivo.");
+  const service = composeQuoteServices(serviceIds, services);
+  const multipleServices = serviceIds.length > 1;
+  if (multipleServices && draft.unit !== service.unit)
+    throw new Error("Con varios servicios, conserva su unidad de cobro común.");
   const inputs = quoteInput(
     draft,
     { minimum: Number(service.minimum), incomePercent: Number(service.incomePercent) },
@@ -187,6 +255,10 @@ export async function pricingSnapshot(draft: PricingQuoteDraft): Promise<Pricing
     null;
   if (draft.financialId && !financial) throw new Error("El periodo no pertenece al cliente.");
   const notes: string[] = [];
+  if (service.components.length && inputs.hours !== service.typicalHours)
+    notes.push(
+      `Los servicios suman ${service.typicalHours} horas típicas; esta cotización usa ${inputs.hours} horas ajustadas al alcance. El mínimo de los componentes se conserva.`,
+    );
   const explanation: string[] = [];
   let lowConfidence = false;
   if (financial && client.type === "company") {
@@ -219,26 +291,35 @@ export async function pricingSnapshot(draft: PricingQuoteDraft): Promise<Pricing
     municipality: client.municipality ?? "",
   };
   const resolve = resolveRegionFactor(geography.factors);
-  const regional = resolve(location, service.id, draft.mode);
+  const factorServiceId = multipleServices ? "" : service.id;
+  const regional = resolve(location, factorServiceId, draft.mode);
   if (client.type === "person" && inputs.monthlyIncome === null) {
-    const estimate = estimatedRegionalIncome(geography.incomes, location, client.stratum);
+    const estimate = resolveRegionalIncome(geography.incomes, location, client.stratum);
     if (estimate) {
-      const source = resolve(estimate, service.id, draft.mode);
+      const source = resolve(estimate, factorServiceId, draft.mode);
       inputs.monthlyIncome = divideMoney(
         scaleMoney(estimate.income, regional.factor),
         source.factor,
       );
       inputs.incomeOrigin = "estimated";
+      if (estimate.modeled)
+        notes.push(
+          "El ingreso usa un escenario comercial por estrato, no una medición local. Confirma el presupuesto del cliente antes de acordar el precio.",
+        );
+      else if (estimate.stratum !== null)
+        notes.push(
+          `El ingreso estimado usa una referencia estadística de ${estimate.date}; no es un ingreso personal verificado. Revisa su fuente y año antes de cotizar.`,
+        );
       explanation.push(
-        `Ingreso estimado por estrato ${client.stratum}: ${estimate.income} × (${regional.factor} ÷ ${source.factor}) = ${inputs.monthlyIncome} COP al mes. ${estimate.justification} (${estimate.date}).`,
+        `Ingreso de referencia regional${estimate.stratum === null ? " sin desagregación por estrato" : ` para estrato ${estimate.stratum}`}: ${estimate.income} × (${regional.factor} ÷ ${source.factor}) = ${inputs.monthlyIncome} COP al mes. ${estimate.justification} (${estimate.date}).`,
       );
     } else
       notes.push(
-        "Sin ingreso conocido ni estimación configurada para el estrato y región: capacidad sin dato.",
+        "Sin ingreso conocido ni estimación configurada para el estrato y región: capacidad sin dato. El promedio regional no sustituye el ingreso de un estrato conocido.",
       );
   }
   const market = marketComparables(
-    marketQuotes,
+    multipleServices ? [] : marketQuotes,
     {
       serviceId: service.id,
       scope: draft.scope,
@@ -252,6 +333,10 @@ export async function pricingSnapshot(draft: PricingQuoteDraft): Promise<Pricing
     trm,
     resolve,
   );
+  if (multipleServices)
+    notes.push(
+      "Sin referencia conjunta de mercado para este alcance. El sugerido usa trabajo y capacidad; no se suman cotizaciones individuales como si fueran una oferta del conjunto.",
+    );
   inputs.market = market.mean;
   inputs.marketOrigin = market.origin;
   notes.push(...market.notes);
@@ -281,7 +366,33 @@ export async function pricingSnapshot(draft: PricingQuoteDraft): Promise<Pricing
       department: draft.ownDepartment.trim(),
       municipality: draft.ownMunicipality.trim(),
     },
-    service: { name: service.name, scope: draft.scope, description: draft.description.trim() },
+    service: {
+      name: service.name,
+      scope: draft.scope,
+      description: draft.description.trim() || service.description || "",
+      ...(multipleServices
+        ? {
+            selectedServices: service.selectedServices.map((s) => ({
+              id: s.id,
+              name: s.name,
+              hours: s.typicalHours,
+              minimum: s.minimum,
+              recommendedPrice: s.recommendedPrice,
+            })),
+          }
+        : {}),
+      ...(service.components.length
+        ? {
+            components: service.components.map((p) => ({
+              id: p.id,
+              name: p.name,
+              hours: p.typicalHours,
+              minimum: p.minimum,
+              recommendedPrice: p.recommendedPrice,
+            })),
+          }
+        : {}),
+    },
     geography: regional,
     financial,
     tiers,
@@ -362,27 +473,29 @@ export async function getMarketQuotes(): Promise<
   ]);
   return [
     ...rows.map((r) => ({ ...r, price: Number(r.price), serviceName: r.service.name, own: false })),
-    ...accepted.map((r): MarketQuoteInput & { serviceName: string; own: boolean } => ({
-      id: `own:${r.id}`,
-      serviceId: r.serviceId,
-      scope: r.snapshot.service.scope,
-      description: r.snapshot.service.description,
-      price: Number(r.final),
-      unit: r.unit,
-      currency: r.currency,
-      provider: "Mi cotización aceptada",
-      ...(r.snapshot.providerLocation ?? r.snapshot.client.location),
-      clientCountry: r.snapshot.client.location.country,
-      clientDepartment: r.snapshot.client.location.department,
-      clientMunicipality: r.snapshot.client.location.municipality,
-      mode: r.snapshot.inputs.mode,
-      date: r.updatedAt.toISOString().slice(0, 10),
-      source: "own",
-      url: null,
-      origin: "observed",
-      serviceName: r.snapshot.service.name,
-      own: true,
-    })),
+    ...accepted
+      .filter((r) => (r.snapshot.service.selectedServices?.length ?? 1) <= 1)
+      .map((r): MarketQuoteInput & { serviceName: string; own: boolean } => ({
+        id: `own:${r.id}`,
+        serviceId: r.serviceId,
+        scope: r.snapshot.service.scope,
+        description: r.snapshot.service.description,
+        price: Number(r.final),
+        unit: r.unit,
+        currency: r.currency,
+        provider: "Mi cotización aceptada",
+        ...(r.snapshot.providerLocation ?? r.snapshot.client.location),
+        clientCountry: r.snapshot.client.location.country,
+        clientDepartment: r.snapshot.client.location.department,
+        clientMunicipality: r.snapshot.client.location.municipality,
+        mode: r.snapshot.inputs.mode,
+        date: r.updatedAt.toISOString().slice(0, 10),
+        source: "own",
+        url: null,
+        origin: "observed",
+        serviceName: r.snapshot.service.name,
+        own: true,
+      })),
   ];
 }
 export async function saveMarketQuote(d: MarketQuoteDraft) {
@@ -505,7 +618,7 @@ export async function saveRegionFactor(
 }
 export async function saveIncomeEstimate(d: IncomeEstimateDraft) {
   const region = await regionFor(d);
-  const stratum = parseNumber(d.stratum) ?? 0;
+  const stratum = parseNumber(d.stratum);
   const data = {
     income: parseNumber(d.income) ?? 0,
     justification: d.justification.trim(),
@@ -519,14 +632,12 @@ export async function saveIncomeEstimate(d: IncomeEstimateDraft) {
       })),
       created: false,
     };
-  const existing = await db.pricingIncomeEstimate.findUnique({
-    where: { regionId_stratum: { regionId: region.id, stratum } },
+  const existing = await db.pricingIncomeEstimate.findFirst({
+    where: { regionId: region.id, stratum },
   });
-  const row = await db.pricingIncomeEstimate.upsert({
-    where: { regionId_stratum: { regionId: region.id, stratum } },
-    create: { regionId: region.id, stratum, ...data },
-    update: data,
-  });
+  const row = existing
+    ? await db.pricingIncomeEstimate.update({ where: { id: existing.id }, data })
+    : await db.pricingIncomeEstimate.create({ data: { regionId: region.id, stratum, ...data } });
   return { ...row, created: !existing };
 }
 

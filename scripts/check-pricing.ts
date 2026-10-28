@@ -27,6 +27,7 @@ async function main() {
   } = await import("../apps/admin/src/lib/pricing");
   const { emptyPricingClient, emptyPricingService, emptyPricingQuote } =
     await import("../apps/admin/src/lib/pricing-draft");
+  const { addMoney, scaleMoney } = await import("../apps/admin/src/lib/pricing-engine");
   const directory = join(tmpdir(), "nassican-pricing-qa");
   const manifest = join(directory, "fixtures.json");
   await mkdir(directory, { recursive: true });
@@ -52,8 +53,7 @@ async function main() {
     const { addDays } = await import("../apps/admin/src/lib/journal-draft");
     const today = calendarDate(await getTimezone());
     assert.equal(
-      (await db.pricingQuote.findUniqueOrThrow({ where: { id: ids.quoteId } }))
-        .projectId,
+      (await db.pricingQuote.findUniqueOrThrow({ where: { id: ids.quoteId } })).projectId,
       null,
     );
     await db.pricingQuote.update({
@@ -98,9 +98,7 @@ async function main() {
     return;
   }
   if (process.argv.includes("--renew")) {
-    const ids: { sessionId: string } = JSON.parse(
-      await readFile(manifest, "utf8"),
-    );
+    const ids: { sessionId: string } = JSON.parse(await readFile(manifest, "utf8"));
     await dbBase.session.update({
       where: { id: ids.sessionId },
       data: { expiresAt: new Date(Date.now() + 3600000) },
@@ -110,9 +108,7 @@ async function main() {
     return;
   }
   if (process.argv.includes("--inspect")) {
-    const ids: { clientId: string } = JSON.parse(
-      await readFile(manifest, "utf8"),
-    );
+    const ids: { clientId: string } = JSON.parse(await readFile(manifest, "utf8"));
     const view = await getPricingCalculator();
     console.log({
       periods: view.financials
@@ -143,54 +139,62 @@ async function main() {
       ).name,
       ids.marker,
     );
+    const serviceIds = (
+      await db.pricingService.findMany({
+        where: { name: { startsWith: ids.marker } },
+        select: { id: true },
+      })
+    ).map((s) => s.id);
+    const quoteWhere = { OR: [{ serviceId: { in: serviceIds } }, { clientId: ids.clientId }] };
     const quoteIds = (
       await db.pricingQuote.findMany({
-        where: { serviceId: ids.serviceId },
+        where: quoteWhere,
         select: { id: true },
       })
     ).map((r) => r.id);
-    const [financials, market, factors, incomes, projects, signals] =
-      await Promise.all([
-        db.pricingClientFinancial.findMany({
-          where: { clientId: ids.clientId },
-          select: { id: true },
-        }),
-        db.marketQuote.findMany({
-          where: { serviceId: ids.serviceId },
-          select: { id: true },
-        }),
-        db.pricingRegionFactor.findMany({
-          where: { region: { country: ids.marker } },
-          select: { id: true },
-        }),
-        db.pricingIncomeEstimate.findMany({
-          where: { region: { country: ids.marker } },
-          select: { id: true },
-        }),
-        db.clientProject.findMany({
-          where: { clientId: ids.clientId },
-          select: { id: true },
-        }),
-        db.pricingClientSignal.findMany({
-          where: { clientId: ids.clientId },
-          select: { id: true },
-        }),
-      ]);
+    const [financials, market, factors, incomes, projects, signals] = await Promise.all([
+      db.pricingClientFinancial.findMany({
+        where: { clientId: ids.clientId },
+        select: { id: true },
+      }),
+      db.marketQuote.findMany({
+        where: { serviceId: { in: serviceIds } },
+        select: { id: true },
+      }),
+      db.pricingRegionFactor.findMany({
+        where: { region: { country: ids.marker } },
+        select: { id: true },
+      }),
+      db.pricingIncomeEstimate.findMany({
+        where: { region: { country: ids.marker } },
+        select: { id: true },
+      }),
+      db.clientProject.findMany({
+        where: { clientId: ids.clientId },
+        select: { id: true },
+      }),
+      db.pricingClientSignal.findMany({
+        where: { clientId: ids.clientId },
+        select: { id: true },
+      }),
+    ]);
     const disposableIds = [
       ...quoteIds,
       ids.clientId,
       ids.serviceId,
-      ...[financials, market, factors, incomes, projects, signals]
-        .flat()
-        .map((r) => r.id),
+      ...serviceIds,
+      ...[financials, market, factors, incomes, projects, signals].flat().map((r) => r.id),
     ];
-    await db.pricingQuote.deleteMany({ where: { serviceId: ids.serviceId } });
-    await db.marketQuote.deleteMany({ where: { serviceId: ids.serviceId } });
+    await db.pricingQuote.deleteMany({ where: quoteWhere });
+    await db.marketQuote.deleteMany({ where: { serviceId: { in: serviceIds } } });
     await db.clientProject.deleteMany({
       where: { id: { in: projects.map((r) => r.id) } },
     });
     await db.pricingClient.deleteMany({ where: { id: ids.clientId } });
-    await db.pricingService.deleteMany({ where: { id: ids.serviceId } });
+    await db.pricingServiceComponent.deleteMany({
+      where: { OR: [{ packageId: { in: serviceIds } }, { componentId: { in: serviceIds } }] },
+    });
+    await db.pricingService.deleteMany({ where: { id: { in: serviceIds } } });
     await db.pricingRegion.deleteMany({ where: { country: ids.marker } });
     await dbBase.session.deleteMany({ where: { id: ids.sessionId } });
     await dbBase.auditLog.deleteMany({
@@ -198,17 +202,14 @@ async function main() {
     });
     await dbBase.trashItem.deleteMany({
       where: {
-        OR: [
-          { entityId: { in: disposableIds } },
-          { label: { startsWith: ids.marker } },
-        ],
+        OR: [{ entityId: { in: disposableIds } }, { label: { startsWith: ids.marker } }],
       },
     });
     const remaining = await Promise.all([
       db.pricingClient.count({ where: { id: ids.clientId } }),
-      db.pricingService.count({ where: { id: ids.serviceId } }),
-      db.pricingQuote.count({ where: { serviceId: ids.serviceId } }),
-      db.marketQuote.count({ where: { serviceId: ids.serviceId } }),
+      db.pricingService.count({ where: { id: { in: serviceIds } } }),
+      db.pricingQuote.count({ where: quoteWhere }),
+      db.marketQuote.count({ where: { serviceId: { in: serviceIds } } }),
       db.pricingClientFinancial.count({ where: { clientId: ids.clientId } }),
       db.pricingClientSignal.count({ where: { clientId: ids.clientId } }),
       db.clientProject.count({
@@ -241,6 +242,7 @@ async function main() {
     ...emptyPricingService(),
     name: marker,
     minimum: "500.000",
+    recommendedPrice: "2.000.000",
   });
   const fixtures = process.argv.includes("--fixtures");
   try {
@@ -276,10 +278,20 @@ async function main() {
         stored.snapshot.parameters.familyDiscount,
       );
       assert.equal(Number(stored.final), stored.snapshot.result.suggested);
-      assert.ok(Number(stored.final) >= stored.snapshot.result.floor);
+      assert.equal(stored.snapshot.result.family!.unrestricted, true);
+      assert.equal(
+        Number(stored.final),
+        addMoney(
+          stored.snapshot.result.family!.normal,
+          -scaleMoney(
+            stored.snapshot.result.family!.fee,
+            stored.snapshot.parameters.familyDiscount,
+          ),
+        ),
+      );
       assert.ok(stored.snapshot.result.family!.normal >= Number(stored.final));
       console.log(
-        "Family pricing persisted with its percentage, effective discount and protected floor.",
+        "Family pricing persisted with its complete discount, without a floor cap or additional rounding.",
       );
     }
     assert.ok(
@@ -292,8 +304,8 @@ async function main() {
       data: { minimum: 9000000 },
     });
     assert.equal(
-      (await db.pricingQuote.findUniqueOrThrow({ where: { id: quote.id } }))
-        .snapshot.inputs.minimum,
+      (await db.pricingQuote.findUniqueOrThrow({ where: { id: quote.id } })).snapshot.inputs
+        .minimum,
       500000,
     );
     await db.pricingService.update({
@@ -322,10 +334,7 @@ async function main() {
         assets: "1.000.000.000",
         liabilities: "500.000.000",
       };
-      const period = await savePricingFinancial(
-        financialDraft,
-        readFinancial(financialDraft),
-      );
+      const period = await savePricingFinancial(financialDraft, readFinancial(financialDraft));
       await db.pricingClient.update({
         where: { id: client.id },
         data: { type: "company" },
@@ -351,8 +360,8 @@ async function main() {
         data: { cost61: 0 },
       });
       assert.equal(
-        (await db.pricingQuote.findUniqueOrThrow({ where: { id: saved.id } }))
-          .snapshot.financial?.cost61,
+        (await db.pricingQuote.findUniqueOrThrow({ where: { id: saved.id } })).snapshot.financial
+          ?.cost61,
         1455000000,
       );
       console.log(
@@ -360,8 +369,7 @@ async function main() {
       );
     }
     if (process.argv.includes("--phase3")) {
-      const { emptyMarketQuote } =
-        await import("../apps/admin/src/lib/pricing-market");
+      const { emptyMarketQuote } = await import("../apps/admin/src/lib/pricing-market");
       const base = {
         ...emptyMarketQuote(),
         serviceId: service.id,
@@ -391,9 +399,7 @@ async function main() {
         data: { status: "accepted" },
       });
       assert.ok(
-        (await getMarketQuotes()).some(
-          (q) => q.id === `own:${quote.id}` && q.source === "own",
-        ),
+        (await getMarketQuotes()).some((q) => q.id === `own:${quote.id}` && q.source === "own"),
       );
       console.log(
         "Market database checks passed: comparables, currency exclusion, adjusted evidence and accepted own references.",
@@ -406,8 +412,7 @@ async function main() {
         observedRegionalFactor,
         resolveRegionFactor,
       } = await import("../apps/admin/src/lib/pricing-geography");
-      const { emptyMarketQuote } =
-        await import("../apps/admin/src/lib/pricing-market");
+      const { emptyMarketQuote } = await import("../apps/admin/src/lib/pricing-market");
       const country = {
         ...emptyRegionFactor(),
         country: marker,
@@ -507,10 +512,8 @@ async function main() {
     if (process.argv.includes("--phase5")) {
       const { emptyFinancial, readFinancial } =
         await import("../apps/admin/src/lib/pricing-financial");
-      const { emptyMarketQuote } =
-        await import("../apps/admin/src/lib/pricing-market");
-      const { moveToTrash, restoreFromTrash } =
-        await import("../apps/admin/src/lib/trash");
+      const { emptyMarketQuote } = await import("../apps/admin/src/lib/pricing-market");
+      const { moveToTrash, restoreFromTrash } = await import("../apps/admin/src/lib/trash");
       const { logAudit } = await import("../apps/admin/src/lib/audit");
       const { readActivity } = await import("../apps/admin/src/lib/journal");
       const { listCommands } = await import("../apps/admin/src/lib/commands");
@@ -519,10 +522,7 @@ async function main() {
       const { addDays } = await import("../apps/admin/src/lib/journal-draft");
       const timezone = await getTimezone();
       const today = calendarDate(timezone);
-      const email = (process.env.ADMIN_ALLOWED_EMAILS ?? "")
-        .split(",")[0]
-        ?.trim()
-        .toLowerCase();
+      const email = (process.env.ADMIN_ALLOWED_EMAILS ?? "").split(",")[0]?.trim().toLowerCase();
       const user = await dbBase.user.findUniqueOrThrow({ where: { email } });
       await setPricingQuoteStatus(quote.id, "sent");
       await db.pricingQuote.update({
@@ -535,9 +535,7 @@ async function main() {
       const reminders = await pricingToday(today, timezone);
       assert.ok(reminders.followUps.some((r) => r.id === quote.id));
       assert.ok(reminders.expiring.some((r) => r.id === quote.id));
-      assert.ok(
-        (await listCommands()).some((r) => r.id === `pricing:${quote.id}`),
-      );
+      assert.ok((await listCommands()).some((r) => r.id === `pricing:${quote.id}`));
       const accepted = await Promise.all([
         setPricingQuoteStatus(quote.id, "accepted"),
         setPricingQuoteStatus(quote.id, "accepted"),
@@ -554,18 +552,13 @@ async function main() {
       assert.equal(Number(project.amount), 2000000);
       assert.equal(project.currency, "COP");
       assert.equal(project.clientId, client.id);
-      assert.equal(
-        (await setPricingQuoteStatus(quote.id, "rejected")).ok,
-        false,
-      );
+      assert.equal((await setPricingQuoteStatus(quote.id, "rejected")).ok, false);
       const usd = await db.pricingQuote.create({
         data: {
           title: `${marker} USD`,
           clientId: client.id,
           serviceId: service.id,
-          snapshot: (await import("@nassican/db")).prismaJson.pricing(
-            quote.snapshot,
-          ),
+          snapshot: (await import("@nassican/db")).prismaJson.pricing(quote.snapshot),
           suggested: "1234.56",
           final: "1234.56",
           currency: "USD",
@@ -618,9 +611,7 @@ async function main() {
       assert.ok(
         activity.some(
           (r) =>
-            r.item.text.includes(marker) &&
-            r.item.tally === "quote-accepted" &&
-            r.item.highlight,
+            r.item.text.includes(marker) && r.item.tally === "quote-accepted" && r.item.highlight,
         ),
       );
       const periodDraft = {
@@ -637,13 +628,9 @@ async function main() {
         data: { clientId: client.id, network: "instagram", followers: 1000 },
       });
       await moveToTrash("pricing_client", client.id, user.id);
+      assert.equal(await db.pricingClient.count({ where: { id: client.id } }), 0);
       assert.equal(
-        await db.pricingClient.count({ where: { id: client.id } }),
-        0,
-      );
-      assert.equal(
-        (await db.pricingQuote.findUniqueOrThrow({ where: { id: quote.id } }))
-          .clientId,
+        (await db.pricingQuote.findUniqueOrThrow({ where: { id: quote.id } })).clientId,
         null,
       );
       assert.equal(
@@ -658,21 +645,10 @@ async function main() {
         where: { kind: "pricing_client", entityId: client.id },
       });
       assert.equal(clientTrash.label, marker);
-      assert.ok(
-        clientTrash.payload.parts.some(
-          (p) => p.model === "PricingClientFinancial",
-        ),
-      );
-      assert.ok(
-        clientTrash.payload.parts.some(
-          (p) => p.model === "PricingClientSignal",
-        ),
-      );
+      assert.ok(clientTrash.payload.parts.some((p) => p.model === "PricingClientFinancial"));
+      assert.ok(clientTrash.payload.parts.some((p) => p.model === "PricingClientSignal"));
       assert.ok((await restoreFromTrash(clientTrash.id)).ok);
-      assert.equal(
-        await db.pricingClientSignal.count({ where: { clientId: client.id } }),
-        1,
-      );
+      assert.equal(await db.pricingClientSignal.count({ where: { clientId: client.id } }), 1);
       assert.equal(
         (
           await db.clientProject.findUniqueOrThrow({
@@ -682,22 +658,18 @@ async function main() {
         client.id,
       );
       assert.equal(
-        (await db.pricingQuote.findUniqueOrThrow({ where: { id: quote.id } }))
-          .clientId,
+        (await db.pricingQuote.findUniqueOrThrow({ where: { id: quote.id } })).clientId,
         client.id,
       );
       await moveToTrash("pricing_quote", quote.id, user.id);
-      assert.equal(
-        await db.clientProject.count({ where: { id: project.id } }),
-        1,
-      );
+      assert.equal(await db.clientProject.count({ where: { id: project.id } }), 1);
       const quoteTrash = await db.trashItem.findFirstOrThrow({
         where: { kind: "pricing_quote", entityId: quote.id },
       });
       assert.ok((await restoreFromTrash(quoteTrash.id)).ok);
       assert.equal(
-        (await db.pricingQuote.findUniqueOrThrow({ where: { id: quote.id } }))
-          .snapshot.inputs.directCosts,
+        (await db.pricingQuote.findUniqueOrThrow({ where: { id: quote.id } })).snapshot.inputs
+          .directCosts,
         34225,
       );
       const market = await saveMarketQuote({
@@ -715,10 +687,7 @@ async function main() {
       assert.equal(marketTrash.label, marker);
       assert.ok((await restoreFromTrash(marketTrash.id)).ok);
       assert.equal(
-        Number(
-          (await db.marketQuote.findUniqueOrThrow({ where: { id: market.id } }))
-            .price,
-        ),
+        Number((await db.marketQuote.findUniqueOrThrow({ where: { id: market.id } })).price),
         100000,
       );
       console.log(
@@ -726,10 +695,7 @@ async function main() {
       );
     }
     if (fixtures) {
-      const email = (process.env.ADMIN_ALLOWED_EMAILS ?? "")
-        .split(",")[0]
-        ?.trim()
-        .toLowerCase();
+      const email = (process.env.ADMIN_ALLOWED_EMAILS ?? "").split(",")[0]?.trim().toLowerCase();
       const user = await dbBase.user.findUniqueOrThrow({ where: { email } });
       const secret = process.env.BETTER_AUTH_SECRET;
       assert.ok(secret);
@@ -742,9 +708,7 @@ async function main() {
           userAgent: "Pricing local QA",
         },
       });
-      const signature = createHmac("sha256", secret)
-        .update(token)
-        .digest("base64");
+      const signature = createHmac("sha256", secret).update(token).digest("base64");
       await writeFile(
         manifest,
         JSON.stringify({
@@ -793,8 +757,6 @@ async function main() {
   }
 }
 main().catch(() => {
-  console.error(
-    "Pricing database verification failed. No environment values were printed.",
-  );
+  console.error("Pricing database verification failed. No environment values were printed.");
   process.exitCode = 1;
 });

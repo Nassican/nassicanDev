@@ -7,6 +7,81 @@ import type {
 } from "@nassican/shared";
 import { addMoney, divideMoney, scaleMoney } from "./pricing-engine";
 import { fieldProblems, parseNumber } from "./draft-fields";
+import { fold } from "./list-filters";
+
+export type MarketSelection = {
+  serviceId: string;
+  scope: PricingScope;
+  unit: PricingUnit;
+  mode: PricingMode;
+};
+
+type MarketService = { id: string; unit: PricingUnit };
+
+export function marketSelectionForService(
+  serviceId: string,
+  services: MarketService[],
+  quotes: MarketQuoteInput[],
+  preferred?: MarketSelection,
+): MarketSelection {
+  const service = services.find((s) => s.id === serviceId);
+  const score = (q: MarketQuoteInput) =>
+    Number(q.scope === preferred?.scope) +
+    Number(q.mode === preferred?.mode) +
+    Number(q.unit === (preferred?.unit ?? service?.unit));
+  const reference = quotes
+    .filter((q) => q.serviceId === serviceId)
+    .sort((a, b) => score(b) - score(a))[0];
+  return {
+    serviceId,
+    scope: reference?.scope ?? "standard",
+    unit: reference?.unit ?? service?.unit ?? "project",
+    mode: reference?.mode ?? "remote",
+  };
+}
+
+export function marketSelectionFromParams(
+  services: MarketService[],
+  quotes: MarketQuoteInput[],
+  params: Record<string, string | string[] | undefined>,
+): MarketSelection {
+  const one = (key: string) => (typeof params[key] === "string" ? params[key] : undefined);
+  const requested = one("serviceId");
+  const serviceId =
+    requested === ""
+      ? ""
+      : (services.find((s) => s.id === requested)?.id ??
+        services.find((s) => quotes.some((q) => q.serviceId === s.id))?.id ??
+        services[0]?.id ??
+        "");
+  const selection = marketSelectionForService(serviceId, services, quotes);
+  const scope = one("scope");
+  const unit = one("unit");
+  const mode = one("mode");
+  return {
+    serviceId,
+    scope:
+      scope === "basic" || scope === "standard" || scope === "advanced" ? scope : selection.scope,
+    unit: unit === "project" || unit === "monthly" || unit === "hour" ? unit : selection.unit,
+    mode: mode === "remote" || mode === "onsite" || mode === "hybrid" ? mode : selection.mode,
+  };
+}
+
+export function marketSelectionOptions(quotes: MarketQuoteInput[], serviceId: string) {
+  const options = new Map<string, MarketSelection & { count: number }>();
+  for (const q of quotes.filter((q) => q.serviceId === serviceId)) {
+    const key = `${q.scope}:${q.unit}:${q.mode}`;
+    const previous = options.get(key);
+    options.set(key, {
+      serviceId,
+      scope: q.scope,
+      unit: q.unit,
+      mode: q.mode,
+      count: (previous?.count ?? 0) + 1,
+    });
+  }
+  return [...options.values()];
+}
 
 export type MarketQuoteInput = {
   id: string;
@@ -239,4 +314,39 @@ export function marketComparables(
     `Mercado: ${stats.count} comparables, mínimo ${stats.minimum ?? "sin dato"}, máximo ${stats.maximum ?? "sin dato"}, promedio ${stats.mean ?? "sin dato"} COP.`,
   );
   return { ...stats, evidence, origin, notes, explanation, target };
+}
+
+export function marketRegionComparison(
+  quotes: MarketQuoteInput[],
+  request: MarketSelection & { today: string; maxMonths: number; outlierMultiplier?: number },
+  trm: { value: number; date: string } | null,
+) {
+  // Compare recorded regional prices, not prices adjusted back to Colombia.
+  // Reuse date and currency rules so the table and its warnings cannot disagree.
+  const comparable = marketComparables(
+    quotes.filter((q) => q.mode === request.mode),
+    { ...request, location: { country: "Colombia", department: "", municipality: "" } },
+    trm,
+  );
+  const byId = new Map(quotes.map((q) => [q.id, q]));
+  const regions = new Map<string, { label: string; prices: number[] }>();
+  for (const evidence of comparable.evidence) {
+    const location = marketLocation(byId.get(evidence.id)!);
+    const parts = [location.country, location.department, location.municipality];
+    const key = JSON.stringify(parts.map(fold));
+    const previous = regions.get(key);
+    regions.set(key, {
+      label: previous?.label ?? parts.filter(Boolean).join(", "),
+      prices: [...(previous?.prices ?? []), evidence.price],
+    });
+  }
+  return {
+    groups: [...regions].map(([key, region]) => ({
+      key,
+      label: region.label,
+      ...marketStats(region.prices, request.outlierMultiplier),
+    })),
+    notes: comparable.notes,
+    count: comparable.count,
+  };
 }

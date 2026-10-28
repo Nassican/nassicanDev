@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 4,
   "reviewedAt": "2026-10-27",
   "currency": "COP",
   "familyDiscount": 0.2,
@@ -57,13 +57,59 @@
   },
   "policy": {
     "normal": "El precio normal de la tabla es una recomendación comercial inicial por el alcance descrito, no una tarifa observada ni una cotización personalizada.",
-    "family": "El 20 % fue la elección inicial. El porcentaje vigente se configura en Parámetros y se aplica al activar Tarifa familiar en Calcular, sin bajar del piso. Se conserva en el snapshot; el precio final sigue editable. No se infiere parentesco por el nombre del cliente.",
+    "family": "El 20 % fue la elección inicial. El porcentaje vigente se configura en Parámetros y se aplica completo al activar Tarifa familiar en Calcular, sin límite por piso ni redondeo adicional. Se conservan costos directos y viáticos. Se conserva en el snapshot; el precio final sigue editable. No se infiere parentesco por el nombre del cliente.",
     "directCosts": "Dominio, hosting, correo, VPS del cliente, licencias, consumos de API, comisiones y viáticos se suman por separado al costo acordado. No reciben descuento familiar.",
     "scope": "Incluye reunión inicial, implementación del alcance acordado, prueba en escritorio y móvil cuando aplica, entrega y dos rondas de ajustes del mismo alcance. Funciones nuevas se cotizan aparte.",
     "payments": "Propuesta comercial: 50 % al iniciar, 30 % con la versión de revisión y 20 % contra entrega. En trabajos pequeños, 50 % y 50 %. Mantenimiento por mes anticipado.",
     "support": "Propuesta comercial: 30 días para corregir defectos atribuibles a la entrega. Evolutivos, nuevos requisitos y soporte continuo se cotizan aparte; acordarlo por escrito.",
     "validity": "Propuesta válida por 15 días. Precios antes de los impuestos que correspondan, que se detallan en cada cotización.",
     "limits": "Un solo cliente o empresa y una sede salvo indicación expresa. Sin hardware, facturación electrónica certificada, migración masiva, trabajo sin conexión, soporte ilimitado ni producción de fotos o textos salvo cotización adicional."
+  },
+  "incomeTiers": [
+    { "fromIncome": 0, "toIncome": 5000000, "percent": 0.01, "minimum": 0, "maximum": 50000 },
+    {
+      "fromIncome": 5000000,
+      "toIncome": 20000000,
+      "percent": 0.01,
+      "minimum": 0,
+      "maximum": 200000
+    },
+    {
+      "fromIncome": 20000000,
+      "toIncome": 100000000,
+      "percent": 0.01,
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    {
+      "fromIncome": 100000000,
+      "toIncome": 500000000,
+      "percent": 0.01,
+      "minimum": 0,
+      "maximum": 5000000
+    },
+    {
+      "fromIncome": 500000000,
+      "toIncome": 1500000000,
+      "percent": 0.01,
+      "minimum": 0,
+      "maximum": 15000000
+    },
+    {
+      "fromIncome": 1500000000,
+      "toIncome": null,
+      "percent": 0.01,
+      "minimum": 0,
+      "maximum": 50000000
+    }
+  ],
+  "tierBasis": "Segmentación comercial de ingresos operacionales mensuales, no clasificación legal de empresas ni estadística DANE. Parte del 1 % como referencia prudente de presupuesto mensual. No fuerza cuotas mínimas: con pérdidas o poca utilidad actúa el tope del 20 % y el piso se conserva. Los servicios por proyecto se cotizan por alcance; esta cuota no representa su precio total ni se multiplica por meses supuestos.",
+  "platformEvidence": {
+    "repositories": ["esferasExplosivasShop", "esferasExplosivasApp", "deligurtPOS"],
+    "verified": "Shop consume el catálogo de App por API HMAC y gestiona pedidos de visitantes; App registra inventario por movimientos, lotes, costos, ventas y conexión con Siigo; Deligurt tiene sedes, caja y turnos, recetas/insumos y pedidos que Esferas alista y despacha mediante API firmada.",
+    "commercialSeparation": "Esferas Shop + App forman un paquete propio. Deligurt POS se cotiza de forma independiente. La conexión entre Esferas y Deligurt es un servicio opcional y no se incluye en ninguno de los dos alcances base.",
+    "limits": "No se encontró una identidad o base de datos compartida entre los tres. Shop documenta que no tiene pagos en línea ni cuentas autenticadas de clientes. La revisión confirma arquitectura y código, no una prueba de integración en producción.",
+    "pricingBasis": "Los nuevos precios estiman reimplementar un alcance equivalente. Las horas son estimadas, no horas observadas ni una valoración contable del activo, ni una modificación retroactiva de contratos existentes."
   },
   "services": [
     {
@@ -124,10 +170,7 @@
       "hours": 64,
       "normal": 6900000,
       "incomePercent": 0.1,
-      "evidence": [
-        "Vivero Orquídeas Colombia",
-        "Esferas Explosivas - Tienda Online"
-      ],
+      "evidence": ["Vivero Orquídeas Colombia", "Esferas Explosivas - Tienda Online"],
       "scope": "Una tienda, hasta 30 productos cargados, carrito, una pasarela, pedidos y administración inicial. Plataforma comercial existente; ERP, logística especial y motor de comercio propio se cotizan aparte."
     },
     {
@@ -137,10 +180,7 @@
       "hours": 56,
       "normal": 6000000,
       "incomePercent": 0.1,
-      "evidence": [
-        "Esferas Explosivas - Panel Distribuidora",
-        "app.nassican.com"
-      ],
+      "evidence": ["Esferas Explosivas - Panel Distribuidora", "app.nassican.com"],
       "scope": "Autenticación, dos roles, hasta cuatro entidades CRUD, filtros y un reporte. Una organización, operación en línea; sin procesos de ERP completos."
     },
     {
@@ -234,6 +274,60 @@
       "scope": "Una hora efectiva de trabajo acordado. Estimar y aprobar el máximo de horas antes de comenzar; mínimo una hora."
     },
     {
+      "key": "shop-integrated",
+      "name": "Tienda y pedidos conectados a inventario",
+      "unit": "project",
+      "hours": 120,
+      "normal": 13000000,
+      "incomePercent": 0.1,
+      "evidence": ["esferasExplosivasShop", "esferasExplosivasApp"],
+      "scope": "Catálogo y fotos administrados desde inventario, API firmada HMAC, caché e invalidación, variantes, carrito y pedidos de visitantes con seguimiento y gestión administrativa. Estimación de reimplementación, sin cuentas de cliente ni pasarela de pagos, que no están implementadas en el proyecto revisado."
+    },
+    {
+      "key": "warehouse",
+      "name": "Inventario de distribuidora y ventas",
+      "unit": "project",
+      "hours": 180,
+      "normal": 20000000,
+      "incomePercent": 0.1,
+      "evidence": ["esferasExplosivasApp"],
+      "scope": "Inventario por movimientos, lotes y vencimientos FEFO, kardex y costos, ventas y comprobantes, clientes, auditoría, permisos y administración del catálogo público. Conexión con API existente de Siigo según alcance; no incluye habilitación fiscal ni licencias. Reimplementación estimada para una distribuidora."
+    },
+    {
+      "key": "pos-full",
+      "name": "Deligurt POS multisede con recetas e insumos",
+      "aliases": ["POS multisede con recetas e insumos"],
+      "unit": "project",
+      "hours": 220,
+      "normal": 24000000,
+      "incomePercent": 0.1,
+      "evidence": ["deligurtPOS"],
+      "scope": "Deligurt como sistema independiente: dos sedes, cajas y turnos, cobros y anulaciones, gastos y comprobantes, catálogo con tamaños y toppings, recetas e insumos, conteos y pedidos de abastecimiento. Permisos, auditoría y recepción con diferencias. No requiere contratar Esferas Shop ni App. La conexión automática con Esferas se cotiza aparte como integración opcional. Reimplementación estimada; hardware y disponibilidad 24/7 aparte."
+    },
+    {
+      "key": "platform-integration",
+      "name": "Integración opcional entre Esferas y Deligurt POS",
+      "aliases": ["Integración de tienda, distribuidora y POS"],
+      "unit": "project",
+      "hours": 64,
+      "normal": 6900000,
+      "incomePercent": 0.1,
+      "evidence": ["esferasExplosivasShop", "esferasExplosivasApp", "deligurtPOS"],
+      "scope": "Conexión opcional del conjunto Esferas Shop + App con Deligurt POS: contratos de API y firmas servidor a servidor, flujo pedido/alistamiento/despacho/recepción, vinculación con ventas, pruebas de integración y puesta en marcha de la conexión. Se contrata adicionalmente cuando el cliente necesita comunicar ambos sistemas; sus módulos base se cotizan por separado. La conexión Shop–App ya está incluida en el paquete Esferas y no se cobra otra vez aquí. No implica compartir usuarios, caja o base de datos."
+    },
+    {
+      "key": "esferas-platform",
+      "name": "Plataforma Esferas Shop + App",
+      "aliases": ["Plataforma integral Esferas Shop + App + Deligurt"],
+      "unit": "project",
+      "hours": 300,
+      "normal": 33000000,
+      "incomePercent": 0.1,
+      "components": ["shop-integrated", "warehouse"],
+      "evidence": ["esferasExplosivasShop", "esferasExplosivasApp"],
+      "scope": "Paquete de reimplementación de Esferas Shop y Esferas App: tienda y pedidos conectados al inventario, más inventario y ventas de distribuidora. Incluye la conexión Shop–App, contratos API, pruebas y puesta en marcha por fases. Deligurt POS y su integración opcional se cotizan por separado. No supone pagos web, identidad unificada ni caja compartida; infraestructura y licencias aparte."
+    },
+    {
       "key": "urgent",
       "name": "Atención urgente por hora",
       "unit": "hour",
@@ -245,6 +339,33 @@
     }
   ],
   "marketReferences": [
+    {
+      "key": "lyroo-integration",
+      "service": "platform-integration",
+      "provider": "Lyroo Build",
+      "price": 2500000,
+      "scope": "basic",
+      "description": "Plan publicado desde para un módulo o integración y 1 a 3 endpoints/vistas; incluye documentación. Menor alcance que conectar las tres aplicaciones revisadas; modalidad y clasificación aproximadas.",
+      "url": "https://lyroo.com.co/build"
+    },
+    {
+      "key": "lyroo-warehouse",
+      "service": "warehouse",
+      "provider": "Lyroo Build",
+      "price": 6000000,
+      "scope": "basic",
+      "description": "Sistema publicado desde para un proceso, hasta 15 pantallas y 1 a 2 integraciones. No detalla lotes, FEFO o kardex equivalente; clasificación y modalidad aproximadas.",
+      "url": "https://lyroo.com.co/build"
+    },
+    {
+      "key": "lyroo-platform",
+      "service": "esferas-platform",
+      "provider": "Lyroo Build",
+      "price": 15000000,
+      "scope": "basic",
+      "description": "Precio publicado desde de solución empresarial multimódulo con integraciones. La ficha no confirma las funciones del paquete Esferas Shop + App ni su esfuerzo; clasificación y modalidad aproximadas, sin equivalencia de alcance garantizada.",
+      "url": "https://lyroo.com.co/build"
+    },
     {
       "key": "soltyai-template",
       "service": "template",

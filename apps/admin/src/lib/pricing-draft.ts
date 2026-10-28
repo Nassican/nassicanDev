@@ -80,6 +80,9 @@ export const emptyPricingClient = (): PricingClientDraft => ({
   notes: "",
 });
 export type PricingServiceDraft = {
+  description: string;
+  recommendedPrice: string;
+  componentIds: string[];
   id: string;
   name: string;
   unit: PricingUnit;
@@ -89,6 +92,9 @@ export type PricingServiceDraft = {
   active: boolean;
 };
 export const emptyPricingService = (): PricingServiceDraft => ({
+  description: "",
+  recommendedPrice: "",
+  componentIds: [],
   id: "",
   name: "",
   unit: "project",
@@ -102,6 +108,7 @@ export type PricingQuoteDraft = {
   financialId: string;
   clientId: string;
   serviceId: string;
+  additionalServiceIds?: string[];
   title: string;
   scope: PricingScope;
   description: string;
@@ -123,6 +130,7 @@ export const emptyPricingQuote = (): PricingQuoteDraft => ({
   financialId: "",
   clientId: "",
   serviceId: "",
+  additionalServiceIds: [],
   title: "",
   scope: "standard",
   description: "",
@@ -142,11 +150,28 @@ export const emptyPricingQuote = (): PricingQuoteDraft => ({
 export type PricingSettingsDraft = {
   [K in keyof PricingParameters]: PricingParameters[K] extends boolean ? boolean : string;
 };
+/** Fractions stay in storage; the operator always edits ordinary percentages. */
+export const pricingPercentageKeys: (keyof PricingParameters)[] = [
+  "familyDiscount",
+  "margin",
+  "projectWeight",
+  "capacityWeight",
+  "marketWeight",
+  "profitCap",
+  "confidenceHigh",
+  "confidenceMedium",
+  "debtLow",
+  "debtHigh",
+  "marginLow",
+  "marginHigh",
+];
 export function settingsDraft(s: PricingParameters): PricingSettingsDraft {
   return Object.fromEntries(
     Object.entries(s).map(([k, v]) => [
       k,
-      typeof v === "boolean" ? v : grouped(k === "familyDiscount" ? v * 100 : v),
+      typeof v === "boolean"
+        ? v
+        : grouped(pricingPercentageKeys.includes(k as keyof PricingParameters) ? v * 100 : v),
     ]),
   ) as PricingSettingsDraft;
 }
@@ -157,7 +182,10 @@ export function readPricingSettings(d: PricingSettingsDraft): PricingParameters 
   ]);
   if (entries.some(([, v]) => v === null || (typeof v === "number" && v < 0))) return null;
   const s = Object.fromEntries(entries) as PricingParameters;
-  s.familyDiscount /= 100;
+  for (const key of pricingPercentageKeys) {
+    const value = s[key];
+    if (typeof value === "number") Object.assign(s, { [key]: value / 100 });
+  }
   if (!Number.isFinite(s.familyDiscount) || s.familyDiscount > 1) return null;
   if (s.confidenceMedium > s.confidenceHigh || s.confidenceHigh > 1 || s.outlierMultiplier <= 1)
     return null;
@@ -203,6 +231,11 @@ export function pricingQuoteProblems(d: PricingQuoteDraft, saving = true): strin
     { label: "vigencia", value: d.validUntil, kind: "date" },
   ]);
   if (!d.clientId || !d.serviceId) problems.push("Elige cliente y servicio.");
+  try {
+    pricingSelectedServiceIds(d);
+  } catch {
+    problems.push("Elige cada servicio una sola vez y revisa los servicios adicionales.");
+  }
   if (saving && !d.title.trim()) problems.push("Escribe un título para guardar la cotización.");
   if (
     parseNumber(d.directCosts) === null ||
@@ -216,6 +249,16 @@ export function pricingQuoteProblems(d: PricingQuoteDraft, saving = true): strin
   if (d.hoursOrigin === "missing" || d.costsOrigin === "missing")
     problems.push("Indica el origen de las horas y los costos.");
   return problems;
+}
+export function pricingSelectedServiceIds(
+  d: Pick<PricingQuoteDraft, "serviceId" | "additionalServiceIds">,
+): string[] {
+  const additional = d.additionalServiceIds ?? [];
+  if (!Array.isArray(additional) || additional.some((id) => typeof id !== "string" || !id.trim()))
+    throw new Error("Revisa los servicios adicionales.");
+  const ids = d.serviceId ? [d.serviceId, ...additional] : additional;
+  if (new Set(ids).size !== ids.length) throw new Error("Elige cada servicio una sola vez.");
+  return ids;
 }
 export function quoteInput(
   d: PricingQuoteDraft,
@@ -274,6 +317,14 @@ export type PricingTierDraft = {
   minimum: string;
   maximum: string;
 };
+export const defaultPricingTiers: PricingTierInput[] = [
+  { fromIncome: 0, toIncome: 5000000, percent: 0.01, minimum: 0, maximum: 50000 },
+  { fromIncome: 5000000, toIncome: 20000000, percent: 0.01, minimum: 0, maximum: 200000 },
+  { fromIncome: 20000000, toIncome: 100000000, percent: 0.01, minimum: 0, maximum: 1000000 },
+  { fromIncome: 100000000, toIncome: 500000000, percent: 0.01, minimum: 0, maximum: 5000000 },
+  { fromIncome: 500000000, toIncome: 1500000000, percent: 0.01, minimum: 0, maximum: 15000000 },
+  { fromIncome: 1500000000, toIncome: null, percent: 0.01, minimum: 0, maximum: 50000000 },
+];
 
 export function readPricingTiers(drafts: PricingTierDraft[]): PricingTierInput[] | null {
   const tiers: PricingTierInput[] = [];
@@ -289,15 +340,15 @@ export function readPricingTiers(drafts: PricingTierDraft[]): PricingTierInput[]
       (draft.toIncome.trim() && toIncome === null) ||
       (toIncome !== null && toIncome <= fromIncome) ||
       percent === null ||
-      percent < 0 ||
-      percent > 1 ||
+      percent < 1 ||
+      percent > 100 ||
       minimum === null ||
       minimum < 0 ||
       maximum === null ||
       maximum < minimum
     )
       return null;
-    tiers.push({ fromIncome, toIncome, percent, minimum, maximum });
+    tiers.push({ fromIncome, toIncome, percent: percent / 100, minimum, maximum });
   }
   if (
     !tiers.length ||

@@ -98,7 +98,8 @@ async function main() {
     );
     console.log("Invalid percentage rejected by the settings action.");
     settingChanged = true;
-    await savePercentage("25");
+    await savePercentage("100");
+    assert.ok(await page.evaluate(() => /Familiar:\s*0\s*COP/.test(document.body.textContent)));
     await capture("settings");
     console.log("Percentage saved and survived reload in four screen variants.");
     await page.goto("http://localhost:3001/precios", { waitUntil: "networkidle2" });
@@ -109,13 +110,24 @@ async function main() {
     const checkbox = await page.$('input[type="checkbox"]');
     assert.ok(
       await checkbox.evaluate((e) =>
-        e.parentElement.textContent.includes("Aplicar tarifa familiar (25 %)"),
+        e.parentElement.textContent.includes("Aplicar tarifa familiar (100 %)"),
       ),
     );
     await press(checkbox);
     await click("Revisar cálculo y comparables");
-    await page.waitForFunction(() => document.body.textContent.includes("Tarifa familiar: 25 %"));
-    await page.waitForFunction(() => Array.from(document.querySelectorAll("button")).some((button) => button.textContent.trim() === "Guardar cotización" && !button.disabled));
+    await page.waitForFunction(() => document.body.textContent.includes("Tarifa familiar: 100 %"));
+    assert.equal(
+      await (await control("Precio final editable, COP")).evaluate((e) => e.placeholder),
+      "34.225",
+    );
+    assert.ok(
+      await page.evaluate(() => document.body.textContent.includes("descuento se aplica completo")),
+    );
+    await page.waitForFunction(() =>
+      Array.from(document.querySelectorAll("button")).some(
+        (button) => button.textContent.trim() === "Guardar cotización" && !button.disabled,
+      ),
+    );
     await capture("calculator");
     await click("Guardar cotización");
     await page.waitForFunction(() =>
@@ -128,14 +140,21 @@ async function main() {
     await page.goto("http://localhost:3001/precios/cotizaciones?q=" + encodeURIComponent(title), {
       waitUntil: "networkidle2",
     });
-    await page.waitForFunction(() => document.body.textContent.includes("Tarifa familiar (25 %)"));
+    await page.waitForFunction(() => document.body.textContent.includes("Tarifa familiar (100 %)"));
     const details = await page.$("article details summary");
     await press(details);
-    await page.waitForFunction(() => document.body.textContent.includes("Tarifa familiar: 25 %"));
+    await page.waitForFunction(() => document.body.textContent.includes("Tarifa familiar: 100 %"));
+    assert.ok(
+      await page.evaluate(() =>
+        document.body.textContent.includes(
+          "Descuento completo, sin límite por costos ni redondeo adicional.",
+        ),
+      ),
+    );
     await capture("saved");
     assert.deepEqual(errors, []);
     console.log(
-      "Saved quote retained 25 % after restoring the current setting; 12 Chrome screen variants passed without client errors.",
+      "Saved quote retained its complete 100 % fee discount after restoring the current setting; 12 Chrome screen variants passed without client errors.",
     );
   } catch (error) {
     console.error(error.stack);

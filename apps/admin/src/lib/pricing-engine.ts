@@ -152,20 +152,20 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
   const step = cents(settings.rounding);
   const bounded = cents(Math.max(floor, weighted));
   const normal = Number(((bounded + step - BigInt(1)) / step) * step) / 100;
-  // A relationship discounts the fee, not third-party bills or travel. The
-  // immutable breakdown records the effective discount when the floor limits it.
+  // Apply the full family discount after rounding the normal price. Neither
+  // the cost floor nor another rounding step may reduce the agreed discount.
   const fee = Math.max(0, addMoney(normal, -input.directCosts, -travel));
   const requestedDiscount = input.family ? scaleMoney(fee, settings.familyDiscount) : 0;
   const discounted = addMoney(normal, -requestedDiscount);
-  const finalBounded = cents(Math.max(floor, discounted));
-  const suggested = Number(((finalBounded + step - BigInt(1)) / step) * step) / 100;
+  const suggested = input.family ? discounted : normal;
   const family = input.family
     ? {
         percent: settings.familyDiscount,
         normal,
         fee,
         discount: addMoney(normal, -suggested),
-        limitedByFloor: discounted < floor,
+        limitedByFloor: false,
+        unrestricted: true,
       }
     : undefined;
   const minimumReference = Math.min(...available.map((r) => r.reference));
@@ -183,11 +183,15 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
         ? "medium"
         : "low";
   const warnings: string[] = [];
-  if (family?.limitedByFloor)
-    warnings.push("El descuento familiar se limitó para respetar el piso de costos.");
+  if (family && suggested < floor)
+    warnings.push(
+      "La tarifa familiar queda por debajo del piso de costos. El descuento se aplica completo.",
+    );
   if (capacity !== null && capacity < floor)
     warnings.push(
-      "La capacidad está por debajo del piso. Reduce el alcance, cobra en cuotas o no tomes el proyecto. El precio no se reduce.",
+      family
+        ? "La capacidad está por debajo del piso. Revisa el alcance y las condiciones de pago."
+        : "La capacidad está por debajo del piso. Reduce el alcance, cobra en cuotas o no tomes el proyecto. El precio no se reduce.",
     );
   if (available.length < refs.length)
     warnings.push(
@@ -208,7 +212,7 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
   ];
   if (family)
     explanation.push(
-      `Tarifa familiar: ${family.percent * 100} % sobre honorarios de ${fee} COP. Los ${input.directCosts} COP de costos directos y ${travel} COP de viáticos se conservan. Descuento efectivo tras piso y redondeo: ${family.discount} COP. Sugerido familiar: ${suggested} COP.`,
+      `Tarifa familiar: ${family.percent * 100} % sobre honorarios de ${fee} COP. Los ${input.directCosts} COP de costos directos y ${travel} COP de viáticos se conservan. Descuento completo sin límite por piso ni redondeo adicional: ${family.discount} COP. Sugerido familiar: ${suggested} COP.`,
     );
   if (input.unit === "hour" && monthlyCapacity !== null)
     explanation.push(

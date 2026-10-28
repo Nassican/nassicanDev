@@ -22,6 +22,7 @@ import {
   pricingClientProblems,
   pricingMoney,
   pricingQuoteProblems,
+  pricingSelectedServiceIds,
   quoteInput,
   scopeLabels,
   unitLabels,
@@ -29,6 +30,7 @@ import {
   type PricingQuoteDraft,
 } from "@/lib/pricing-draft";
 import { parseNumber } from "@/lib/draft-fields";
+import { composeQuoteServices } from "@/lib/pricing-package";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import DateField from "./DateField";
 import Toast from "./Toast";
@@ -56,6 +58,7 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
   } | null>(null);
   const [savedKey, setSavedKey] = useState("");
   const [pending, startTransition] = useTransition();
+  const [serviceToAdd, setServiceToAdd] = useState("");
   const key = JSON.stringify(draft);
   const calculationKey = JSON.stringify({
     ...draft,
@@ -66,7 +69,22 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
   const dirty = savedKey !== key && isDirty(emptyPricingQuote(), draft);
   useUnsavedChanges(dirty || (clientDraft !== null && isDirty(emptyPricingClient(), clientDraft)));
   const client = view.clients.find((c) => c.id === draft.clientId);
-  const service = view.services.find((s) => s.id === draft.serviceId);
+  const selectedServiceIds = pricingSelectedServiceIds(draft);
+  const selection = (() => {
+    if (!selectedServiceIds.length) return { service: null, error: "" };
+    try {
+      return { service: composeQuoteServices(selectedServiceIds, view.services), error: "" };
+    } catch (error) {
+      return {
+        service: null,
+        error: error instanceof Error ? error.message : "Revisa los servicios seleccionados.",
+      };
+    }
+  })();
+  const service = selection.service;
+  const selectedParts = new Set(
+    service ? (service.components.length ? service.componentIds : [service.id]) : [],
+  );
   const snapshot = preview?.key === calculationKey ? preview.snapshot : undefined;
   const local =
     service && client && (parseNumber(draft.hours) ?? 0) > 0
@@ -79,8 +97,32 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
         )
       : null;
   const result = snapshot?.result ?? local;
-  const problems = pricingQuoteProblems(draft);
-  const calculationProblems = pricingQuoteProblems(draft, false);
+  const problems = [...pricingQuoteProblems(draft), ...(selection.error ? [selection.error] : [])];
+  const calculationProblems = [
+    ...pricingQuoteProblems(draft, false),
+    ...(selection.error ? [selection.error] : []),
+  ];
+  function selectServices(ids: string[]) {
+    try {
+      const combined = ids.length ? composeQuoteServices(ids, view.services) : null;
+      setDraft((d) => ({
+        ...d,
+        serviceId: ids[0] ?? "",
+        additionalServiceIds: ids.slice(1),
+        hours: combined?.unit === "hour" ? "1" : grouped(combined?.typicalHours ?? 20),
+        unit: combined?.unit ?? "project",
+        description: combined?.description ?? "",
+        hoursOrigin: "estimated",
+        final: "",
+      }));
+      setServiceToAdd("");
+    } catch (error) {
+      setOutcome({
+        ok: false,
+        message: error instanceof Error ? error.message : "Revisa los servicios seleccionados.",
+      });
+    }
+  }
   function update<K extends keyof PricingQuoteDraft>(k: K, value: PricingQuoteDraft[K]) {
     setDraft((d) => ({
       ...d,
@@ -349,13 +391,9 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                   className={field}
                   value={draft.serviceId}
                   onChange={(e) => {
-                    const s = view.services.find((s) => s.id === e.target.value);
-                    setDraft((d) => ({
-                      ...d,
-                      serviceId: e.target.value,
-                      hours: s?.unit === "hour" ? "1" : grouped(s?.typicalHours ?? 20),
-                      unit: s?.unit ?? "project",
-                    }));
+                    selectServices(
+                      [e.target.value, ...(draft.additionalServiceIds ?? [])].filter(Boolean),
+                    );
                   }}
                 >
                   <option value="">Selecciona un servicio</option>
@@ -385,6 +423,7 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                 <select
                   className={field}
                   value={draft.unit}
+                  disabled={selectedServiceIds.length > 1}
                   onChange={(e) => {
                     const unit = e.target.value as PricingQuoteDraft["unit"];
                     setDraft((d) => ({
@@ -450,6 +489,90 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                 </select>
               </Label>
             </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-0 basis-full sm:basis-64 sm:flex-1">
+                <Label label="Servicio adicional">
+                  <select
+                    className={field}
+                    value={serviceToAdd}
+                    disabled={!service || pending}
+                    onChange={(e) => setServiceToAdd(e.target.value)}
+                  >
+                    <option value="">Elige otro servicio para esta cotización</option>
+                    {view.services
+                      .filter((s) => s.active)
+                      .map((s) => {
+                        const alreadyIncluded =
+                          selectedServiceIds.includes(s.id) ||
+                          (s.components.length ? s.componentIds : [s.id]).some((id) =>
+                            selectedParts.has(id),
+                          );
+                        const otherUnit = !!service && s.unit !== service.unit;
+                        return (
+                          <option key={s.id} value={s.id} disabled={alreadyIncluded || otherUnit}>
+                            {s.name}
+                            {alreadyIncluded
+                              ? " (ya incluido)"
+                              : otherUnit
+                                ? ` (${unitLabels[s.unit]}, otra unidad)`
+                                : ""}
+                          </option>
+                        );
+                      })}
+                  </select>
+                </Label>
+              </div>
+              <button
+                className={button}
+                disabled={!serviceToAdd || pending}
+                onClick={() => selectServices([...selectedServiceIds, serviceToAdd])}
+              >
+                Añadir servicio
+              </button>
+            </div>
+            {service && selectedServiceIds.length > 1 ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">
+                  Servicios seleccionados ({selectedServiceIds.length})
+                </p>
+                {service.selectedServices.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs"
+                  >
+                    <p className="min-w-0 basis-full break-words sm:basis-64 sm:flex-1">
+                      {s.name} · {s.typicalHours} h · mínimo {pricingMoney(s.minimum)}
+                    </p>
+                    <button
+                      className={button}
+                      aria-label={`Quitar ${s.name}`}
+                      disabled={pending}
+                      onClick={() => selectServices(selectedServiceIds.filter((id) => id !== s.id))}
+                    >
+                      Quitar servicio
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <p className="text-xs text-neutral-500">
+              Puedes combinar servicios de la misma unidad. Al añadir o quitar uno se actualizan las
+              horas y el alcance; después puedes ajustarlos. Los componentes incluidos se cobran una
+              sola vez. Los costos directos y viáticos se registran para el conjunto.
+            </p>
+            {service?.components.length ? (
+              <p className="text-xs text-neutral-500">
+                Incluye:{" "}
+                {service.components.map((p) => `${p.name} (${p.typicalHours} h)`).join(" + ")}.
+                Puedes ajustar las horas de esta cotización según el alcance acordado.
+              </p>
+            ) : null}
+            {service?.recommendedPrice !== null && service?.recommendedPrice !== undefined ? (
+              <p className="text-sm">
+                Referencia comercial del catálogo: {pricingMoney(service.recommendedPrice)}. Es una
+                recomendación editable, sujeta al piso y al alcance de esta cotización.
+              </p>
+            ) : null}
             <Label label="Descripción del alcance">
               <textarea
                 className={field}
@@ -566,8 +689,9 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
             <span>
               Aplicar tarifa familiar ({grouped(view.parameters.familyDiscount * 100)} %)
               <span className="mt-1 block text-xs text-neutral-500">
-                Descuenta los honorarios del sugerido, conserva costos directos y viáticos y respeta
-                el piso. Al cambiar de tarifa se restablece el precio final al nuevo sugerido.
+                Aplica el descuento completo a los honorarios, sin límite por el piso ni redondeo
+                adicional. Conserva costos directos y viáticos. Al cambiar de tarifa se restablece
+                el precio final al nuevo sugerido.
               </span>
             </span>
           </label>

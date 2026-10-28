@@ -19,7 +19,7 @@ export default function PricingTiers({ tiers }: { tiers: PricingTierInput[] }) {
   const initial = tiers.map((t) => ({
     fromIncome: grouped(t.fromIncome),
     toIncome: grouped(t.toIncome),
-    percent: grouped(t.percent),
+    percent: grouped(t.percent * 100),
     minimum: grouped(t.minimum),
     maximum: grouped(t.maximum),
   }));
@@ -30,8 +30,9 @@ export default function PricingTiers({ tiers }: { tiers: PricingTierInput[] }) {
   return (
     <Section title="Tramos de ingresos operacionales mensuales de empresas">
       <p className="text-xs text-neutral-500">
-        Desde incluido, hasta excluido. El último tramo queda sin límite superior. Por defecto: 0,01
-        (1 %) en todos. La cuota aplica salud y tope por utilidad.
+        Desde incluido, hasta excluido. El último tramo queda sin límite superior. Escribe 1 para 1
+        %, hasta 100 para 100 %. La cuota orienta capacidad mensual y aplica salud y tope por
+        utilidad; el piso del trabajo se conserva.
       </p>
       {draft.map((t, index) => (
         <div
@@ -42,7 +43,7 @@ export default function PricingTiers({ tiers }: { tiers: PricingTierInput[] }) {
             [
               ["fromIncome", "Desde, COP al mes"],
               ["toIncome", "Hasta, COP al mes"],
-              ["percent", "Proporción (0,01 = 1 %)"],
+              ["percent", "Porcentaje del ingreso (%)"],
               ["minimum", "Cuota mínima, COP"],
               ["maximum", "Cuota máxima, COP"],
             ] as const
@@ -77,7 +78,7 @@ export default function PricingTiers({ tiers }: { tiers: PricingTierInput[] }) {
               {
                 fromIncome: "",
                 toIncome: "",
-                percent: "0,01",
+                percent: "1",
                 minimum: "0",
                 maximum: "100.000.000",
               },

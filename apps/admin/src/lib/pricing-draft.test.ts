@@ -10,7 +10,7 @@ test("tier inputs retain es-CO thousands and reject gaps, overlap and a nonnumer
   const first = {
     fromIncome: "0",
     toIncome: "100.000.000",
-    percent: "0,01",
+    percent: "1",
     minimum: "0",
     maximum: "1.000.000",
   };
@@ -19,6 +19,10 @@ test("tier inputs retain es-CO thousands and reject gaps, overlap and a nonnumer
   assert.equal(readPricingTiers([first, { ...last, fromIncome: "110.000.000" }]), null);
   assert.equal(readPricingTiers([first, { ...last, fromIncome: "90.000.000" }]), null);
   assert.equal(readPricingTiers([first, { ...last, toIncome: "sin idea" }]), null);
+  assert.equal(readPricingTiers([first, last])?.[0].percent, 0.01);
+  assert.equal(readPricingTiers([{ ...first, toIncome: "", percent: "100" }])?.[0].percent, 1);
+  for (const percent of ["0", "0,01", "101", ""])
+    assert.equal(readPricingTiers([{ ...first, toIncome: "", percent }]), null);
 });
 test("quote validity honors partial months and leap years", () => {
   assert.equal(pricingExpiryDay("2028-02"), "2028-02-29");

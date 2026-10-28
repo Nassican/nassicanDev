@@ -1,0 +1,258 @@
+{
+  "year": 2025,
+  "nationalIncome": 1281590,
+  "metric": "Ingreso per cápita mensual de la unidad de gasto, pesos corrientes",
+  "sources": [
+    {
+      "url": "https://www.dane.gov.co/files/operaciones/PM/anex-PMDepartamental-2025.xlsx",
+      "published": "2026-08-12",
+      "sheet": "Ingpc Act.Met.",
+      "sha256": "e27a18ee48d0328e638c8374ca9303069cc50a7dae7ba69ea7316a5d157c21a6"
+    },
+    {
+      "url": "https://www.dane.gov.co/files/operaciones/PM/anex-PM-TotalNacional-2025.xlsx",
+      "published": "2026-06-12",
+      "sheet": "Ingpc Act.Met.",
+      "sha256": "c283d579eab208c8f6baaad8ee7c0c9949dfaa2dcdd02e6b26f520fa92dbd78c"
+    }
+  ],
+  "departments": [
+    {
+      "name": "Antioquia",
+      "income": 1549752,
+      "cell": "F12"
+    },
+    {
+      "name": "Atlántico",
+      "income": 1085347,
+      "cell": "F13"
+    },
+    {
+      "name": "Bogotá D.C.",
+      "income": 2297080,
+      "cell": "F14"
+    },
+    {
+      "name": "Bolívar",
+      "income": 792435,
+      "cell": "F15"
+    },
+    {
+      "name": "Boyacá",
+      "income": 935611,
+      "cell": "F16"
+    },
+    {
+      "name": "Caldas",
+      "income": 1252479,
+      "cell": "F17"
+    },
+    {
+      "name": "Caquetá",
+      "income": 801291,
+      "cell": "F18"
+    },
+    {
+      "name": "Cauca",
+      "income": 727985,
+      "cell": "F19"
+    },
+    {
+      "name": "Cesar",
+      "income": 726830,
+      "cell": "F20"
+    },
+    {
+      "name": "Chocó",
+      "income": 461281,
+      "cell": "F21"
+    },
+    {
+      "name": "Córdoba",
+      "income": 695156,
+      "cell": "F22"
+    },
+    {
+      "name": "Cundinamarca",
+      "income": 1414154,
+      "cell": "F23"
+    },
+    {
+      "name": "Huila",
+      "income": 756247,
+      "cell": "F24"
+    },
+    {
+      "name": "La Guajira",
+      "income": 504945,
+      "cell": "F25"
+    },
+    {
+      "name": "Magdalena",
+      "income": 700978,
+      "cell": "F26"
+    },
+    {
+      "name": "Meta",
+      "income": 1143421,
+      "cell": "F27"
+    },
+    {
+      "name": "Nariño",
+      "income": 783314,
+      "cell": "F28"
+    },
+    {
+      "name": "Norte de Santander",
+      "income": 881718,
+      "cell": "F29"
+    },
+    {
+      "name": "Quindío",
+      "income": 1240512,
+      "cell": "F30"
+    },
+    {
+      "name": "Risaralda",
+      "income": 1270659,
+      "cell": "F31"
+    },
+    {
+      "name": "Santander",
+      "income": 1265179,
+      "cell": "F32"
+    },
+    {
+      "name": "Sucre",
+      "income": 625069,
+      "cell": "F33"
+    },
+    {
+      "name": "Tolima",
+      "income": 1030444,
+      "cell": "F34"
+    },
+    {
+      "name": "Valle del Cauca",
+      "income": 1322999,
+      "cell": "F35"
+    }
+  ],
+  "cities": [
+    {
+      "name": "Armenia",
+      "income": 1373871,
+      "cell": "O19"
+    },
+    {
+      "name": "Barranquilla",
+      "income": 1390697,
+      "cell": "O20"
+    },
+    {
+      "name": "Bogotá",
+      "income": 2297080,
+      "cell": "O21"
+    },
+    {
+      "name": "Bucaramanga",
+      "income": 1632502,
+      "cell": "O22"
+    },
+    {
+      "name": "Cali",
+      "income": 1584398,
+      "cell": "O23"
+    },
+    {
+      "name": "Cartagena",
+      "income": 1107779,
+      "cell": "O24"
+    },
+    {
+      "name": "Cúcuta",
+      "income": 990871,
+      "cell": "O25"
+    },
+    {
+      "name": "Florencia",
+      "income": 1146030,
+      "cell": "O26"
+    },
+    {
+      "name": "Ibagué",
+      "income": 1388292,
+      "cell": "O27"
+    },
+    {
+      "name": "Manizales",
+      "income": 1708281,
+      "cell": "O28"
+    },
+    {
+      "name": "Medellín",
+      "income": 1929483,
+      "cell": "O29"
+    },
+    {
+      "name": "Montería",
+      "income": 1150413,
+      "cell": "O30"
+    },
+    {
+      "name": "Neiva",
+      "income": 1211202,
+      "cell": "O31"
+    },
+    {
+      "name": "Pasto",
+      "income": 1370170,
+      "cell": "O32"
+    },
+    {
+      "name": "Pereira",
+      "income": 1485948,
+      "cell": "O33"
+    },
+    {
+      "name": "Popayán",
+      "income": 1276609,
+      "cell": "O34"
+    },
+    {
+      "name": "Quibdó",
+      "income": 792081,
+      "cell": "O35"
+    },
+    {
+      "name": "Riohacha",
+      "income": 807642,
+      "cell": "O36"
+    },
+    {
+      "name": "Santa Marta",
+      "income": 1101484,
+      "cell": "O37"
+    },
+    {
+      "name": "Sincelejo",
+      "income": 931149,
+      "cell": "O38"
+    },
+    {
+      "name": "Tunja",
+      "income": 1483268,
+      "cell": "O39"
+    },
+    {
+      "name": "Valledupar",
+      "income": 909336,
+      "cell": "O40"
+    },
+    {
+      "name": "Villavicencio",
+      "income": 1373063,
+      "cell": "O41"
+    }
+  ]
+}

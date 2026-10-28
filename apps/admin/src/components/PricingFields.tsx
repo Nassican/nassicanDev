@@ -6,7 +6,7 @@ export const pricingField = `w-full ${pricingFieldBase}`;
 export const pricingButton =
   "rounded border border-neutral-700 px-3 py-1.5 text-sm text-neutral-200 hover:border-neutral-500 disabled:opacity-40";
 export const pricingPrimary =
-  "rounded border border-neutral-600 bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-950 hover:bg-white disabled:opacity-40";
+  "rounded border border-neutral-600 bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-950 hover:bg-neutral-200 disabled:opacity-40";
 export function PricingLabel({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="flex min-w-0 flex-col gap-1.5 text-xs text-neutral-500">

@@ -26,7 +26,7 @@ export async function saveTiersAction(drafts: PricingTierDraft[]): Promise<Prici
     return {
       ok: false,
       message:
-        "Los tramos deben cubrir desde cero, sin huecos ni cruces; el último no tiene límite superior. Revisa porcentajes (0 a 1), mínimos y máximos.",
+        "Los tramos deben cubrir desde cero, sin huecos ni cruces; el último no tiene límite superior. Revisa porcentajes entre 1 y 100 %, mínimos y máximos.",
     };
   await db.$transaction([
     db.pricingTier.deleteMany(),
@@ -77,9 +77,9 @@ export async function saveSettingsAction(
 export async function saveServiceAction(draft: PricingServiceDraft): Promise<PricingActionResult> {
   const user = await requireUser();
   const problems = fieldProblems(
-    ["typicalHours", "incomePercent", "minimum"].map((key) => ({
+    ["typicalHours", "incomePercent", "minimum", "recommendedPrice"].map((key) => ({
       label: key,
-      value: draft[key as "typicalHours" | "incomePercent" | "minimum"],
+      value: draft[key as "typicalHours" | "incomePercent" | "minimum" | "recommendedPrice"],
       kind: "amount" as const,
     })),
   );
@@ -95,7 +95,15 @@ export async function saveServiceAction(draft: PricingServiceDraft): Promise<Pri
       ok: false,
       message: "Indica nombre, horas positivas, porcentaje entre 0 y 100 y mínimo válido.",
     };
-  const row = await savePricingService(draft);
+  let row: Awaited<ReturnType<typeof savePricingService>>;
+  try {
+    row = await savePricingService(draft);
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "No se pudo guardar el servicio.",
+    };
+  }
   await logAudit({
     userId: user.id,
     action: draft.id ? "update" : "create",

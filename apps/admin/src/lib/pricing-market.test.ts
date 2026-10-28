@@ -4,6 +4,10 @@ import {
   emptyMarketQuote,
   marketComparables,
   marketStats,
+  marketSelectionFromParams,
+  marketSelectionForService,
+  marketSelectionOptions,
+  marketRegionComparison,
   median,
   type MarketQuoteInput,
 } from "./pricing-market";
@@ -89,4 +93,104 @@ test("unknown regions and estimates never become observed evidence", () => {
     marketComparables([quote({ origin: "estimated" })], request, null).origin,
     "estimated",
   );
+});
+
+test("market opens a service and scope with references while explicit URL filters survive", () => {
+  const services = [
+    { id: "empty", unit: "hour" as const },
+    { id: "web", unit: "project" as const },
+  ];
+  const quotes = [quote({ scope: "basic" })];
+  assert.deepEqual(marketSelectionFromParams(services, quotes, {}), {
+    serviceId: "web",
+    scope: "basic",
+    unit: "project",
+    mode: "remote",
+  });
+  assert.equal(
+    marketSelectionFromParams(services, quotes, { scope: "advanced" }).scope,
+    "advanced",
+  );
+  assert.equal(marketSelectionFromParams(services, quotes, { serviceId: "" }).serviceId, "");
+});
+
+test("changing service selects an available combination or its billing unit without references", () => {
+  const services = [
+    { id: "web", unit: "project" as const },
+    { id: "support", unit: "monthly" as const },
+  ];
+  const preferred = {
+    serviceId: "support",
+    scope: "advanced" as const,
+    unit: "monthly" as const,
+    mode: "hybrid" as const,
+  };
+  const quotes = [
+    quote({ scope: "basic" }),
+    quote({ id: "advanced", scope: "advanced", mode: "hybrid" }),
+  ];
+  assert.deepEqual(marketSelectionForService("web", services, quotes, preferred), {
+    serviceId: "web",
+    scope: "advanced",
+    unit: "project",
+    mode: "hybrid",
+  });
+  assert.equal(marketSelectionForService("support", services, quotes).unit, "monthly");
+});
+
+test("regional statistics exclude future dates, different scope, unit, mode and unconvertible money", () => {
+  const quotes = [
+    quote(),
+    quote({ id: "usd", price: 100, currency: "USD" }),
+    quote({ id: "future", date: "2027-01" }),
+    quote({ id: "basic", scope: "basic" }),
+    quote({ id: "monthly", unit: "monthly" }),
+    quote({ id: "onsite", mode: "onsite" }),
+    quote({ id: "eur", currency: "EUR" }),
+  ];
+  const compared = marketRegionComparison(quotes, request, { value: 4000, date: request.today });
+  assert.equal(compared.count, 2);
+  assert.equal(compared.groups[0].mean, 250000);
+  assert.equal(compared.groups[0].median, 250000);
+  assert.ok(compared.notes.some((n) => n.includes("futura")));
+  assert.ok(compared.notes.some((n) => n.includes("EUR")));
+  assert.equal(marketRegionComparison(quotes, request, null).count, 1);
+});
+
+test("regional groups use the client's location and fold accents without adjusting the recorded price", () => {
+  const compared = marketRegionComparison(
+    [
+      quote({
+        id: "client",
+        country: "Otra",
+        clientCountry: "Colombia",
+        clientDepartment: "Nariño",
+        clientMunicipality: "Pasto",
+      }),
+      quote({ id: "same", department: "NARINO", municipality: "PASTO", price: 300000 }),
+      quote({ id: "bogota", department: "Bogotá", municipality: "Bogotá", price: 500000 }),
+    ],
+    request,
+    null,
+  );
+  assert.equal(compared.groups.length, 2);
+  assert.equal(compared.groups[0].count, 2);
+  assert.equal(compared.groups[0].mean, 200000);
+  assert.equal(compared.groups[1].mean, 500000);
+});
+
+test("available combinations explain references hidden by the applied filters", () => {
+  const options = marketSelectionOptions(
+    [
+      quote({ id: "one", scope: "basic" }),
+      quote({ id: "two", scope: "basic" }),
+      quote({ id: "onsite", mode: "onsite" }),
+      quote({ id: "other", serviceId: "other" }),
+    ],
+    "web",
+  );
+  assert.equal(options.length, 2);
+  assert.equal(options[0].scope, "basic");
+  assert.equal(options[0].count, 2);
+  assert.equal(options[1].mode, "onsite");
 });

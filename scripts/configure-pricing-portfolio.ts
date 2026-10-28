@@ -9,11 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadEnvConfig } from "@next/env";
 import catalog from "./data/pricing-portfolio.json";
-import {
-  addMoney,
-  divideMoney,
-  scaleMoney,
-} from "../apps/admin/src/lib/pricing-engine";
+import { addMoney, divideMoney, scaleMoney } from "../apps/admin/src/lib/pricing-engine";
 import type { PricingScope, PricingUnit } from "@nassican/shared";
 
 const roundUp = (value: number, step: number) => Math.ceil(value / step) * step;
@@ -32,16 +28,30 @@ async function main() {
   loadEnvConfig(join(process.cwd(), "apps/admin"));
   const { db, prismaJson } = await import("@nassican/db");
   const apply = process.argv.includes("--apply");
-  const existing = await db.pricingService.findMany();
+  const existing = await db.pricingService.findMany({ include: { components: true } });
+  const currentTiers = await db.pricingTier.findMany({ orderBy: { fromIncome: "asc" } });
+  const tiersChanged =
+    JSON.stringify(
+      currentTiers.map((t) => ({
+        fromIncome: Number(t.fromIncome),
+        toIncome: t.toIncome === null ? null : Number(t.toIncome),
+        percent: Number(t.percent),
+        minimum: Number(t.minimum),
+        maximum: Number(t.maximum),
+      })),
+    ) !== JSON.stringify(catalog.incomeTiers);
   const currentSettings = await db.pricingSettings.findUniqueOrThrow({
     where: { id: "singleton" },
   });
   // The page owns this preference; reloading a commercial catalog must not
   // replace the percentage the operator has configured there.
   const familyDiscount = Number(currentSettings.familyDiscount);
+  const settings = Object.fromEntries(
+    numericKeys.map((key) => [key, Number(currentSettings[key])]),
+  ) as typeof catalog.settings;
   const hourlyCost = divideMoney(
-    addMoney(catalog.settings.targetIncome, catalog.settings.fixedCosts),
-    catalog.settings.billableHours,
+    addMoney(settings.targetIncome, settings.fixedCosts),
+    settings.billableHours,
   );
   const rows = catalog.services.map((service) => {
     assert.ok(["project", "monthly", "hour"].includes(service.unit));
@@ -51,24 +61,15 @@ async function main() {
         service.incomePercent >= 0 &&
         service.incomePercent <= 1,
     );
-    const minimum = roundUp(
-      scaleMoney(hourlyCost, service.hours),
-      catalog.settings.rounding,
+    const minimum = roundUp(scaleMoney(hourlyCost, service.hours), settings.rounding);
+    const normal = Math.max(
+      service.normal,
+      roundUp(scaleMoney(minimum, 1 + settings.margin), 100000),
     );
-    const family = Math.max(
-      minimum,
-      scaleMoney(service.normal, 1 - familyDiscount),
-    );
-    // A family agreement changes the fee, never the hours or the real costs.
-    assert.ok(
-      family >= minimum,
-      `${service.name}: el descuento atraviesa el piso`,
-    );
+    const family = addMoney(normal, -scaleMoney(normal, familyDiscount));
     const found =
       existing.find((r) => r.name === service.name) ??
-      existing.find((r) =>
-        (service.aliases ?? []).some((alias) => alias === r.name),
-      );
+      existing.find((r) => (service.aliases ?? []).some((alias) => alias === r.name));
     const data = {
       name: service.name,
       unit: service.unit as PricingUnit,
@@ -76,6 +77,8 @@ async function main() {
       minimum,
       incomePercent: service.incomePercent,
       active: true,
+      description: service.scope,
+      recommendedPrice: normal,
     };
     const changed =
       !found ||
@@ -84,16 +87,41 @@ async function main() {
       Number(found.typicalHours) !== data.typicalHours ||
       Number(found.minimum) !== minimum ||
       Number(found.incomePercent) !== data.incomePercent ||
+      found.description !== data.description ||
+      Number(found.recommendedPrice) !== data.recommendedPrice ||
       !found.active;
     return { service, found, data, family, changed };
   });
+  for (const row of rows) {
+    const keys = row.service.components ?? [];
+    if (keys.length) {
+      const parts = keys.map((key) => rows.find((r) => r.service.key === key));
+      assert.ok(parts.every(Boolean));
+      row.data.typicalHours = parts.reduce((n, p) => n + p!.data.typicalHours, 0);
+      row.data.minimum = addMoney(...parts.map((p) => p!.data.minimum));
+      assert.equal(row.data.typicalHours, row.service.hours);
+      row.data.recommendedPrice = Math.max(
+        row.data.recommendedPrice,
+        roundUp(scaleMoney(row.data.minimum, 1 + settings.margin), 100000),
+      );
+      row.family = addMoney(
+        row.data.recommendedPrice,
+        -scaleMoney(row.data.recommendedPrice, familyDiscount),
+      );
+    }
+    const expectedNames = keys
+      .map((key) => rows.find((r) => r.service.key === key)!.data.name)
+      .sort();
+    const currentNames = (row.found?.components ?? [])
+      .map((c) => existing.find((s) => s.id === c.componentId)?.name)
+      .sort();
+    row.changed ||=
+      JSON.stringify(expectedNames) !== JSON.stringify(currentNames) ||
+      (!!row.found && Number(row.found.minimum) !== row.data.minimum);
+  }
   assert.equal(new Set(rows.map((r) => r.data.name)).size, rows.length);
-  const settingsChanged = numericKeys.some(
-    (key) => Number(currentSettings[key]) !== catalog.settings[key],
-  );
-  const settingsPatch = Object.fromEntries(
-    numericKeys.map((key) => [key, catalog.settings[key]]),
-  );
+  const settingsChanged = numericKeys.some((key) => Number(currentSettings[key]) !== settings[key]);
+  const settingsPatch = Object.fromEntries(numericKeys.map((key) => [key, settings[key]]));
   const market = await db.marketQuote.findMany({
     where: { description: { startsWith: "[Catálogo portafolio:" } },
   });
@@ -124,9 +152,7 @@ async function main() {
     const changed =
       !found ||
       Object.entries(data).some(([key, value]) =>
-        key === "price"
-          ? Number(found.price) !== value
-          : found[key as keyof typeof data] !== value,
+        key === "price" ? Number(found.price) !== value : found[key as keyof typeof data] !== value,
       );
     return { reference, service, found, data, changed };
   });
@@ -136,7 +162,7 @@ async function main() {
       unidad: r.data.unit,
       horas: r.data.typicalHours,
       piso: r.data.minimum,
-      normal: r.service.normal,
+      normal: r.data.recommendedPrice,
       familiar: r.family,
       cambio: r.changed,
     })),
@@ -145,10 +171,12 @@ async function main() {
     JSON.stringify({
       mode: apply ? "apply" : "dry",
       hourlyCost,
-      hourlyTarget: scaleMoney(hourlyCost, 1 + catalog.settings.margin),
+      hourlyTarget: scaleMoney(hourlyCost, 1 + settings.margin),
+      costParameters: settings,
       familyDiscount,
       serviceChanges: rows.filter((r) => r.changed).length,
       settingsChanged,
+      tiersChanged,
       marketChanges: marketRows.filter((r) => r.changed).length,
     }),
   );
@@ -168,6 +196,7 @@ async function main() {
         settings: currentSettings,
         services: existing,
         market,
+        tiers: currentTiers,
       },
       null,
       2,
@@ -196,7 +225,7 @@ async function main() {
               before: Object.fromEntries(
                 numericKeys.map((key) => [key, Number(currentSettings[key])]),
               ),
-              after: catalog.settings,
+              after: settings,
               familyDiscount,
               assumptions: catalog.assumptions,
             }),
@@ -229,12 +258,39 @@ async function main() {
                 scope: row.service.scope,
                 evidence: row.service.evidence,
                 minimum: row.data.minimum,
-                recommended: row.service.normal,
+                recommended: row.data.recommendedPrice,
                 family: row.family,
                 familyDiscount,
               }),
             },
           });
+      }
+      for (const row of rows.filter((r) => r.changed)) {
+        const packageId = ids.get(row.service.key)!;
+        await tx.pricingServiceComponent.deleteMany({ where: { packageId } });
+        const keys = row.service.components ?? [];
+        if (keys.length)
+          await tx.pricingServiceComponent.createMany({
+            data: keys.map((key) => ({ packageId, componentId: ids.get(key)! })),
+          });
+      }
+      if (tiersChanged) {
+        await tx.pricingTier.deleteMany();
+        await tx.pricingTier.createMany({ data: catalog.incomeTiers });
+        await tx.auditLog.create({
+          data: {
+            userId: owner.id,
+            action: "update",
+            entityType: "pricing_tiers",
+            entityId: "tiers",
+            diff: prismaJson.record({
+              title: "Tramos comerciales mensuales",
+              source: "configure-pricing-portfolio",
+              count: catalog.incomeTiers.length,
+              basis: catalog.tierBasis,
+            }),
+          },
+        });
       }
       for (const row of marketRows.filter((r) => r.changed)) {
         const serviceId = ids.get(row.reference.service);
@@ -283,10 +339,6 @@ async function main() {
   await db.$disconnect();
 }
 main().catch((error: unknown) => {
-  console.error(
-    error instanceof Error
-      ? error.message
-      : "No se pudo configurar el catálogo",
-  );
+  console.error(error instanceof Error ? error.message : "No se pudo configurar el catálogo");
   process.exitCode = 1;
 });

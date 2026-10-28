@@ -109,6 +109,8 @@ export type PricingResult = {
     fee: number;
     discount: number;
     limitedByFloor: boolean;
+    /// Absent on older snapshots whose discount could be capped or rounded.
+    unrestricted?: boolean;
   };
   range: [number, number];
   effectiveHourly: number;
@@ -137,7 +139,26 @@ export type PricingSnapshot = {
     zone: "urban" | "rural";
   };
   providerLocation: PricingLocation;
-  service: { name: string; scope: PricingScope; description: string };
+  service: {
+    name: string;
+    scope: PricingScope;
+    description: string;
+    /// Present for ad hoc multi-service quotes; the primary DB relation stays compatible.
+    selectedServices?: {
+      id: string;
+      name: string;
+      hours: number;
+      minimum: number;
+      recommendedPrice: number | null;
+    }[];
+    components?: {
+      id: string;
+      name: string;
+      hours: number;
+      minimum: number;
+      recommendedPrice: number | null;
+    }[];
+  };
   geography: {
     factor: number;
     origin: PricingOrigin;

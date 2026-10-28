@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { PricingMode, PricingScope, PricingUnit } from "@nassican/shared";
 import {
   saveMarketQuoteAction,
   deleteMarketQuoteAction,
@@ -18,17 +17,16 @@ import {
 } from "@/lib/pricing-draft";
 import {
   emptyMarketQuote,
-  marketComparables,
-  marketLocation,
+  marketRegionComparison,
+  marketSelectionForService,
+  marketSelectionOptions,
   marketQuoteProblems,
   marketSourceLabels,
-  marketStats,
+  type MarketSelection,
   type MarketQuoteDraft,
 } from "@/lib/pricing-market";
 import { filterList, type ListFilters as Filters } from "@/lib/list-filters";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
-import { scaleMoney } from "@/lib/pricing-engine";
-import { resolveRegionFactor } from "@/lib/pricing-geography";
 import DateField from "./DateField";
 import ListFilters from "./ListFilters";
 import { Pager, usePage } from "./Pager";
@@ -43,12 +41,6 @@ import {
   pricingPrimary as primary,
 } from "./PricingFields";
 
-export type MarketSelection = {
-  serviceId: string;
-  scope: PricingScope;
-  unit: PricingUnit;
-  mode: PricingMode;
-};
 export default function PricingMarket({
   view,
   filters,
@@ -62,6 +54,8 @@ export default function PricingMarket({
   const [draft, setDraft] = useState<MarketQuoteDraft | null>(null);
   const [outcome, setOutcome] = useState<ToastResult | null>(null);
   const [pending, startTransition] = useTransition();
+  const [comparisonDraft, setComparisonDraft] = useState(selection);
+  const [comparing, startComparison] = useTransition();
   useUnsavedChanges(draft !== null && isDirty(emptyMarketQuote(), draft));
   const filtered = filterList(view.quotes, filters, (q) => ({
     title: `${q.description} ${q.provider} ${q.serviceName}`,
@@ -70,42 +64,21 @@ export default function PricingMarket({
     date: q.date,
   }));
   const page = usePage(filtered, 20);
-  const comparables = marketComparables(
+  const comparison = marketRegionComparison(
     view.quotes,
     {
       ...selection,
-      location: { country: "Colombia", department: "", municipality: "" },
       today: view.today,
       maxMonths: view.parameters.quoteMaxMonths,
       outlierMultiplier: view.parameters.outlierMultiplier,
     },
     view.trm,
-    resolveRegionFactor(view.geography.factors),
   );
-  const byRegion = new Map<string, number[]>();
-  for (const q of view.quotes) {
-    if (
-      q.serviceId !== selection.serviceId ||
-      q.scope !== selection.scope ||
-      q.unit !== selection.unit ||
-      q.mode !== selection.mode
-    )
-      continue;
-    const cop =
-      q.currency === "COP"
-        ? q.price
-        : q.currency === "USD" && view.trm
-          ? scaleMoney(q.price, view.trm.value)
-          : null;
-    if (cop === null) continue;
-    const loc = marketLocation(q);
-    const key = [loc.country, loc.department, loc.municipality].filter(Boolean).join(", ");
-    byRegion.set(key, [...(byRegion.get(key) ?? []), cop]);
-  }
-  function selectSelection(k: keyof MarketSelection, value: string) {
+  const combinations = marketSelectionOptions(view.quotes, selection.serviceId);
+  function compare(next: MarketSelection) {
     const params = new URLSearchParams(window.location.search);
-    params.set(k, value);
-    router.push(`/precios/mercado?${params}`);
+    for (const key of ["serviceId", "scope", "unit", "mode"] as const) params.set(key, next[key]);
+    startComparison(() => router.push(`/precios/mercado?${params}`, { scroll: false }));
   }
   function update<K extends keyof MarketQuoteDraft>(k: K, v: MarketQuoteDraft[K]) {
     setDraft((d) => (d ? { ...d, [k]: v } : d));
@@ -123,100 +96,156 @@ export default function PricingMarket({
         </div>
         <button
           className={button}
-          onClick={() => setDraft({ ...emptyMarketQuote(), serviceId: selection.serviceId })}
+          onClick={() => setDraft({ ...emptyMarketQuote(), ...selection })}
         >
           Añadir referencia
         </button>
       </header>
       <Section title="Comparar regiones">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Label label="Servicio a comparar">
-            <select
-              className={field}
-              value={selection.serviceId}
-              onChange={(e) => selectSelection("serviceId", e.target.value)}
-            >
-              <option value="">Selecciona un servicio</option>
-              {view.services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </Label>
-          {(
-            [
-              ["scope", "Alcance a comparar", scopeLabels],
-              ["unit", "Unidad a comparar", unitLabels],
-              ["mode", "Modalidad a comparar", modeLabels],
-            ] as const
-          ).map(([k, label, choices]) => (
-            <Label key={k} label={label}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            compare(comparisonDraft);
+          }}
+        >
+          <fieldset disabled={comparing} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Label label="Servicio a comparar">
               <select
                 className={field}
-                value={selection[k]}
-                onChange={(e) => selectSelection(k, e.target.value)}
+                value={comparisonDraft.serviceId}
+                onChange={(e) =>
+                  setComparisonDraft(
+                    marketSelectionForService(
+                      e.target.value,
+                      view.services,
+                      view.quotes,
+                      comparisonDraft,
+                    ),
+                  )
+                }
               >
-                {Object.entries(choices).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
+                <option value="">Selecciona un servicio</option>
+                {view.services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
                   </option>
                 ))}
               </select>
             </Label>
-          ))}
-        </div>
+            {(
+              [
+                ["scope", "Alcance a comparar", scopeLabels],
+                ["unit", "Unidad a comparar", unitLabels],
+                ["mode", "Modalidad a comparar", modeLabels],
+              ] as const
+            ).map(([k, label, choices]) => (
+              <Label key={k} label={label}>
+                <select
+                  className={field}
+                  value={comparisonDraft[k]}
+                  onChange={(e) => setComparisonDraft((d) => ({ ...d, [k]: e.target.value }))}
+                >
+                  {Object.entries(choices).map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </Label>
+            ))}
+          </fieldset>
+          <button
+            className={`${primary} mt-3`}
+            type="submit"
+            disabled={comparing || !comparisonDraft.serviceId}
+          >
+            {comparing ? "Comparando…" : "Comparar regiones"}
+          </button>
+        </form>
         <p className="text-xs text-neutral-500">
           Mismo servicio, alcance, unidad y modalidad para esta tabla. Precios en COP
           {view.trm
             ? `, USD convertido con TRM ${grouped(view.trm.value)} del ${view.trm.date}`
             : "; sin TRM, no se incluye USD"}
-          . EUR queda separado por falta de tasa oficial.
+          . EUR queda separado por falta de tasa oficial. Se muestran precios registrados, sin
+          ajuste por factor regional; se usa la ubicación del cliente cuando está registrada.
         </p>
-        {!byRegion.size ? (
-          <p className="text-sm text-neutral-500">
-            Añade referencias para comparar regiones de este servicio.
-          </p>
+        {!comparison.groups.length ? (
+          <div className="flex flex-col gap-2 text-sm text-neutral-500">
+            <p>
+              {!selection.serviceId
+                ? "Selecciona un servicio y pulsa Comparar regiones."
+                : combinations.length
+                  ? "No hay precios comparables para los filtros aplicados. Revisa el alcance, la unidad, la modalidad y los avisos de fecha o moneda."
+                  : "Este servicio todavía no tiene referencias de mercado. Añade una referencia para compararlo."}
+            </p>
+            {combinations.length ? (
+              <div className="flex flex-wrap gap-2">
+                {combinations.map((option) => (
+                  <button
+                    key={`${option.scope}:${option.unit}:${option.mode}`}
+                    className={button}
+                    disabled={comparing}
+                    onClick={() => compare(option)}
+                  >
+                    Ver {scopeLabels[option.scope]} · {unitLabels[option.unit]} ·{" "}
+                    {modeLabels[option.mode]} ({option.count})
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[38rem] text-left text-xs">
-              <thead className="text-neutral-500">
-                <tr>
-                  <th className="py-2">Región</th>
-                  <th className="px-2 py-2 whitespace-nowrap">Cantidad</th>
-                  <th className="px-2 py-2 whitespace-nowrap">Promedio</th>
-                  <th className="px-2 py-2 whitespace-nowrap">Mínimo</th>
-                  <th className="px-2 py-2 whitespace-nowrap">Máximo</th>
-                  <th className="px-2 py-2 whitespace-nowrap">Mediana</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...byRegion].map(([region, prices]) => {
-                  const stats = marketStats(prices, view.parameters.outlierMultiplier);
-                  return (
-                    <tr key={region} className="border-t border-neutral-800">
-                      <td className="py-3 pr-3">{region}</td>
+          <>
+            <p className="text-sm text-neutral-500" role="status">
+              {comparison.count}{" "}
+              {comparison.count === 1 ? "referencia comparable" : "referencias comparables"} en{" "}
+              {comparison.groups.length} {comparison.groups.length === 1 ? "región" : "regiones"}.
+              {comparison.groups.length === 1
+                ? " Solo hay precios para esta región; añade referencias de otra región para contrastarlas."
+                : ""}
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[38rem] text-left text-xs">
+                <thead className="text-neutral-500">
+                  <tr>
+                    <th className="py-2">Región</th>
+                    <th className="px-2 py-2 whitespace-nowrap">Cantidad</th>
+                    <th className="px-2 py-2 whitespace-nowrap">Promedio</th>
+                    <th className="px-2 py-2 whitespace-nowrap">Mínimo</th>
+                    <th className="px-2 py-2 whitespace-nowrap">Máximo</th>
+                    <th className="px-2 py-2 whitespace-nowrap">Mediana</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparison.groups.map((stats) => (
+                    <tr key={stats.key} className="border-t border-neutral-800">
+                      <td className="py-3 pr-3">{stats.label}</td>
                       <td className="px-2">{stats.count}</td>
                       <td className="pr-3">{pricingMoney(stats.mean!)}</td>
                       <td className="pr-3">{pricingMoney(stats.minimum!)}</td>
                       <td className="pr-3">{pricingMoney(stats.maximum!)}</td>
                       <td>
-                        {stats.outlier
-                          ? `${pricingMoney(stats.median!)} (atípico)`
-                          : "Sin atípicos"}
+                        {pricingMoney(stats.median!)}
+                        {stats.outlier ? " (atípico)" : ""}
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
         <details>
           <summary className="cursor-pointer text-xs text-neutral-400">
             Avisos de comparabilidad
           </summary>
-          {[...comparables.notes, ...comparables.explanation].map((n, i) => (
+          {comparison.notes.length === 0 ? (
+            <p className="mt-2 text-xs text-neutral-500">
+              No hay avisos para los filtros aplicados.
+            </p>
+          ) : null}
+          {comparison.notes.map((n, i) => (
             <p key={i} className="mt-2 text-xs text-neutral-500">
               {n}
             </p>

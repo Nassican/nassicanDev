@@ -2261,10 +2261,24 @@ model PricingService {
   incomePercent Decimal @map("income_percent") @db.Decimal(10, 6)
   minimum Decimal @db.Decimal(18, 2)
   active Boolean @default(true)
+  description String?
+  recommendedPrice Decimal? @map("recommended_price") @db.Decimal(18, 2)
+  components PricingServiceComponent[] @relation("PricingPackage")
+  packages PricingServiceComponent[] @relation("PricingComponent")
   quotes PricingQuote[]
   marketQuotes MarketQuote[]
   factors PricingRegionFactor[]
   @@map("pricing_services")
+}
+
+/// Flat packages keep one unit and never count a service twice.
+model PricingServiceComponent {
+  packageId String @map("package_id")
+  componentId String @map("component_id")
+  package PricingService @relation("PricingPackage", fields: [packageId], references: [id], onDelete: Cascade)
+  component PricingService @relation("PricingComponent", fields: [componentId], references: [id], onDelete: Restrict)
+  @@id([packageId, componentId])
+  @@map("pricing_service_components")
 }
 
 /// Monthly operational income brackets, independently bounded.
@@ -2361,7 +2375,8 @@ model PricingRegionFactor {
 model PricingIncomeEstimate {
   id String @id @default(uuid())
   regionId String @map("region_id")
-  stratum Int
+  /// Null is a regional baseline, not a claim about a dwelling's stratum.
+  stratum Int?
   income Decimal @db.Decimal(18, 2)
   justification String
   date String

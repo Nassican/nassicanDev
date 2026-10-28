@@ -52,14 +52,41 @@ test("family pricing discounts only fees and preserves direct costs and travel",
     r.explanation.some((line) => line.includes("costos directos") && line.includes("viáticos")),
   );
 });
-test("a full family discount stops at the cost floor and warns", () => {
+test("a full family discount reaches zero despite the cost floor and rounding", () => {
   const r = calculatePricing(
     { ...input(), family: true, minimum: 1500001 },
     { ...settings, familyDiscount: 1, rounding: 1000 },
   );
-  assert.equal(r.suggested, 1501000);
-  assert.equal(r.family?.limitedByFloor, true);
-  assert.ok(r.warnings.some((line) => line.includes("familiar") && line.includes("piso")));
+  assert.equal(r.suggested, 0);
+  assert.equal(r.family?.discount, r.family?.normal);
+  assert.equal(r.family?.limitedByFloor, false);
+  assert.equal(r.family?.unrestricted, true);
+  assert.ok(r.warnings.some((line) => line.includes("descuento se aplica completo")));
+});
+test("a fractional family discount is not reduced by the floor or a second rounding", () => {
+  const r = calculatePricing(
+    { ...input(), family: true, minimum: 2000001 },
+    { ...settings, familyDiscount: 0.125, rounding: 1000 },
+  );
+  assert.equal(r.family?.normal, 2001000);
+  assert.equal(r.family?.discount, 250125);
+  assert.equal(r.suggested, 1750875);
+  assert.ok(r.suggested < r.floor);
+});
+test("a full family discount preserves only direct costs and travel", () => {
+  const r = calculatePricing(
+    {
+      ...input(),
+      family: true,
+      minimum: 1500001,
+      directCosts: 34225,
+      mode: "onsite",
+      travelDays: 2,
+    },
+    { ...settings, familyDiscount: 1, transport: 5000, rounding: 1000 },
+  );
+  assert.equal(r.suggested, 44225);
+  assert.ok(r.suggested < r.floor);
 });
 test("zero family discount and normal pricing retain the same amount", () => {
   const normal = calculatePricing(input(), settings);

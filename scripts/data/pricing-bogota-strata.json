@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "checkedAt": "2026-10-27",
+  "municipalityCode": "11001",
+  "publisher": "Secretaría Distrital de Movilidad de Bogotá, SDM – DIM",
+  "url": "https://www.simur.gov.co/sites/simur.gov.co/files/2025-02-05/biblioteca/20250205-1151-estudio-dim-dts-007-2024-evaluacion-al-estudio-tecnico-y-financiero-de-soporte-la.pdf",
+  "sha256": "fd76f6df73095382ce9ae705e20f6824571ed094a3eaced0e310eb457892e259",
+  "table": "Tabla 4, páginas 10–11 de 19",
+  "surveyYear": 2021,
+  "referenceYear": 2024,
+  "metric": "Ingreso promedio per cápita mensual del hogar, COP a valores de referencia de 2024",
+  "method": "Estimación publicada por SDM – DIM con la Encuesta Multipropósito 2021, llevada a valores de referencia de 2024 según la metodología del estudio. Se transcribe la columna monetaria; no se aplica una actualización propia a 2025 ni a 2026.",
+  "limitations": "No es salario personal ni ingreso verificado de un cliente. No es una nueva encuesta de 2024. El estudio no publica una fila de estrato 0 y no respalda aplicar estos importes fuera de Bogotá.",
+  "strata": [
+    {
+      "stratum": 1,
+      "income": 697880,
+      "page": 10
+    },
+    {
+      "stratum": 2,
+      "income": 1032116,
+      "page": 11
+    },
+    {
+      "stratum": 3,
+      "income": 2132966,
+      "page": 11
+    },
+    {
+      "stratum": 4,
+      "income": 5078140,
+      "page": 11
+    },
+    {
+      "stratum": 5,
+      "income": 7369907,
+      "page": 11
+    },
+    {
+      "stratum": 6,
+      "income": 9964612,
+      "page": 11
+    }
+  ]
+}
