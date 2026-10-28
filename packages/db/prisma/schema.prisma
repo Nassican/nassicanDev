@@ -2285,6 +2285,8 @@ model PricingSettings {
   fixedCosts Decimal @default(1000000) @map("fixed_costs") @db.Decimal(18, 2)
   billableHours Decimal @default(100) @map("billable_hours") @db.Decimal(10, 2)
   margin Decimal @default(0.3) @db.Decimal(10, 6)
+  /// Applied only to fees, with direct costs and the cost floor protected.
+  familyDiscount Decimal @default(0.2) @map("family_discount") @db.Decimal(10, 6)
   projectWeight Decimal @default(0.5) @map("project_weight") @db.Decimal(10, 6)
   capacityWeight Decimal @default(0.25) @map("capacity_weight") @db.Decimal(10, 6)
   marketWeight Decimal @default(0.25) @map("market_weight") @db.Decimal(10, 6)

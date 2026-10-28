@@ -33,6 +33,7 @@ const labels: Record<keyof PricingParameters, string> = {
   fixedCosts: "Gastos fijos mensuales, COP",
   billableHours: "Horas facturables al mes",
   margin: "Margen (0,3 equivale al 30 %)",
+  familyDiscount: "Descuento familiar (%)",
   projectWeight: "Peso de proyecto",
   capacityWeight: "Peso de capacidad",
   marketWeight: "Peso de mercado",
@@ -99,37 +100,69 @@ export default function PricingSettings({ view }: { view: PricingCalculatorView 
           parámetros.
         </p>
       </header>
+      <Section title="Tarifa familiar">
+        <p className="text-sm text-neutral-500">
+          Elige el porcentaje y activa «Aplicar tarifa familiar» al cotizar. El descuento solo
+          afecta a los honorarios, conserva los costos directos y viáticos y respeta el piso de
+          costos.
+        </p>
+        <div className="max-w-sm">
+          <Label label={labels.familyDiscount}>
+            <input
+              className={field}
+              inputMode="decimal"
+              value={draft.familyDiscount}
+              onChange={(e) => setDraft((d) => ({ ...d, familyDiscount: e.target.value }))}
+            />
+          </Label>
+        </div>
+        <p className="text-xs text-neutral-500">
+          Escribe un número de 0 a 100, por ejemplo 20. Las cotizaciones anteriores conservan su
+          porcentaje.
+        </p>
+        <div>
+          <button
+            className={primary}
+            disabled={pending}
+            onClick={() => run(() => saveSettingsAction(draft))}
+          >
+            Guardar parámetros
+          </button>
+        </div>
+      </Section>
       <Section title="Costos, referencias y reglas">
         <p className="text-xs text-neutral-500">
           Las tasas se escriben como fracción: 0,01 equivale al 1 %. Los pesos se normalizan entre
           los criterios disponibles.
         </p>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {(Object.keys(labels) as (keyof PricingSettingsDraft)[]).map((k) => (
-            <Label key={k} label={labels[k]}>
-              {typeof draft[k] === "boolean" ? (
-                <span className="flex flex-col gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={draft[k] as boolean}
-                    onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.checked }))}
-                  />
-                  <span className="text-amber-300">
-                    Evita doble conteo: nunca se resta 62 ni clase 7 junto con 61. Esta casilla solo
-                    habilita una alternativa cuando falta 61.
+          {(Object.keys(labels) as (keyof PricingSettingsDraft)[])
+            .filter((k) => k !== "familyDiscount")
+            .map((k) => (
+              <Label key={k} label={labels[k]}>
+                {typeof draft[k] === "boolean" ? (
+                  <span className="flex flex-col gap-2">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={draft[k] as boolean}
+                      onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.checked }))}
+                    />
+                    <span className="text-amber-300">
+                      Evita doble conteo: nunca se resta 62 ni clase 7 junto con 61. Esta casilla
+                      solo habilita una alternativa cuando falta 61.
+                    </span>
                   </span>
-                </span>
-              ) : (
-                <input
-                  className={field}
-                  inputMode="decimal"
-                  value={draft[k] as string}
-                  onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
-                />
-              )}
-            </Label>
-          ))}
+                ) : (
+                  <input
+                    className={field}
+                    inputMode="decimal"
+                    value={draft[k] as string}
+                    onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
+                  />
+                )}
+              </Label>
+            ))}
         </div>
         <div>
           <button

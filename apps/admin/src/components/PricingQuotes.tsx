@@ -51,7 +51,10 @@ export default function PricingQuotes({
         setOutcome(result);
         if (result.ok) router.refresh();
       } catch {
-        setOutcome({ ok: false, message: "No se pudo mover la cotización a la papelera." });
+        setOutcome({
+          ok: false,
+          message: "No se pudo mover la cotización a la papelera.",
+        });
       }
     });
   }
@@ -68,7 +71,10 @@ export default function PricingQuotes({
       <ListFilters
         base="/precios/cotizaciones"
         filters={filters}
-        statuses={Object.entries(quoteStatusLabels).map(([value, label]) => ({ value, label }))}
+        statuses={Object.entries(quoteStatusLabels).map(([value, label]) => ({
+          value,
+          label,
+        }))}
         total={rows.length}
         shown={filtered.length}
       />
@@ -85,6 +91,9 @@ export default function PricingQuotes({
               <p className="mt-1 text-xs text-neutral-500">
                 {r.snapshot.client.name}, {r.snapshot.service.name}. Vigencia:{" "}
                 {r.validUntil ?? "sin fecha"}
+                {r.snapshot.result.family
+                  ? ` · Tarifa familiar (${Math.round(r.snapshot.result.family.percent * 10000) / 100} %)`
+                  : ""}
               </p>
               <p className="mt-2 text-sm">
                 Final {pricingMoney(r.final, r.currency)} · Sugerido{" "}
@@ -133,7 +142,10 @@ export default function PricingQuotes({
                     if (result.ok) router.refresh();
                     return result;
                   } catch {
-                    const result = { ok: false, message: "No se pudo guardar el precio." };
+                    const result = {
+                      ok: false,
+                      message: "No se pudo guardar el precio.",
+                    };
                     setOutcome(result);
                     return result;
                   }

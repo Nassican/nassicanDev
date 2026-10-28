@@ -16,7 +16,9 @@ export default function PricingResult({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <p className="text-xs text-neutral-500">Precio sugerido, COP (estimado)</p>
+        <p className="text-xs text-neutral-500">
+          Precio sugerido{r.family ? " familiar" : ""}, COP (estimado)
+        </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
           {money(r.suggested)}
         </p>
@@ -25,6 +27,15 @@ export default function PricingResult({
           de evidencia observada o declarada.
         </p>
       </div>
+      {r.family ? (
+        <p className="rounded border border-neutral-800 p-3 text-xs text-neutral-300">
+          Tarifa familiar: {Math.round(r.family.percent * 10000) / 100} % sobre honorarios. Sugerido
+          normal: {money(r.family.normal)}. Descuento efectivo: {money(r.family.discount)}.
+          {r.family.limitedByFloor
+            ? " Limitado por el piso de costos."
+            : " Se conserva el redondeo configurado."}
+        </p>
+      ) : null}
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <dt className="text-xs text-neutral-500">Piso por costos</dt>
@@ -57,8 +68,8 @@ export default function PricingResult({
       {snapshot ? (
         <p className="text-xs text-neutral-500">
           Ubicación: factor {snapshot.geography.factor.toLocaleString("es-CO")} (
-          {originLabels[snapshot.geography.origin]}, {snapshot.geography.level}).{" "}
-          {snapshot.geography.explanation}
+          {originLabels[snapshot.geography.origin]}, {snapshot.geography.level}
+          ). {snapshot.geography.explanation}
         </p>
       ) : null}
       {market.count ? (
@@ -85,7 +96,13 @@ export default function PricingResult({
             {r.contributions.map((c) => (
               <tr key={c.criterion} className="border-t border-neutral-900">
                 <td className="py-2">
-                  {{ project: "Proyecto", capacity: "Capacidad", market: "Mercado" }[c.criterion]}
+                  {
+                    {
+                      project: "Proyecto",
+                      capacity: "Capacidad",
+                      market: "Mercado",
+                    }[c.criterion]
+                  }
                   <span className="block text-neutral-500">{originLabels[c.origin]}</span>
                 </td>
                 <td>{money(c.reference)}</td>

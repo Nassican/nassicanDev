@@ -10,6 +10,7 @@ export const defaultPricingParameters: PricingParameters = {
   fixedCosts: 1000000,
   billableHours: 100,
   margin: 0.3,
+  familyDiscount: 0.2,
   projectWeight: 0.5,
   capacityWeight: 0.25,
   marketWeight: 0.25,
@@ -72,6 +73,14 @@ export function divideMoney(amount: number, divisor: number): number {
 }
 
 export function calculatePricing(input: PricingInput, settings: PricingParameters): PricingResult {
+  if (
+    input.family &&
+    (!Number.isFinite(settings.familyDiscount) ||
+      settings.familyDiscount < 0 ||
+      settings.familyDiscount > 1)
+  ) {
+    throw new Error("El descuento familiar debe estar entre 0 y 100 %.");
+  }
   if (settings.billableHours <= 0 || settings.rounding <= 0 || input.hours <= 0) {
     throw new Error("Las horas y el redondeo deben ser mayores que cero.");
   }
@@ -142,7 +151,23 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
   // Rounding upward preserves the floor even when it is between two steps.
   const step = cents(settings.rounding);
   const bounded = cents(Math.max(floor, weighted));
-  const suggested = Number(((bounded + step - BigInt(1)) / step) * step) / 100;
+  const normal = Number(((bounded + step - BigInt(1)) / step) * step) / 100;
+  // A relationship discounts the fee, not third-party bills or travel. The
+  // immutable breakdown records the effective discount when the floor limits it.
+  const fee = Math.max(0, addMoney(normal, -input.directCosts, -travel));
+  const requestedDiscount = input.family ? scaleMoney(fee, settings.familyDiscount) : 0;
+  const discounted = addMoney(normal, -requestedDiscount);
+  const finalBounded = cents(Math.max(floor, discounted));
+  const suggested = Number(((finalBounded + step - BigInt(1)) / step) * step) / 100;
+  const family = input.family
+    ? {
+        percent: settings.familyDiscount,
+        normal,
+        fee,
+        discount: addMoney(normal, -suggested),
+        limitedByFloor: discounted < floor,
+      }
+    : undefined;
   const minimumReference = Math.min(...available.map((r) => r.reference));
   const range: [number, number] = [
     Math.max(floor, minimumReference),
@@ -158,6 +183,8 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
         ? "medium"
         : "low";
   const warnings: string[] = [];
+  if (family?.limitedByFloor)
+    warnings.push("El descuento familiar se limitó para respetar el piso de costos.");
   if (capacity !== null && capacity < floor)
     warnings.push(
       "La capacidad está por debajo del piso. Reduce el alcance, cobra en cuotas o no tomes el proyecto. El precio no se reduce.",
@@ -176,9 +203,13 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
     `Costo por hora: (${settings.targetIncome} + ${settings.fixedCosts}) ÷ ${settings.billableHours} = ${hourlyCost} COP.`,
     `Piso: máximo entre ${input.minimum} y (${input.hours} × ${hourlyCost} + ${input.directCosts} + ${travel}) = ${floor} COP.`,
     `Proyecto: ${input.hours} × ${targetRate} + ${input.directCosts} = ${project} COP.`,
-    `Suma de aportes: ${weighted} COP. Se aplica el piso y se redondea hacia arriba a ${settings.rounding} COP: ${suggested} COP.`,
+    `Suma de aportes: ${weighted} COP. Se aplica el piso y se redondea hacia arriba a ${settings.rounding} COP: ${normal} COP.${input.family ? " Antes del descuento familiar." : ""}`,
     `Confianza: ${Math.round(evidence * 100)} % de entradas observadas o declaradas (${origins.join(", ")}).`,
   ];
+  if (family)
+    explanation.push(
+      `Tarifa familiar: ${family.percent * 100} % sobre honorarios de ${fee} COP. Los ${input.directCosts} COP de costos directos y ${travel} COP de viáticos se conservan. Descuento efectivo tras piso y redondeo: ${family.discount} COP. Sugerido familiar: ${suggested} COP.`,
+    );
   if (input.unit === "hour" && monthlyCapacity !== null)
     explanation.push(
       `Capacidad horaria: presupuesto mensual ${monthlyCapacity} ÷ ${settings.billableHours} horas facturables = ${capacity} COP/hora.`,
@@ -192,6 +223,7 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
     capacity,
     market: input.market,
     suggested,
+    ...(family ? { family } : {}),
     range,
     effectiveHourly: divideMoney(suggested, input.hours),
     confidence,

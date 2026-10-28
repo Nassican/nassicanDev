@@ -1,0 +1,339 @@
+{
+  "version": 2,
+  "reviewedAt": "2026-10-27",
+  "currency": "COP",
+  "familyDiscount": 0.2,
+  "professionalBenchmarks": [
+    {
+      "provider": "JCMWEB, Johan Castillo",
+      "professionalBasis": "Su sitio identifica al director como ingeniero de sistemas y desarrollador de software.",
+      "url": "https://jcmweb.com.co/",
+      "checkedAt": "2026-10-27",
+      "published": "Web vitrina desde 300000 COP; WordPress desde 600000 COP. Incluye alojamiento compartido administrado; revisar las condiciones de dominio y renovación.",
+      "interpretation": "Precios de entrada del proveedor, sin horas ni alcance cerrado comparable. No son una tarifa general de los ingenieros ni prueba de una venta."
+    },
+    {
+      "provider": "SoltyAI, Carlos Meza",
+      "professionalBasis": "La página presenta al fundador como ingeniero de sistemas.",
+      "url": "https://soltyai.com/servicios/paginas-web-bucaramanga",
+      "checkedAt": "2026-10-27",
+      "published": "Página sobre plantilla propia desde 400000 COP; sitio nuevo de una a tres secciones por 1500000 COP, antes de IVA. Publicación en infraestructura del proveedor; cuidado mensual aparte.",
+      "interpretation": "Se distinguen la página sobre plantilla y la construcción nueva; no se equiparan con un sitio de cinco páginas ni con software empresarial."
+    },
+    {
+      "provider": "Luis Javier Correa Calume",
+      "professionalBasis": "El autor se presenta como ingeniero de sistemas y desarrollador full stack.",
+      "url": "https://luiscorrea.online/blog/cuanto-cuesta-una-pagina-web-en-colombia",
+      "checkedAt": "2026-10-27",
+      "published": "Su guía del 2026-10-11 sitúa una landing entre 800000 y 2500000 COP y un sitio corporativo entre 2500000 y 6000000 COP.",
+      "interpretation": "Contenido indexado consultado; la apertura directa del artículo no estuvo disponible. Es una guía del autor, no una cotización recibida ni un promedio estadístico independiente. El rango no se transforma en un único comparable en Mercado."
+    },
+    {
+      "provider": "Indeed, contexto salarial",
+      "url": "https://co.indeed.com/career/ingeniero-en-sistemas/salaries",
+      "checkedAt": "2026-10-27",
+      "published": "Promedio publicado de 2590580 COP mensuales para ingeniero de sistemas, con 130 salarios y actualización del 2026-09-23.",
+      "interpretation": "Dato de empleo, no de honorarios por proyecto. No se convierte directamente en precio de una web ni reemplaza el objetivo personal de 6000000 COP."
+    }
+  ],
+  "recommendationBasis": "Los precios por proyecto se contrastan con ofertas publicadas por profesionales que se identifican como ingenieros de sistemas. No hay una tarifa única demostrada por estas referencias. Se conserva la base propia de costos y se añade una opción sobre plantilla de alcance reducido, con ocho horas estimadas; el desarrollo a medida mantiene sus alcances y precios. El título profesional por sí solo no determina el costo ni la complejidad de la entrega.",
+  "settings": {
+    "targetIncome": 6000000,
+    "fixedCosts": 350000,
+    "billableHours": 80,
+    "margin": 0.35,
+    "projectWeight": 0.7,
+    "capacityWeight": 0.1,
+    "marketWeight": 0.2,
+    "rounding": 1000
+  },
+  "assumptions": {
+    "targetIncome": "Objetivo personal mensual conservado del panel, antes de las obligaciones personales aplicables. Wallet contiene únicamente gastos personales y no determina un costo familiar.",
+    "fixedCosts": "Presupuesto estimado del negocio: herramientas y dominio 120000, equipo y reposición 100000, conectividad asignada 50000, copias y operación 30000, reserva de variaciones 50000. No son gastos observados. El VPS de un cliente se cobra como costo directo y no se suma otra vez aquí.",
+    "billableHours": "Supuesto de 20 horas facturables por semana, usando cuatro semanas para planificar. Las demás horas cubren ventas, administración, aprendizaje y trabajo propio.",
+    "margin": "Recargo del 35 % sobre el costo, equivalente a aproximadamente 25,93 % del precio antes de impuestos. No representa una utilidad neta garantizada.",
+    "hours": "Estimaciones de planificación para un alcance delimitado, no mediciones de proyectos terminados. Un trabajo existente no cambia de monto ni de contrato.",
+    "market": "Precios de partida publicados por proveedores, consultados el 2026-10-27. Su clasificación en alcance y modalidad es aproximada: se guardan como estimados. No son cotizaciones cerradas de trabajos idénticos."
+  },
+  "policy": {
+    "normal": "El precio normal de la tabla es una recomendación comercial inicial por el alcance descrito, no una tarifa observada ni una cotización personalizada.",
+    "family": "El 20 % fue la elección inicial. El porcentaje vigente se configura en Parámetros y se aplica al activar Tarifa familiar en Calcular, sin bajar del piso. Se conserva en el snapshot; el precio final sigue editable. No se infiere parentesco por el nombre del cliente.",
+    "directCosts": "Dominio, hosting, correo, VPS del cliente, licencias, consumos de API, comisiones y viáticos se suman por separado al costo acordado. No reciben descuento familiar.",
+    "scope": "Incluye reunión inicial, implementación del alcance acordado, prueba en escritorio y móvil cuando aplica, entrega y dos rondas de ajustes del mismo alcance. Funciones nuevas se cotizan aparte.",
+    "payments": "Propuesta comercial: 50 % al iniciar, 30 % con la versión de revisión y 20 % contra entrega. En trabajos pequeños, 50 % y 50 %. Mantenimiento por mes anticipado.",
+    "support": "Propuesta comercial: 30 días para corregir defectos atribuibles a la entrega. Evolutivos, nuevos requisitos y soporte continuo se cotizan aparte; acordarlo por escrito.",
+    "validity": "Propuesta válida por 15 días. Precios antes de los impuestos que correspondan, que se detallan en cada cotización.",
+    "limits": "Un solo cliente o empresa y una sede salvo indicación expresa. Sin hardware, facturación electrónica certificada, migración masiva, trabajo sin conexión, soporte ilimitado ni producción de fotos o textos salvo cotización adicional."
+  },
+  "services": [
+    {
+      "key": "template",
+      "name": "Página informativa sobre plantilla",
+      "unit": "project",
+      "hours": 8,
+      "normal": 900000,
+      "incomePercent": 0.1,
+      "evidence": ["nassican.com"],
+      "scope": "Adaptación de una plantilla reutilizable existente a una marca, una página de hasta cuatro secciones, contacto y revisión móvil. Textos, logo y fotos del cliente. Ocho horas estimadas incluyendo revisión y dos rondas de ajustes acotados. Sin diseño desde cero, tienda, blog, panel ni integraciones; dominio, alojamiento y licencias aparte."
+    },
+    {
+      "key": "discovery",
+      "name": "Diagnóstico y definición de alcance",
+      "unit": "project",
+      "hours": 8,
+      "normal": 900000,
+      "incomePercent": 0.1,
+      "evidence": ["Strategix", "GearGroup", "Doraditas Crocantes"],
+      "scope": "Reunión, mapa del proceso, prioridades, alcance del MVP y estimación por fases. Hasta un proceso de negocio; no incluye programación."
+    },
+    {
+      "key": "personal",
+      "name": "Página web personal o portafolio",
+      "aliases": ["Pagina Web Personal"],
+      "unit": "project",
+      "hours": 20,
+      "normal": 2200000,
+      "incomePercent": 0.1,
+      "evidence": ["nassican.com"],
+      "scope": "Hasta cinco secciones, proyectos, contacto, diseño adaptable y SEO técnico inicial. Un idioma y contenido entregado por el cliente, sin panel editorial a medida."
+    },
+    {
+      "key": "landing",
+      "name": "Landing page a medida",
+      "unit": "project",
+      "hours": 16,
+      "normal": 1800000,
+      "incomePercent": 0.1,
+      "evidence": ["nassican.com"],
+      "scope": "Una página de hasta siete secciones, formulario o WhatsApp, analítica y SEO técnico inicial. Contenido del cliente; sin pagos ni panel propio."
+    },
+    {
+      "key": "corporate",
+      "name": "Sitio web empresarial",
+      "unit": "project",
+      "hours": 36,
+      "normal": 3900000,
+      "incomePercent": 0.1,
+      "evidence": ["nassican.com", "Vivero Orquídeas Colombia"],
+      "scope": "Hasta cinco páginas, componentes propios, contacto, analítica y SEO técnico inicial. Un idioma; sin tienda, intranet ni CMS construido desde cero."
+    },
+    {
+      "key": "commerce",
+      "name": "Tienda online con pagos",
+      "unit": "project",
+      "hours": 64,
+      "normal": 6900000,
+      "incomePercent": 0.1,
+      "evidence": [
+        "Vivero Orquídeas Colombia",
+        "Esferas Explosivas - Tienda Online"
+      ],
+      "scope": "Una tienda, hasta 30 productos cargados, carrito, una pasarela, pedidos y administración inicial. Plataforma comercial existente; ERP, logística especial y motor de comercio propio se cotizan aparte."
+    },
+    {
+      "key": "panel",
+      "name": "Panel administrativo a medida",
+      "unit": "project",
+      "hours": 56,
+      "normal": 6000000,
+      "incomePercent": 0.1,
+      "evidence": [
+        "Esferas Explosivas - Panel Distribuidora",
+        "app.nassican.com"
+      ],
+      "scope": "Autenticación, dos roles, hasta cuatro entidades CRUD, filtros y un reporte. Una organización, operación en línea; sin procesos de ERP completos."
+    },
+    {
+      "key": "integration",
+      "name": "Integración de API o automatización",
+      "unit": "project",
+      "hours": 16,
+      "normal": 1800000,
+      "incomePercent": 0.1,
+      "evidence": ["app.nassican.com"],
+      "scope": "Un flujo entre dos sistemas con API documentada, validación y manejo de fallos. Sin ingeniería inversa, scraping complejo ni licencias o consumos de terceros."
+    },
+    {
+      "key": "module",
+      "name": "Módulo empresarial adicional",
+      "unit": "project",
+      "hours": 48,
+      "normal": 5200000,
+      "incomePercent": 0.1,
+      "evidence": ["GearGroup", "Doraditas Crocantes", "Strategix"],
+      "scope": "Un módulo acotado dentro de una aplicación existente: hasta tres entidades, un flujo y un reporte. Requiere revisar el código y acordar dependencias."
+    },
+    {
+      "key": "erp",
+      "name": "Sistema de gestión empresarial MVP",
+      "unit": "project",
+      "hours": 140,
+      "normal": 15000000,
+      "incomePercent": 0.1,
+      "evidence": ["GearGroup", "Doraditas Crocantes"],
+      "scope": "MVP de una empresa con hasta cuatro módulos delimitados, roles y reportes básicos. Entrega por fases; no equivale a un ERP completo, contabilidad legal o nómina."
+    },
+    {
+      "key": "pos",
+      "name": "Sistema POS e inventario MVP",
+      "unit": "project",
+      "hours": 80,
+      "normal": 8600000,
+      "incomePercent": 0.1,
+      "evidence": ["Esferas Explosivas - DeligurtPOS"],
+      "scope": "Una sede, productos, inventario básico, venta, caja y reporte diario en línea. No incluye equipos, integración fiscal, contabilidad ni modo sin conexión."
+    },
+    {
+      "key": "saas",
+      "name": "Plataforma SaaS multiempresa MVP",
+      "unit": "project",
+      "hours": 320,
+      "normal": 35000000,
+      "incomePercent": 0.1,
+      "evidence": ["Strategix"],
+      "scope": "Núcleo de organizaciones, permisos, hasta tres flujos de negocio, panel y reportes iniciales. El conjunto completo de funciones de Strategix requiere descubrimiento y presupuesto propios."
+    },
+    {
+      "key": "desktop",
+      "name": "Aplicación de escritorio Electron",
+      "unit": "project",
+      "hours": 120,
+      "normal": 13000000,
+      "incomePercent": 0.1,
+      "evidence": ["CursoVisor"],
+      "scope": "Una aplicación para un sistema operativo, hasta cuatro vistas, archivos o base local y empaquetado. Firma de código, licencias y versiones para otros sistemas se cotizan aparte."
+    },
+    {
+      "key": "maintenance-web",
+      "name": "Mantenimiento web, bolsa de 4 horas",
+      "unit": "monthly",
+      "hours": 4,
+      "normal": 450000,
+      "incomePercent": 0.1,
+      "evidence": ["nassican.com"],
+      "scope": "Hasta cuatro horas mensuales para actualizaciones, revisión de copias y cambios menores. Sin disponibilidad permanente, rediseños ni horas ilimitadas; acordar horario de atención."
+    },
+    {
+      "key": "maintenance-app",
+      "name": "Soporte y evolución, bolsa de 10 horas",
+      "unit": "monthly",
+      "hours": 10,
+      "normal": 1100000,
+      "incomePercent": 0.1,
+      "evidence": ["GearGroup", "Doraditas Crocantes", "Strategix"],
+      "scope": "Hasta diez horas mensuales de correcciones y mejoras acotadas de una aplicación conocida. Sin atención 24/7 ni SLA de respuesta urgente; infraestructura y consumos aparte."
+    },
+    {
+      "key": "hour",
+      "name": "Desarrollo y consultoría por hora",
+      "unit": "hour",
+      "hours": 1,
+      "normal": 110000,
+      "incomePercent": 0.1,
+      "evidence": ["Strategix", "CursoVisor", "app.nassican.com"],
+      "scope": "Una hora efectiva de trabajo acordado. Estimar y aprobar el máximo de horas antes de comenzar; mínimo una hora."
+    },
+    {
+      "key": "urgent",
+      "name": "Atención urgente por hora",
+      "unit": "hour",
+      "hours": 1,
+      "normal": 160000,
+      "incomePercent": 0.1,
+      "evidence": ["app.nassican.com"],
+      "scope": "Una hora de atención prioritaria, solo si hay disponibilidad y aceptación expresa. La tarifa no promete solución en una hora ni disponibilidad 24/7."
+    }
+  ],
+  "marketReferences": [
+    {
+      "key": "soltyai-template",
+      "service": "template",
+      "provider": "SoltyAI, Carlos Meza",
+      "price": 400000,
+      "scope": "basic",
+      "description": "Precio publicado desde, antes de IVA, de una página sobre plantilla propia. Contenido del cliente, una ronda de ajustes y publicación en infraestructura del proveedor. El paquete propio tiene condiciones distintas; clasificación y modalidad aproximadas.",
+      "url": "https://soltyai.com/servicios/paginas-web-bucaramanga"
+    },
+    {
+      "key": "soltyai-corporate",
+      "service": "corporate",
+      "provider": "SoltyAI, Carlos Meza",
+      "price": 1500000,
+      "scope": "basic",
+      "description": "Precio publicado antes de IVA para sitio nuevo de una a tres secciones. Es menor alcance que nuestro sitio de hasta cinco páginas; clasificación y modalidad aproximadas, sin equivalencia exacta.",
+      "url": "https://soltyai.com/servicios/paginas-web-bucaramanga"
+    },
+    {
+      "key": "codify-landing",
+      "service": "landing",
+      "provider": "Codify Tech",
+      "price": 1500000,
+      "scope": "basic",
+      "description": "Precio publicado desde para una landing. El proveedor indica 5 a 7 días, sin un alcance cerrado equivalente a nuestra ficha. Clasificación y modalidad aproximadas.",
+      "url": "https://www.codifytech.click/blog/cuanto-cuesta-pagina-web-colombia-2026/"
+    },
+    {
+      "key": "kyt-landing",
+      "service": "landing",
+      "provider": "K&T Code",
+      "price": 450000,
+      "scope": "basic",
+      "description": "Precio de partida publicado de landing a medida. No representa el mismo alcance ni acredita las horas del servicio propio; modalidad y alcance aproximados.",
+      "url": "https://www.kytcode.lat/blog/cuanto-cuesta-una-pagina-web-en-colombia"
+    },
+    {
+      "key": "codify-corporate",
+      "service": "corporate",
+      "provider": "Codify Tech",
+      "price": 3500000,
+      "scope": "basic",
+      "description": "Precio publicado desde para sitio corporativo. Número de páginas y entregables no cerrados; clasificación de alcance y modalidad aproximada.",
+      "url": "https://www.codifytech.click/blog/cuanto-cuesta-pagina-web-colombia-2026/"
+    },
+    {
+      "key": "kyt-corporate",
+      "service": "corporate",
+      "provider": "K&T Code",
+      "price": 2500000,
+      "scope": "basic",
+      "description": "Precio de partida publicado de sitio corporativo a medida. No es una cotización con nuestro alcance; clasificación y modalidad aproximadas.",
+      "url": "https://www.kytcode.lat/blog/cuanto-cuesta-una-pagina-web-en-colombia"
+    },
+    {
+      "key": "codify-commerce",
+      "service": "commerce",
+      "provider": "Codify Tech",
+      "price": 6000000,
+      "scope": "basic",
+      "description": "Precio publicado desde de tienda online. Catálogo e integraciones sujetos a propuesta; clasificación de alcance y modalidad aproximada.",
+      "url": "https://www.codifytech.click/blog/cuanto-cuesta-pagina-web-colombia-2026/"
+    },
+    {
+      "key": "softhian-commerce",
+      "service": "commerce",
+      "provider": "Softhian",
+      "price": 1700000,
+      "scope": "basic",
+      "description": "Plan publicado desde para hasta 10 productos, checkout y pasarela, con alojamiento y dominio un año. Paquete distinto al desarrollo propio; clasificación y modalidad aproximadas.",
+      "url": "https://softhian.com/precios"
+    },
+    {
+      "key": "softhian-module",
+      "service": "module",
+      "provider": "Softhian",
+      "price": 4000000,
+      "scope": "basic",
+      "description": "Precio de partida publicado para un módulo funcional. Entregables concretos sin definir; clasificación de alcance y modalidad aproximada.",
+      "url": "https://softhian.com/precios"
+    },
+    {
+      "key": "softhian-saas",
+      "service": "saas",
+      "provider": "Softhian",
+      "price": 30000000,
+      "scope": "basic",
+      "description": "Precio publicado desde de SaaS empresarial, sin equivalencia funcional garantizada con Strategix. Clasificación de alcance y modalidad aproximada.",
+      "url": "https://softhian.com/precios"
+    }
+  ]
+}

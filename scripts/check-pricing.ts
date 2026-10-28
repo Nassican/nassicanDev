@@ -257,6 +257,31 @@ async function main() {
     assert.equal(quote.snapshot.inputs.directCosts, 34225);
     assert.equal(quote.snapshot.client.stratum, 0);
     assert.equal(quote.snapshot.parameters.billableHours > 0, true);
+    if (process.argv.includes("--family")) {
+      const familyQuote = await savePricingQuote({
+        ...emptyPricingQuote(),
+        clientId: client.id,
+        serviceId: service.id,
+        title: `${marker} familiar`,
+        family: true,
+        hours: "20",
+        directCosts: "34.225",
+      });
+      const stored = await db.pricingQuote.findUniqueOrThrow({
+        where: { id: familyQuote.id },
+      });
+      assert.equal(stored.snapshot.inputs.family, true);
+      assert.equal(
+        stored.snapshot.result.family?.percent,
+        stored.snapshot.parameters.familyDiscount,
+      );
+      assert.equal(Number(stored.final), stored.snapshot.result.suggested);
+      assert.ok(Number(stored.final) >= stored.snapshot.result.floor);
+      assert.ok(stored.snapshot.result.family!.normal >= Number(stored.final));
+      console.log(
+        "Family pricing persisted with its percentage, effective discount and protected floor.",
+      );
+    }
     assert.ok(
       (await listPricingQuotes()).some(
         (r) => r.id === quote.id && r.snapshot.result.explanation.length > 0,

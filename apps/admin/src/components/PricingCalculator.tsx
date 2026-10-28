@@ -50,11 +50,19 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
   const [draft, setDraft] = useState(emptyPricingQuote);
   const [clientDraft, setClientDraft] = useState<PricingClientDraft | null>(null);
   const [outcome, setOutcome] = useState<PricingActionResult | null>(null);
-  const [preview, setPreview] = useState<{ key: string; snapshot: PricingSnapshot } | null>(null);
+  const [preview, setPreview] = useState<{
+    key: string;
+    snapshot: PricingSnapshot;
+  } | null>(null);
   const [savedKey, setSavedKey] = useState("");
   const [pending, startTransition] = useTransition();
   const key = JSON.stringify(draft);
-  const calculationKey = JSON.stringify({ ...draft, title: "", final: "", validUntil: "" });
+  const calculationKey = JSON.stringify({
+    ...draft,
+    title: "",
+    final: "",
+    validUntil: "",
+  });
   const dirty = savedKey !== key && isDirty(emptyPricingQuote(), draft);
   useUnsavedChanges(dirty || (clientDraft !== null && isDirty(emptyPricingClient(), clientDraft)));
   const client = view.clients.find((c) => c.id === draft.clientId);
@@ -74,7 +82,11 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
   const problems = pricingQuoteProblems(draft);
   const calculationProblems = pricingQuoteProblems(draft, false);
   function update<K extends keyof PricingQuoteDraft>(k: K, value: PricingQuoteDraft[K]) {
-    setDraft((d) => ({ ...d, [k]: value, ...(k === "clientId" ? { financialId: "" } : {}) }));
+    setDraft((d) => ({
+      ...d,
+      [k]: value,
+      ...(k === "clientId" ? { financialId: "" } : {}),
+    }));
   }
   function updateClient<K extends keyof PricingClientDraft>(k: K, value: PricingClientDraft[K]) {
     setClientDraft((d) => (d ? { ...d, [k]: value } : d));
@@ -375,7 +387,11 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                   value={draft.unit}
                   onChange={(e) => {
                     const unit = e.target.value as PricingQuoteDraft["unit"];
-                    setDraft((d) => ({ ...d, unit, ...(unit === "hour" ? { hours: "1" } : {}) }));
+                    setDraft((d) => ({
+                      ...d,
+                      unit,
+                      ...(unit === "hour" ? { hours: "1" } : {}),
+                    }));
                   }}
                 >
                   {Object.entries(unitLabels).map(([v, l]) => (
@@ -539,6 +555,22 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
               la evidencia.
             </p>
           ) : null}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0"
+              checked={draft.family}
+              disabled={pending}
+              onChange={(e) => setDraft((d) => ({ ...d, family: e.target.checked, final: "" }))}
+            />
+            <span>
+              Aplicar tarifa familiar ({grouped(view.parameters.familyDiscount * 100)} %)
+              <span className="mt-1 block text-xs text-neutral-500">
+                Descuenta los honorarios del sugerido, conserva costos directos y viáticos y respeta
+                el piso. Al cambiar de tarifa se restablece el precio final al nuevo sugerido.
+              </span>
+            </span>
+          </label>
           <Label label="Precio final editable, COP">
             <input
               className={field}

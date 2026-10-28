@@ -54,7 +54,7 @@ export async function saveSettingsAction(
     return {
       ok: false,
       message:
-        "Revisa los parámetros: valores positivos, horas y redondeo mayores que cero, umbrales ordenados, tope entre 0 y 1 y multiplicador mínimo entre 0,5 y 1.",
+        "Revisa los parámetros: descuento familiar entre 0 y 100 %, valores positivos, horas y redondeo mayores que cero, umbrales ordenados, tope entre 0 y 1 y multiplicador mínimo entre 0,5 y 1.",
     };
   await db.pricingSettings.upsert({
     where: { id: "singleton" },
@@ -66,7 +66,7 @@ export async function saveSettingsAction(
     action: "update",
     entityType: "pricing_settings",
     entityId: "singleton",
-    diff: { title: "Parámetros de precios" },
+    diff: { title: "Parámetros de precios", familyDiscount: data.familyDiscount },
   });
   refresh();
   return {

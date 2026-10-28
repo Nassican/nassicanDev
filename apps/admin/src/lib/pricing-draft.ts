@@ -98,6 +98,7 @@ export const emptyPricingService = (): PricingServiceDraft => ({
   active: true,
 });
 export type PricingQuoteDraft = {
+  family: boolean;
   financialId: string;
   clientId: string;
   serviceId: string;
@@ -118,6 +119,7 @@ export type PricingQuoteDraft = {
   ownMunicipality: string;
 };
 export const emptyPricingQuote = (): PricingQuoteDraft => ({
+  family: false,
   financialId: "",
   clientId: "",
   serviceId: "",
@@ -142,7 +144,10 @@ export type PricingSettingsDraft = {
 };
 export function settingsDraft(s: PricingParameters): PricingSettingsDraft {
   return Object.fromEntries(
-    Object.entries(s).map(([k, v]) => [k, typeof v === "boolean" ? v : grouped(v)]),
+    Object.entries(s).map(([k, v]) => [
+      k,
+      typeof v === "boolean" ? v : grouped(k === "familyDiscount" ? v * 100 : v),
+    ]),
   ) as PricingSettingsDraft;
 }
 export function readPricingSettings(d: PricingSettingsDraft): PricingParameters | null {
@@ -152,6 +157,8 @@ export function readPricingSettings(d: PricingSettingsDraft): PricingParameters 
   ]);
   if (entries.some(([, v]) => v === null || (typeof v === "number" && v < 0))) return null;
   const s = Object.fromEntries(entries) as PricingParameters;
+  s.familyDiscount /= 100;
+  if (!Number.isFinite(s.familyDiscount) || s.familyDiscount > 1) return null;
   if (s.confidenceMedium > s.confidenceHigh || s.confidenceHigh > 1 || s.outlierMultiplier <= 1)
     return null;
   if (
@@ -216,6 +223,7 @@ export function quoteInput(
   client: { monthlyIncome: number | null; incomeOrigin: PricingOrigin },
 ): PricingInput {
   return {
+    family: d.family === true,
     hours: parseNumber(d.hours) ?? 1,
     directCosts: parseNumber(d.directCosts) ?? 0,
     travelDays: parseNumber(d.travelDays) ?? 0,

@@ -3,12 +3,17 @@ export type PricingUnit = "project" | "monthly" | "hour";
 export type PricingMode = "remote" | "onsite" | "hybrid";
 export type PricingScope = "basic" | "standard" | "advanced";
 export type PricingStatus = "draft" | "sent" | "accepted" | "rejected" | "expired";
-export type PricingLocation = { country: string; department: string; municipality: string };
+export type PricingLocation = {
+  country: string;
+  department: string;
+  municipality: string;
+};
 export type PricingParameters = {
   targetIncome: number;
   fixedCosts: number;
   billableHours: number;
   margin: number;
+  familyDiscount: number;
   projectWeight: number;
   capacityWeight: number;
   marketWeight: number;
@@ -71,6 +76,8 @@ export type PricingFinancial = {
   combinedDeductions: number | null;
 };
 export type PricingInput = {
+  /// Optional so snapshots created before family pricing remain readable.
+  family?: boolean;
   hours: number;
   directCosts: number;
   travelDays: number;
@@ -96,6 +103,13 @@ export type PricingResult = {
   capacity: number | null;
   market: number | null;
   suggested: number;
+  family?: {
+    percent: number;
+    normal: number;
+    fee: number;
+    discount: number;
+    limitedByFloor: boolean;
+  };
   range: [number, number];
   effectiveHourly: number;
   confidence: "high" | "medium" | "low";
@@ -124,7 +138,12 @@ export type PricingSnapshot = {
   };
   providerLocation: PricingLocation;
   service: { name: string; scope: PricingScope; description: string };
-  geography: { factor: number; origin: PricingOrigin; level: string; explanation: string };
+  geography: {
+    factor: number;
+    origin: PricingOrigin;
+    level: string;
+    explanation: string;
+  };
   financial: PricingFinancial | null;
   tiers: PricingTierInput[];
   marketEvidence: {

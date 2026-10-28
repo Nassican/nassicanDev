@@ -2690,7 +2690,7 @@ ese mes. Las pestañas y las cotizaciones también aparecen en la paleta.
 
 **Cómo se verificó.** Cada una de las cinco fases pasó `npm run typecheck`,
 `npm run lint`, `npm test` y `npm run build` desde la raíz. La última suite
-sumó 352 pruebas sin fallos. `PrismaClient` no apareció en
+sumó 358 pruebas sin fallos, incluidas las de tarifa familiar. `PrismaClient` no apareció en
 `apps/admin/.next/static`. `scripts/check-pricing.ts`, ejecutado con `tsx
 --conditions=react-server --tsconfig apps/admin/tsconfig.json` y `--phase1`
 hasta `--phase5`, creó y borró sus propias filas: comprobó snapshots,
@@ -2708,6 +2708,40 @@ Los registros y la sesión temporal de QA se retiraron al terminar. La carga
 real de DIVIPOLA incorporó 1122 lugares; repetir `geo:import -- --dry` informó
 cero altas y cero cambios. Los catálogos oficiales y los parámetros iniciales
 sí se conservan. No hubo commit ni despliegue.
+
+**El catálogo comercial es una propuesta revisable.**
+`scripts/data/pricing-portfolio.json` guarda las horas estimadas, alcance,
+exclusiones y precio normal. El 20 % fue el descuento familiar inicial acordado
+por el operador. El porcentaje vigente vive en `pricing_settings` y se edita en
+«Parámetros», como un número de 0 a 100. El importador lee ese valor y nunca lo
+reemplaza por el del archivo. `npm run pricing:configure -- --dry` calcula sin escribir;
+`-- --apply` configura los servicios y parámetros, audita los cambios y deja
+una copia previa en el directorio temporal `nassican-pricing-portfolio`.
+Es idempotente por nombre y por clave de referencia. El mínimo del servicio
+es su piso de costos estimado, no el precio comercial recomendado. La tarifa
+familiar se aplica al marcar «Aplicar tarifa familiar» en Calcular, sin inferir
+parentesco. El motor descuenta el honorario del sugerido normal, nunca licencias,
+infraestructura del cliente ni viáticos, y conserva el piso y el redondeo. Si el
+piso limita la rebaja, lo explica y muestra el descuento efectivo. Cambiar la
+casilla restablece el precio final al sugerido; después sigue siendo editable.
+El porcentaje, base normal y descuento efectivo quedan en el snapshot, para
+que otro porcentaje mañana no cambie lo acordado ayer. Los snapshots antiguos
+siguen siendo normales. Las referencias publicadas «desde»
+quedan como estimadas porque clasificar su alcance y modalidad es aproximado.
+Los gastos de Wallet son personales; no representan gastos de toda la familia.
+Las referencias de ingenieros se conservan en `professionalBenchmarks`, con
+su alcance y el origen de la identificación profesional. Son ofertas o guías
+publicadas por sus autores, con alcances distintos. El promedio salarial de Indeed
+solo aporta contexto de empleo: no se mezcla con cotizaciones de mercado ni se
+convierte directamente en honorarios. La opción sobre plantilla tiene un alcance
+de ocho horas estimadas; no reduce las horas de una web a medida para competir
+con un precio de entrada de otro proveedor.
+
+La ampliación familiar se comprobó con `scripts/check-pricing.ts --family` y
+`scripts/check-pricing-family-ui.cjs`: rechazo de 101 %, guardado y recarga de
+25 %, cotización familiar y conservación del 25 % después de volver al 20 %.
+Se revisaron doce variantes en Chrome, a 1440 y 390 px en claro y oscuro. El
+porcentaje inicial quedó restaurado y las filas y sesión de prueba se retiraron.
 
 ### Presupuesto: los presupuestos de Wallet, editados aquí
 

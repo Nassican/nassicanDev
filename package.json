@@ -23,6 +23,7 @@
     "profile:import": "tsx --conditions=react-server scripts/import-profile.ts",
     "games:import": "tsx --conditions=react-server scripts/import-games.ts",
     "geo:import": "tsx --conditions=react-server scripts/import-divipola.ts",
+    "pricing:configure": "tsx --conditions=react-server --tsconfig apps/admin/tsconfig.json scripts/configure-pricing-portfolio.ts",
     "games:list": "tsx --conditions=react-server scripts/import-games-list.ts",
     "backup:restore": "tsx --conditions=react-server scripts/restore-backup.ts",
     "certificates:platzi": "tsx --conditions=react-server scripts/import-platzi-certificates.ts",
