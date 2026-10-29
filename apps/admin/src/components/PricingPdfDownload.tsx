@@ -8,10 +8,12 @@ export default function PricingPdfDownload({
   id,
   kind = "quote",
   label = "Descargar PDF",
+  disabled = false,
 }: {
   id: string;
   kind?: "quote" | "charge" | "plan";
   label?: string;
+  disabled?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -20,7 +22,7 @@ export default function PricingPdfDownload({
       <button
         type="button"
         className={`${pricingButton} inline-flex items-center gap-2`}
-        disabled={pending}
+        disabled={pending || disabled}
         onClick={async () => {
           setPending(true);
           setError("");

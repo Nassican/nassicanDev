@@ -208,7 +208,19 @@ body {
  * a single component. `pointer: coarse` and not a width, because the problem is
  * the finger, not the screen: an iPad is wide and still has no cursor.
  */
+.pricing-label-heading {
+  display: flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding-inline-end: 2rem;
+}
+
 @media (pointer: coarse) {
+  /* Help keeps the same 40 px touch target without covering the input below. */
+  .pricing-label-heading {
+    min-height: 2.5rem;
+    padding-inline-end: 3rem;
+  }
   /*
    * Safari on iOS zooms the page into any field under 16 px when it gains focus,
    * and does not zoom back out. Every field here was 14 px, so writing a note on

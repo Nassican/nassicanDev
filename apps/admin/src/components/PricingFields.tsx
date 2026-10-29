@@ -21,11 +21,11 @@ export function PricingLabel({
   return (
     <div className="relative min-w-0">
       <label className="flex min-w-0 flex-col gap-1.5 text-xs text-neutral-500">
-        <span className={help ? "pr-8" : undefined}>{label}</span>
+        <span className={help ? "pricing-label-heading" : undefined}>{label}</span>
         {children}
       </label>
       {help ? (
-        <PricingHelp label={label} className="absolute -top-1 right-0">
+        <PricingHelp label={label} className="absolute right-0 top-0">
           {help}
         </PricingHelp>
       ) : null}

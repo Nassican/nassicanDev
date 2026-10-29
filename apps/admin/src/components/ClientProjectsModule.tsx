@@ -170,7 +170,7 @@ export default function ClientProjectsModule({ view, actions }: { view: ClientPr
             ))}
           </select>
           <span className="flex shrink-0 gap-1">
-            <Link className={small} href={`/precios/cobros?projectId=${p.id}`} aria-label={`Cuotas y cobros de ${p.title}`}>Cobros</Link>
+            <Link className={small} href={`/precios/cobros?projectId=${p.id}&mode=flexible`} aria-label={`Cuotas y cobros de ${p.title}`}>Cobros</Link>
             <button
               type="button"
               aria-label={`Editar ${p.title}`}

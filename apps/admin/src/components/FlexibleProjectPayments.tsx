@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import type {
   BillingSource,
   BillingView,
@@ -36,6 +35,7 @@ type Props = {
   dirty: boolean;
   pending: boolean;
   run: (action: () => Promise<BillingActionResult>) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 export default function FlexibleProjectPayments({
@@ -46,6 +46,7 @@ export default function FlexibleProjectPayments({
   dirty,
   pending,
   run,
+  onDirtyChange,
 }: Props) {
   const ledger = plan.details.flexiblePayments ?? { receipts: [], expected: [] };
   const receivedById = new Map(ledger.receipts.map((payment) => [payment.id, payment]));
@@ -66,16 +67,21 @@ export default function FlexibleProjectPayments({
     concept: "",
   });
   const receiptForm = useRef<HTMLFieldSetElement>(null);
-  useUnsavedChanges(
-    Boolean(
-      receipt.amount ||
-      receipt.concept ||
-      receipt.reference ||
-      expected.amount ||
-      expected.expectedAt ||
-      expected.concept,
-    ),
+  const [activeTask, setActiveTask] = useState<"received" | "expected" | null>("received");
+  const paymentDraftDirty = Boolean(
+    receipt.amount ||
+    receipt.concept ||
+    receipt.reference ||
+    expected.amount ||
+    expected.expectedAt ||
+    expected.concept,
   );
+  useUnsavedChanges(!onDirtyChange && paymentDraftDirty);
+  // Let the agreement picker protect drafts owned by this payment form.
+  useEffect(() => {
+    onDirtyChange?.(paymentDraftDirty);
+  }, [onDirtyChange, paymentDraftDirty]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   const received = ledger.receipts.reduce(
     (sum, payment) => sum + billingMinor(payment.amount),
     BigInt(0),
@@ -121,11 +127,8 @@ export default function FlexibleProjectPayments({
       </p>
       {!source.canIssue ? (
         <p className="text-sm">
-          Primero{" "}
-          <Link className="underline" href="/precios/cotizaciones">
-            acepta la cotización
-          </Link>{" "}
-          para conectar los pagos con el proyecto.
+          Confirma la aceptación del cliente en el aviso del acuerdo para conectar los pagos con el
+          proyecto.
         </p>
       ) : null}
       {dirty ? (
@@ -134,199 +137,187 @@ export default function FlexibleProjectPayments({
         </p>
       ) : null}
       {balance > BigInt(0) ? (
-        <fieldset
-          ref={receiptForm}
-          disabled={disabled}
-          className="grid min-w-0 gap-4 border-t border-neutral-800 pt-4 sm:grid-cols-2"
+        <details
+          open={activeTask === "received"}
+          onToggle={(event) => {
+            if (event.currentTarget.open) setActiveTask("received");
+            else if (activeTask === "received") setActiveTask(null);
+          }}
         >
-          <legend className="mb-3 text-sm font-medium">Registrar dinero recibido</legend>
-          <Label
-            label="Importe recibido"
-            help="El valor que realmente te pagaron. Puede ser diferente en cada avance; no debe superar el saldo del proyecto."
+          <summary className="cursor-pointer text-sm font-medium">
+            Registrar dinero recibido
+          </summary>
+          <fieldset
+            ref={receiptForm}
+            disabled={disabled}
+            className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2"
           >
-            <PricingNumberInput
-              className={field}
-              value={receipt.amount}
-              onChange={(event) => receivedValue("amount", event.target.value)}
-            />
-          </Label>
-          <Label
-            label="Fecha del pago recibido"
-            help="Fecha completa en la que recibiste el dinero. Para un pago futuro usa la sección de previstos."
-          >
-            <DateField
-              value={receipt.paidAt}
-              label="Pago recibido"
-              onChange={(value) => receivedValue("paidAt", value)}
-            />
-          </Label>
-          <Label
-            label="Proyecto o avance pagado"
-            help="Por ejemplo: Anticipo del proyecto, Avance del catálogo o Entrega de la primera pantalla."
-          >
-            <input
-              className={field}
-              value={receipt.concept}
-              maxLength={500}
-              onChange={(event) => receivedValue("concept", event.target.value)}
-            />
-          </Label>
-          <Label
-            label="Referencia del pago (opcional)"
-            help="Número de transferencia, efectivo o una nota que te ayude a identificar el pago."
-          >
-            <input
-              className={field}
-              value={receipt.reference}
-              maxLength={500}
-              onChange={(event) => receivedValue("reference", event.target.value)}
-            />
-          </Label>
-          {receipt.expectedId ? (
-            <p className="text-xs text-neutral-500 sm:col-span-2">
-              Estás confirmando un pago previsto. Puedes cambiar el importe por el que recibiste
-              realmente.{" "}
-              <button
-                className="underline"
-                type="button"
-                onClick={() => receivedValue("expectedId", "")}
-              >
-                Registrar como otro pago
-              </button>
-            </p>
-          ) : null}
-          <div className="sm:col-span-2">
-            <button
-              type="button"
-              className={primary}
-              disabled={disabled || !receipt.amount || !receipt.concept.trim()}
-              onClick={() => {
-                const value = { ...receipt, id: receipt.id || crypto.randomUUID() };
-                setReceipt(value);
-                run(async () => {
-                  const result = await recordFlexibleReceiptAction(value);
-                  if (result.ok)
-                    setReceipt({
-                      planId: plan.id,
-                      id: "",
-                      amount: "",
-                      paidAt: today,
-                      concept: "",
-                      reference: "",
-                      expectedId: "",
-                    });
-                  return result;
-                });
-              }}
+            <legend className="sr-only">Datos del dinero recibido</legend>
+            <Label
+              label="Importe recibido"
+              help="El valor que realmente te pagaron. Puede ser diferente en cada avance; no debe superar el saldo del proyecto."
             >
-              Guardar pago recibido
-            </button>
-          </div>
-        </fieldset>
+              <PricingNumberInput
+                className={field}
+                value={receipt.amount}
+                onChange={(event) => receivedValue("amount", event.target.value)}
+              />
+            </Label>
+            <Label
+              label="Fecha del pago recibido"
+              help="Fecha completa en la que recibiste el dinero. Para un pago futuro usa la sección de previstos."
+            >
+              <DateField
+                value={receipt.paidAt}
+                label="Pago recibido"
+                onChange={(value) => receivedValue("paidAt", value)}
+              />
+            </Label>
+            <Label
+              label="Proyecto o avance pagado"
+              help="Por ejemplo: Anticipo del proyecto, Avance del catálogo o Entrega de la primera pantalla."
+            >
+              <input
+                className={field}
+                value={receipt.concept}
+                maxLength={500}
+                onChange={(event) => receivedValue("concept", event.target.value)}
+              />
+            </Label>
+            <Label
+              label="Referencia del pago (opcional)"
+              help="Número de transferencia, efectivo o una nota que te ayude a identificar el pago."
+            >
+              <input
+                className={field}
+                value={receipt.reference}
+                maxLength={500}
+                onChange={(event) => receivedValue("reference", event.target.value)}
+              />
+            </Label>
+            {receipt.expectedId ? (
+              <p className="text-xs text-neutral-500 sm:col-span-2">
+                Estás confirmando un pago previsto. Puedes cambiar el importe por el que recibiste
+                realmente.{" "}
+                <button
+                  className="underline"
+                  type="button"
+                  onClick={() => receivedValue("expectedId", "")}
+                >
+                  Registrar como otro pago
+                </button>
+              </p>
+            ) : null}
+            <div className="sm:col-span-2">
+              <button
+                type="button"
+                className={primary}
+                disabled={disabled || !receipt.amount || !receipt.concept.trim()}
+                onClick={() => {
+                  const value = { ...receipt, id: receipt.id || crypto.randomUUID() };
+                  setReceipt(value);
+                  run(async () => {
+                    const result = await recordFlexibleReceiptAction(value);
+                    if (result.ok)
+                      setReceipt({
+                        planId: plan.id,
+                        id: "",
+                        amount: "",
+                        paidAt: today,
+                        concept: "",
+                        reference: "",
+                        expectedId: "",
+                      });
+                    return result;
+                  });
+                }}
+              >
+                Guardar pago recibido
+              </button>
+            </div>
+          </fieldset>
+        </details>
       ) : (
         <p role="status" className="text-sm font-medium">
           El valor del acuerdo está pagado.
         </p>
       )}
-      <div className="border-t border-neutral-800 pt-4">
-        <h3 className="text-sm font-medium">Historial de pagos recibidos</h3>
-        {ledger.receipts.length ? (
-          <ul className="mt-3 divide-y divide-neutral-800 text-sm">
-            {[...ledger.receipts]
-              .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
-              .map((payment) => (
-                <li
-                  key={payment.id}
-                  className="flex flex-wrap justify-between gap-2 py-3"
-                  data-flexible-receipt={payment.id}
-                >
-                  <div className="min-w-0">
-                    <p className="break-words font-medium">{payment.concept}</p>
-                    <p className="mt-1 break-words text-xs text-neutral-500">
-                      {formatPartialDate(payment.paidAt)}
-                      {payment.reference ? ` · ${payment.reference}` : ""}
-                    </p>
-                  </div>
-                  <p>{money(Number(payment.amount))}</p>
-                </li>
-              ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-neutral-500">
-            Todavía no has registrado pagos recibidos.
-          </p>
-        )}
-      </div>
       {balance > BigInt(0) ? (
-        <fieldset
-          disabled={disabled}
-          className="grid min-w-0 gap-4 border-t border-neutral-800 pt-4 sm:grid-cols-2"
+        <details
+          open={activeTask === "expected"}
+          onToggle={(event) => {
+            if (event.currentTarget.open) setActiveTask("expected");
+            else if (activeTask === "expected") setActiveTask(null);
+          }}
         >
-          <legend className="mb-3 text-sm font-medium">Anotar un próximo pago</legend>
-          <Label
-            label="Concepto del próximo pago"
-            help="Qué avance o parte del proyecto te pagarán después. No necesitas definir los demás pagos."
-          >
-            <input
-              className={field}
-              maxLength={500}
-              value={expected.concept}
-              onChange={(event) => expectedValue("concept", event.target.value)}
-            />
-          </Label>
-          <Label
-            label="Importe previsto (opcional)"
-            help="Déjalo vacío si todavía no sabes cuánto te darán. Es una estimación, no dinero recibido."
-          >
-            <PricingNumberInput
-              className={field}
-              value={expected.amount}
-              onChange={(event) => expectedValue("amount", event.target.value)}
-            />
-          </Label>
-          <Label
-            label="Fecha o mes previsto (opcional)"
-            help="Puedes escribir solo el mes, como 2026-11, una fecha completa o dejarlo por acordar."
-          >
-            <DateField
-              value={expected.expectedAt}
-              label="Próximo pago"
-              onChange={(value) => expectedValue("expectedAt", value)}
-            />
-          </Label>
-          <div className="flex flex-wrap items-end gap-3">
-            <button
-              type="button"
-              className={button}
-              onClick={() => expectedValue("expectedAt", nextMonth)}
+          <summary className="cursor-pointer text-sm font-medium">Anotar un próximo pago</summary>
+          <fieldset disabled={disabled} className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
+            <legend className="sr-only">Datos del próximo pago</legend>
+            <Label
+              label="Concepto del próximo pago"
+              help="Qué avance o parte del proyecto te pagarán después. No necesitas definir los demás pagos."
             >
-              Próximo mes
-            </button>
-            <button
-              type="button"
-              className={button}
-              disabled={disabled || !expected.concept.trim()}
-              onClick={() => {
-                const value = { ...expected, id: expected.id || crypto.randomUUID() };
-                setExpected(value);
-                run(async () => {
-                  const result = await saveExpectedPaymentAction(value);
-                  if (result.ok)
-                    setExpected({
-                      planId: plan.id,
-                      id: "",
-                      amount: "",
-                      expectedAt: "",
-                      concept: "",
-                    });
-                  return result;
-                });
-              }}
+              <input
+                className={field}
+                maxLength={500}
+                value={expected.concept}
+                onChange={(event) => expectedValue("concept", event.target.value)}
+              />
+            </Label>
+            <Label
+              label="Importe previsto (opcional)"
+              help="Déjalo vacío si todavía no sabes cuánto te darán. Es una estimación, no dinero recibido."
             >
-              Guardar próximo pago
-            </button>
-          </div>
-        </fieldset>
+              <PricingNumberInput
+                className={field}
+                value={expected.amount}
+                onChange={(event) => expectedValue("amount", event.target.value)}
+              />
+            </Label>
+            <Label
+              label="Fecha o mes previsto (opcional)"
+              help="Puedes escribir solo el mes, como 2026-11, una fecha completa o dejarlo por acordar."
+            >
+              <DateField
+                value={expected.expectedAt}
+                label="Próximo pago"
+                onChange={(value) => expectedValue("expectedAt", value)}
+              />
+            </Label>
+            <div className="flex flex-wrap items-end gap-3">
+              <button
+                type="button"
+                className={button}
+                onClick={() => expectedValue("expectedAt", nextMonth)}
+              >
+                Próximo mes
+              </button>
+              <button
+                type="button"
+                className={button}
+                disabled={disabled || !expected.concept.trim()}
+                onClick={() => {
+                  const value = { ...expected, id: expected.id || crypto.randomUUID() };
+                  setExpected(value);
+                  run(async () => {
+                    const result = await saveExpectedPaymentAction(value);
+                    if (result.ok)
+                      setExpected({
+                        planId: plan.id,
+                        id: "",
+                        amount: "",
+                        expectedAt: "",
+                        concept: "",
+                      });
+                    return result;
+                  });
+                }}
+              >
+                Guardar próximo pago
+              </button>
+            </div>
+          </fieldset>
+        </details>
       ) : null}
       {ledger.expected.length ? (
         <div className="border-t border-neutral-800 pt-4">
@@ -366,13 +357,13 @@ export default function FlexibleProjectPayments({
                             reference: "",
                             expectedId: payment.id,
                           });
-                          receiptForm.current?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
+                          setActiveTask("received");
+                          requestAnimationFrame(() => {
+                            receiptForm.current?.scrollIntoView({ block: "center" });
+                            receiptForm.current
+                              ?.querySelector("input")
+                              ?.focus({ preventScroll: true });
                           });
-                          receiptForm.current
-                            ?.querySelector("input")
-                            ?.focus({ preventScroll: true });
                         }}
                       >
                         Ya recibí este pago
@@ -393,6 +384,37 @@ export default function FlexibleProjectPayments({
           </ul>
         </div>
       ) : null}
+      <details className="border-t border-neutral-800 pt-4">
+        <summary className="cursor-pointer text-sm font-medium">
+          Historial de pagos recibidos ({ledger.receipts.length})
+        </summary>
+        {ledger.receipts.length ? (
+          <ul className="mt-3 divide-y divide-neutral-800 text-sm">
+            {[...ledger.receipts]
+              .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
+              .map((payment) => (
+                <li
+                  key={payment.id}
+                  className="flex flex-wrap justify-between gap-2 py-3"
+                  data-flexible-receipt={payment.id}
+                >
+                  <div className="min-w-0">
+                    <p className="break-words font-medium">{payment.concept}</p>
+                    <p className="mt-1 break-words text-xs text-neutral-500">
+                      {formatPartialDate(payment.paidAt)}
+                      {payment.reference ? ` · ${payment.reference}` : ""}
+                    </p>
+                  </div>
+                  <p>{money(Number(payment.amount))}</p>
+                </li>
+              ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-neutral-500">
+            Todavía no has registrado pagos recibidos.
+          </p>
+        )}
+      </details>
       <p className="text-xs text-neutral-500">
         El registro de pagos no emite una cuenta de cobro ni verifica movimientos bancarios.
       </p>

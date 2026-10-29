@@ -21,8 +21,19 @@ async function main() {
   ).send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: dir });
   async function control(label) {
     for (const e of await page.$$("label"))
-      if (await e.evaluate((e, label) => e.firstElementChild?.textContent === label, label))
-        return e.$("input,select,textarea");
+      if (await e.evaluate((e, label) => e.firstElementChild?.textContent === label, label)) {
+        const input = await e.$("input,select,textarea");
+        await input.evaluate((element) => {
+          const ancestors = [];
+          for (let parent = element.parentElement; parent; parent = parent.parentElement)
+            if (parent.tagName === "DETAILS" && !parent.open) ancestors.push(parent);
+          ancestors.reverse().forEach((parent) => {
+            parent.open = true;
+          });
+        });
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        return input;
+      }
     throw Error(`Missing control ${label}`);
   }
   async function fill(label, text) {
@@ -93,7 +104,8 @@ async function main() {
       (o) =>
         o.value.startsWith("quoteId=") &&
         !o.value.endsWith(fixture.quoteId) &&
-        o.text.includes(fixture.marker),
+        o.text.includes(fixture.marker) &&
+        o.text.includes("familiar"),
     );
     assert.ok(choice);
     await page.goto(`${origin}/precios/cobros?${choice.value}`, {
@@ -162,7 +174,9 @@ async function main() {
     await capture("issued-and-paid");
     await page.goto(`${origin}/trabajos`, { waitUntil: "networkidle2" });
     assert.ok(await page.evaluate(() => document.body.textContent.includes("Abonos:")));
-    assert.ok(await page.$(`a[href="/precios/cobros?projectId=${billing.projectId}"]`));
+    assert.ok(
+      await page.$(`a[href="/precios/cobros?projectId=${billing.projectId}&mode=flexible"]`),
+    );
     await capture("project-connection");
     assert.deepEqual(errors, []);
     console.log(

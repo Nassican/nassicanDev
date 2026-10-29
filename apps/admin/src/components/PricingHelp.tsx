@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { BsQuestionCircle } from "react-icons/bs";
+import { BsQuestion } from "react-icons/bs";
 
 /** Native top-layer popover: click/touch/keyboard, Escape and outside-click dismissal. */
 export default function PricingHelp({
@@ -48,9 +48,9 @@ export default function PricingHelp({
         aria-label={`Ayuda: ${label}`}
         aria-expanded={open}
         aria-describedby={open ? id : undefined}
-        className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-900 hover:text-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 ${className}`}
+        className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full p-0 text-neutral-500 hover:text-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 ${className}`}
       >
-        <BsQuestionCircle aria-hidden className="h-3.5 w-3.5" />
+        <BsQuestion aria-hidden className="h-4 w-4" />
       </button>
       <div
         ref={content}

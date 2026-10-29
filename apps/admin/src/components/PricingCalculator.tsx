@@ -866,7 +866,7 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
             {pending ? "Guardando…" : "Guardar cotización"}
           </button>
           {savedQuoteId && savedKey === key ? <PricingPdfDownload id={savedQuoteId} /> : null}
-          {savedQuoteId && savedKey === key ? <Link className={button} href={`/precios/cobros?quoteId=${savedQuoteId}`}>Configurar cuotas y cobros</Link> : null}
+          {savedQuoteId && savedKey === key ? <Link className={button} href={`/precios/cobros?quoteId=${savedQuoteId}`}>Continuar con pagos y documentos</Link> : null}
           <Link href="/precios/cotizaciones" className="text-xs text-neutral-500 underline">
             Ver cotizaciones guardadas
           </Link>

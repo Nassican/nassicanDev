@@ -4,6 +4,8 @@ Implementación y comprobaciones: 28 de octubre de 2026. Las dos migraciones se 
 
 ## Uso
 
+El [estudio de flujo del 29 de octubre](estudio-flujo-precios-2026-10-29.md) documenta la revisión antes/después. Los acuerdos guardados muestran primero sus pagos y saldo; la configuración y el historial se despliegan cuando se necesitan. Puedes confirmar la aceptación del cliente y descargar la cotización desde la pantalla de pagos. Las ayudas son circulares y reservan espacio suficiente en pantallas táctiles.
+
 1. Abre **Precios → Cuotas y cobros**. También puedes entrar desde una cotización o desde **Trabajos → Cobros**.
 2. Selecciona una cotización o un proyecto. El valor y la moneda proceden del acuerdo guardado; el plan no vuelve a calcular la tarifa.
 3. Completa los datos privados del emisor y del destinatario. Puedes guardar tus datos de emisor, banco e instrucciones para reutilizarlos.

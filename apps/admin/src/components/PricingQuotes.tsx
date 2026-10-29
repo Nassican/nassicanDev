@@ -156,7 +156,7 @@ export default function PricingQuotes({
           </div>
           <div className="mt-3 flex flex-wrap gap-3">
             <PricingPdfDownload id={r.id} />
-            <Link href={`/precios/cobros?quoteId=${r.id}`} className={pricingButton}>Cuotas y cuenta de cobro</Link>
+            <Link href={`/precios/cobros?quoteId=${r.id}`} className={pricingButton}>Gestionar pagos y documentos</Link>
             {r.projectId ? (
               <Link href="/trabajos" className="text-xs text-neutral-400 underline">
                 Ver trabajo enlazado

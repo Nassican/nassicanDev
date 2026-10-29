@@ -26,8 +26,19 @@ async function main() {
           (element, label) => element.firstElementChild?.textContent === label,
           label,
         )
-      )
-        return element.$("input,textarea,select");
+      ) {
+        const input = await element.$("input,textarea,select");
+        await input.evaluate((element) => {
+          const ancestors = [];
+          for (let parent = element.parentElement; parent; parent = parent.parentElement)
+            if (parent.tagName === "DETAILS" && !parent.open) ancestors.push(parent);
+          ancestors.reverse().forEach((parent) => {
+            parent.open = true;
+          });
+        });
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        return input;
+      }
     throw new Error(`Missing control ${label}`);
   }
   async function fill(label, value) {
@@ -161,13 +172,6 @@ async function main() {
     await page.reload({ waitUntil: "networkidle2" });
     await balance(500000, 500000);
     // Editing document data must retain both payments and the confirmed expectation.
-    for (const summary of await page.$$("summary"))
-      if (
-        await summary.evaluate(
-          (e) => e.textContent.trim() === "Datos para cotizar (opcional)" && !e.parentElement.open,
-        )
-      )
-        await summary.click();
     await fill("Nombre o razón social del cliente", "Cliente con historial conservado");
     await click("Guardar acuerdo por avances");
     await balance(500000, 500000);
@@ -198,7 +202,7 @@ async function main() {
     );
     await captures("settled");
     await page.goto(`${origin}/trabajos`, { waitUntil: "networkidle2" });
-    assert.ok(await page.$(`a[href="/precios/cobros?projectId=${flex.projectId}"]`));
+    assert.ok(await page.$(`a[href="/precios/cobros?projectId=${flex.projectId}&mode=flexible"]`));
     assert.ok(await page.evaluate(() => document.body.textContent.includes("Abonos:")));
     assert.deepEqual(errors, []);
     console.log(

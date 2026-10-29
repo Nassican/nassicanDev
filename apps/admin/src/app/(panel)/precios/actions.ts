@@ -42,6 +42,7 @@ function refresh() {
   for (const path of [
     "/precios",
     "/precios/cotizaciones",
+    "/precios/cobros",
     "/precios/mercado",
     "/precios/regiones",
     "/precios/parametros",

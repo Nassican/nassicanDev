@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getBillingView } from "@/lib/billing";
 import PricingBilling from "@/components/PricingBilling";
-export const metadata: Metadata = { title: "Cuotas y cobros" };
+export const metadata: Metadata = { title: "Pagos y documentos" };
 export default async function Page({
   searchParams,
 }: {
@@ -14,8 +14,9 @@ export default async function Page({
   });
   return (
     <PricingBilling
-      key={`${view.source?.quoteId || view.source?.projectId}:${view.plan?.id ?? "new"}`}
+      key={`${view.source?.quoteId || view.source?.projectId}:${view.plan?.id ?? "new"}:${params.mode === "flexible"}`}
       view={view}
+      initialMode={params.mode === "flexible" ? "flexible" : "amount"}
     />
   );
 }
