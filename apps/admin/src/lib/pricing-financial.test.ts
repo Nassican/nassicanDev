@@ -21,6 +21,22 @@ const f = () =>
     liabilities: "50.000.000",
   });
 const tiers = [{ fromIncome: 0, toIncome: null, percent: 0.01, minimum: 0, maximum: 100000000 }];
+test("financial input automatically saves equity from assets minus liabilities, including zero and negatives", () => {
+  for (const [assets, liabilities, expected] of [
+    ["10.000.000", "3.000.000", 7000000],
+    ["0", "0", 0],
+    ["0", "1.234,50", -1234.5],
+  ] as const)
+    assert.equal(
+      readFinancial({ ...emptyFinancial("client"), assets, liabilities, equity: "999" }).equity,
+      expected,
+    );
+  assert.equal(
+    readFinancial({ ...emptyFinancial("client"), assets: "0", equity: "-250" }).equity,
+    -250,
+  );
+  assert.equal(readFinancial(emptyFinancial("client")).equity, null);
+});
 test("61 is final: neither purchases62 nor class7 may be subtracted with it", () => {
   const r = financialAnalysis({ ...f(), purchases62: 999999, class7: 888888 }, p);
   assert.equal(r.cost, 70000000);

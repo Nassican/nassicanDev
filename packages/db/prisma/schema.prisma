@@ -2299,7 +2299,7 @@ model PricingSettings {
   fixedCosts Decimal @default(1000000) @map("fixed_costs") @db.Decimal(18, 2)
   billableHours Decimal @default(100) @map("billable_hours") @db.Decimal(10, 2)
   margin Decimal @default(0.3) @db.Decimal(10, 6)
-  /// Applied only to fees, with direct costs and the cost floor protected.
+  /// Applied fully to fees; direct costs and travel remain payable.
   familyDiscount Decimal @default(0.2) @map("family_discount") @db.Decimal(10, 6)
   projectWeight Decimal @default(0.5) @map("project_weight") @db.Decimal(10, 6)
   capacityWeight Decimal @default(0.25) @map("capacity_weight") @db.Decimal(10, 6)
@@ -2307,7 +2307,8 @@ model PricingSettings {
   confidenceHigh Decimal @default(0.75) @map("confidence_high") @db.Decimal(10, 6)
   confidenceMedium Decimal @default(0.5) @map("confidence_medium") @db.Decimal(10, 6)
   outlierMultiplier Decimal @default(3) @map("outlier_multiplier") @db.Decimal(10, 6)
-  rounding Decimal @default(10000) @db.Decimal(18, 2)
+  rounding Decimal @default(100000) @db.Decimal(18, 2)
+  familyRounding Decimal @default(1000000) @map("family_rounding") @db.Decimal(18, 2)
   profitCap Decimal @default(0.2) @map("profit_cap") @db.Decimal(10, 6)
   debtLow Decimal @default(0.6) @map("debt_low") @db.Decimal(10, 6)
   debtHigh Decimal @default(0.8) @map("debt_high") @db.Decimal(10, 6)

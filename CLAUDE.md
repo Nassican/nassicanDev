@@ -3898,3 +3898,48 @@ los tipos nuevos existan.
 
 `npm run build` es la verificación mínima antes de dar por terminado cualquier
 cambio.
+
+### Precios: importes, patrimonio y redondeo comercial (2026-10-28)
+
+`docs/precios-calculos-automaticos.md` documenta la edición es-CO en vivo,
+el patrimonio derivado en formulario y servidor, la capacidad local por lugar/
+estrato y el nuevo redondeo. El normal sube en pasos iniciales de 100.000 COP;
+el familiar baja después del descuento en pasos de 1.000.000 COP, con pasos
+menores para importes pequeños y gastos directos/viáticos conservados.
+`family.roundingStep`, `percentageDiscount` y `roundingDiscount` son opcionales
+para mantener legibles los snapshots históricos. No recalcularlos al leer.
+
+La migración `20261028010000_pricing_commercial_rounding` añade el paso
+familiar y actualiza únicamente el paso normal existente; conserva el porcentaje
+familiar configurado. Su aplicación a la base configurada requiere autorización
+pendiente tras un rechazo del revisor automático; las verificaciones se hicieron
+en PostgreSQL temporal local. Mientras falta, la página usa las reglas nuevas,
+avisa en Parámetros y evita un guardado parcial. Reiniciar después de migrar.
+`pricingRoundingSchemaReady()` cachea la detección por proceso, pero vuelve a
+intentar si la consulta falla. El cliente DB utiliza protocolo nativo solo para
+hosts loopback; los hosts Neon conservan su adaptador.
+
+QA: `check-pricing-automation-db.ts`, `check-pricing-automation-ui.cjs` y
+`check-pricing-rounding.ts` cubren persistencia, vista previa/snapshot, Chrome
+en 1440/390 y ambos temas, esquema antiguo y conservación de cotizaciones.
+Los scripts de seed y simulación de esquema exigen el PostgreSQL ficticio local.
+
+### Precios: ayuda contextual y PDF Nassican (2026-10-28)
+
+`docs/precios-ayuda-pdf.md` detalla el flujo y las comprobaciones. `PricingHelp`
+usa popover nativo en la capa superior con teclado/Escape y posición dentro del
+viewport. El botón es hermano del label, no otro control anidado en él. El
+catálogo `pricing-help.ts` explica las reglas reales de campos y resultados.
+
+`/api/precios/cotizaciones/[id]/pdf` autentica dentro del GET, usa el snapshot
+congelado y el precio final actual, y genera un PDF A4 privado con la marca.
+`quoteDocument()` es una lista explícita de datos para el cliente: no pasar
+el snapshot completo al renderer ni exponer ingresos, patrimonio, estrato,
+notas internas, costos o criterios del motor. Descargar no marca enviada,
+no recalcula y no escribe en la cotización. El generador pdf-lib queda en
+servidor; icon.png necesita su entrada en outputFileTracingIncludes.
+
+La descarga aparece en Cotizaciones y después de guardar en Calcular. Los
+scripts check-pricing-help-pdf-ui.cjs, check-pricing-pdf.ts y
+check-pricing-pdf-state.ts cubren Chrome, paginación y ausencia de cambios.
+Este cambio no aplica ni necesita una migración de esquema.

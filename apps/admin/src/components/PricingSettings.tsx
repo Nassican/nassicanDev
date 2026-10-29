@@ -1,5 +1,7 @@
 "use client";
 
+import PricingNumberInput from "./PricingNumberInput";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { PricingParameters } from "@nassican/shared";
@@ -15,7 +17,7 @@ import {
 } from "@/lib/pricing-draft";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import { composePricingPackage } from "@/lib/pricing-package";
-import { addMoney, scaleMoney } from "@/lib/pricing-engine";
+import { addMoney, scaleMoney, roundPricingAmount } from "@/lib/pricing-engine";
 import Toast, { type ToastResult } from "./Toast";
 import PricingTabs from "./PricingTabs";
 import PricingTiers from "./PricingTiers";
@@ -40,6 +42,7 @@ const labels: Record<keyof PricingParameters, string> = {
   capacityWeight: "Peso de capacidad (%)",
   marketWeight: "Peso de mercado (%)",
   rounding: "Redondeo hacia arriba, COP",
+  familyRounding: "Redondeo familiar hacia abajo, COP",
   profitCap: "Tope sobre utilidad (%)",
   debtLow: "Umbral de deuda baja (%)",
   debtHigh: "Umbral de deuda alta (%)",
@@ -116,7 +119,8 @@ export default function PricingSettings({ view }: { view: PricingCalculatorView 
         ] as const
       ).map(([k, label]) => (
         <Label key={k} label={label}>
-          <input
+          <PricingNumberInput
+            formatted={k !== "name"}
             className={field}
             autoFocus={k === "name"}
             value={
@@ -237,19 +241,33 @@ export default function PricingSettings({ view }: { view: PricingCalculatorView 
           parámetros.
         </p>
       </header>
+      {view.roundingMigrationPending ? (
+        <p role="status" className="rounded border border-neutral-800 p-3 text-sm text-neutral-500">
+          El redondeo nuevo funciona con pasos de 100.000 COP normal y 1.000.000 COP familiar. Hay
+          una migración pendiente para poder guardar ajustes de parámetros.
+        </p>
+      ) : null}
       <Section title="Tarifa familiar">
         <p className="text-sm text-neutral-500">
           Elige el porcentaje y activa «Aplicar tarifa familiar» al cotizar. El descuento solo
           afecta a los honorarios y conserva los costos directos y viáticos. Se aplica completo,
-          aunque el resultado quede por debajo del piso de costos, sin redondeo adicional.
+          aunque el resultado quede por debajo del piso de costos. Después, el precio familiar se
+          redondea hacia abajo. Los costos directos y viáticos se conservan.
         </p>
-        <div className="max-w-sm">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Label label={labels.familyDiscount}>
-            <input
+            <PricingNumberInput
               className={field}
               inputMode="decimal"
               value={draft.familyDiscount}
               onChange={(e) => setDraft((d) => ({ ...d, familyDiscount: e.target.value }))}
+            />
+          </Label>
+          <Label label={labels.familyRounding!}>
+            <PricingNumberInput
+              className={field}
+              value={draft.familyRounding}
+              onChange={(e) => setDraft((d) => ({ ...d, familyRounding: e.target.value }))}
             />
           </Label>
         </div>
@@ -273,9 +291,14 @@ export default function PricingSettings({ view }: { view: PricingCalculatorView 
           escriben como factores, por ejemplo 0,85. Los pesos se normalizan entre los criterios
           disponibles.
         </p>
+        <p className="text-xs text-neutral-500">
+          Redondeo comercial: normal hacia arriba (9.386.000 → 9.400.000 con pasos de 100.000);
+          familiar hacia abajo después del descuento (9.386.000 → 9.000.000 con pasos de 1.000.000).
+          Si el importe es menor que el paso, se usa un paso menor automáticamente.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {(Object.keys(labels) as (keyof PricingSettingsDraft)[])
-            .filter((k) => k !== "familyDiscount")
+            .filter((k) => k !== "familyDiscount" && k !== "familyRounding")
             .map((k) => (
               <Label key={k} label={labels[k]}>
                 {typeof draft[k] === "boolean" ? (
@@ -292,7 +315,7 @@ export default function PricingSettings({ view }: { view: PricingCalculatorView 
                     </span>
                   </span>
                 ) : (
-                  <input
+                  <PricingNumberInput
                     className={field}
                     inputMode="decimal"
                     value={draft[k] as string}
@@ -331,10 +354,14 @@ export default function PricingSettings({ view }: { view: PricingCalculatorView 
                 <p className="text-sm">
                   Recomendado: {grouped(s.recommendedPrice)} COP · Familiar:{" "}
                   {grouped(
-                    addMoney(
-                      s.recommendedPrice,
-                      -scaleMoney(s.recommendedPrice, view.parameters.familyDiscount),
-                    ),
+                    roundPricingAmount(
+                      addMoney(
+                        s.recommendedPrice,
+                        -scaleMoney(s.recommendedPrice, view.parameters.familyDiscount),
+                      ),
+                      view.parameters.familyRounding ?? 1000000,
+                      true,
+                    ).amount,
                   )}{" "}
                   COP.
                 </p>

@@ -27,7 +27,8 @@ async function main() {
   } = await import("../apps/admin/src/lib/pricing");
   const { emptyPricingClient, emptyPricingService, emptyPricingQuote } =
     await import("../apps/admin/src/lib/pricing-draft");
-  const { addMoney, scaleMoney } = await import("../apps/admin/src/lib/pricing-engine");
+  const { addMoney, scaleMoney, roundPricingAmount } =
+    await import("../apps/admin/src/lib/pricing-engine");
   const directory = join(tmpdir(), "nassican-pricing-qa");
   const manifest = join(directory, "fixtures.json");
   await mkdir(directory, { recursive: true });
@@ -281,17 +282,24 @@ async function main() {
       assert.equal(stored.snapshot.result.family!.unrestricted, true);
       assert.equal(
         Number(stored.final),
-        addMoney(
-          stored.snapshot.result.family!.normal,
-          -scaleMoney(
-            stored.snapshot.result.family!.fee,
-            stored.snapshot.parameters.familyDiscount,
-          ),
+        Math.max(
+          stored.snapshot.inputs.directCosts + stored.snapshot.result.travel,
+          roundPricingAmount(
+            addMoney(
+              stored.snapshot.result.family!.normal,
+              -scaleMoney(
+                stored.snapshot.result.family!.fee,
+                stored.snapshot.parameters.familyDiscount,
+              ),
+            ),
+            stored.snapshot.parameters.familyRounding ?? 1000000,
+            true,
+          ).amount,
         ),
       );
       assert.ok(stored.snapshot.result.family!.normal >= Number(stored.final));
       console.log(
-        "Family pricing persisted with its complete discount, without a floor cap or additional rounding.",
+        "Family pricing persisted with its full percentage, downward commercial rounding and protected expenses.",
       );
     }
     assert.ok(

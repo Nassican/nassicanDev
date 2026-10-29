@@ -90,6 +90,8 @@ export function financialProblems(d: PricingFinancialDraft): string[] {
   return problems;
 }
 export function readFinancial(d: PricingFinancialDraft): PricingFinancial {
+  const assets = parseNumber(d.assets);
+  const liabilities = parseNumber(d.liabilities);
   return {
     start: d.start,
     end: d.end,
@@ -97,6 +99,10 @@ export function readFinancial(d: PricingFinancialDraft): PricingFinancial {
     source: d.source,
     format: d.format,
     ...Object.fromEntries(financialFields.map((k) => [k, parseNumber(d[k])])),
+    equity:
+      assets !== null && liabilities !== null
+        ? addMoney(assets, -liabilities)
+        : parseNumber(d.equity),
   } as PricingFinancial;
 }
 export const financialOrigin = (f: PricingFinancial): PricingOrigin =>

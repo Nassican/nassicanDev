@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingIncludes: {
     "/**": ["../../packages/db/generated/prisma/**/*"],
+    "/api/precios/cotizaciones/*/pdf": ["./src/app/icon.png"],
   },
 };
 

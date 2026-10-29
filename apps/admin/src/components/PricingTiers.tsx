@@ -1,4 +1,6 @@
 "use client";
+
+import PricingNumberInput from "./PricingNumberInput";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { PricingTierInput } from "@nassican/shared";
@@ -49,7 +51,7 @@ export default function PricingTiers({ tiers }: { tiers: PricingTierInput[] }) {
             ] as const
           ).map(([k, label]) => (
             <Label key={k} label={label}>
-              <input
+              <PricingNumberInput
                 className={field}
                 inputMode="decimal"
                 value={t[k]}

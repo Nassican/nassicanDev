@@ -122,6 +122,12 @@ function createBaseClient() {
   // which names the missing variable, rather than failing inside the driver.
   if (!connectionString) return new PrismaClient({ log });
 
+  // An isolated local PostgreSQL instance speaks the wire protocol directly;
+  // Neon's WebSocket endpoint only exists on Neon hosts.
+  const localHost = new URL(connectionString).hostname;
+  if (["localhost", "127.0.0.1", "[::1]"].includes(localHost))
+    return new PrismaClient({ datasources: { db: { url: connectionString } }, log });
+
   return new PrismaClient({
     adapter: new PrismaNeon({ connectionString }),
     log,

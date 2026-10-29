@@ -11,7 +11,7 @@ import { getTrm } from "./trm";
 import { calendarDate } from "@nassican/shared";
 import { getTimezone } from "./site-config";
 import {
-  resolveRegionalIncome,
+  regionalIncomeForLocation,
   resolveRegionFactor,
   type RegionFactorDraft,
   type RegionFactorInput,
@@ -19,12 +19,7 @@ import {
   type IncomeEstimateInput,
 } from "./pricing-geography";
 import { blankToNull, parseNumber } from "./draft-fields";
-import {
-  calculatePricing,
-  defaultPricingParameters,
-  scaleMoney,
-  divideMoney,
-} from "./pricing-engine";
+import { calculatePricing, defaultPricingParameters } from "./pricing-engine";
 import {
   emptyPricingClient,
   grouped,
@@ -36,20 +31,46 @@ import {
 } from "./pricing-draft";
 import { pricingReminders, defaultPricingTiers } from "./pricing-draft";
 
+let roundingSchemaReady: Promise<boolean> | undefined;
+export function pricingRoundingSchemaReady(): Promise<boolean> {
+  return (roundingSchemaReady ??= db.$queryRaw<{ ready: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'pricing_settings'
+      AND column_name = 'family_rounding') AS ready
+  `
+    .then((rows) => rows[0].ready)
+    .catch((error) => {
+      roundingSchemaReady = undefined;
+      throw error;
+    }));
+}
+
 export async function getPricingParameters(): Promise<PricingParameters> {
-  let row = await db.pricingSettings.findUnique({ where: { id: "singleton" } });
+  const ready = await pricingRoundingSchemaReady();
+  const omit = { familyRounding: !ready };
+  let row = await db.pricingSettings.findUnique({ where: { id: "singleton" }, omit });
   if (!row)
     row = await db.pricingSettings.upsert({
       where: { id: "singleton" },
-      create: { id: "singleton", ...defaultPricingParameters },
+      create: {
+        id: "singleton",
+        ...Object.fromEntries(
+          Object.entries(defaultPricingParameters).filter(
+            ([key]) => ready || key !== "familyRounding",
+          ),
+        ),
+      },
       update: {},
+      omit,
     });
   return Object.fromEntries(
     Object.entries(defaultPricingParameters).map(([key, value]) => [
       key,
       typeof value === "boolean"
         ? row[key as "useInventory" | "usePurchases" | "useClass7"]
-        : Number(row[key as keyof typeof defaultPricingParameters]),
+        : !ready && (key === "familyRounding" || key === "rounding")
+          ? value
+          : Number(row[key as keyof typeof defaultPricingParameters]),
     ]),
   ) as PricingParameters;
 }
@@ -128,7 +149,15 @@ export async function getPricingCalculator() {
     getPricingFinancials(),
     getPricingGeography(),
   ]);
-  return { parameters, tiers, clients, services, financials, geography };
+  return {
+    parameters,
+    tiers,
+    clients,
+    services,
+    financials,
+    geography,
+    roundingMigrationPending: !(await pricingRoundingSchemaReady()),
+  };
 }
 export type PricingCalculatorView = Awaited<ReturnType<typeof getPricingCalculator>>;
 
@@ -294,13 +323,18 @@ export async function pricingSnapshot(draft: PricingQuoteDraft): Promise<Pricing
   const factorServiceId = multipleServices ? "" : service.id;
   const regional = resolve(location, factorServiceId, draft.mode);
   if (client.type === "person" && inputs.monthlyIncome === null) {
-    const estimate = resolveRegionalIncome(geography.incomes, location, client.stratum);
-    if (estimate) {
+    const incomeReference = regionalIncomeForLocation(
+      geography.incomes,
+      geography.factors,
+      location,
+      client.stratum,
+      factorServiceId,
+      draft.mode,
+    );
+    if (incomeReference) {
+      const { estimate } = incomeReference;
       const source = resolve(estimate, factorServiceId, draft.mode);
-      inputs.monthlyIncome = divideMoney(
-        scaleMoney(estimate.income, regional.factor),
-        source.factor,
-      );
+      inputs.monthlyIncome = incomeReference.income;
       inputs.incomeOrigin = "estimated";
       if (estimate.modeled)
         notes.push(

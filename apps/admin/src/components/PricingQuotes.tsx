@@ -19,6 +19,7 @@ import QuickField from "./QuickField";
 import Toast, { type ToastResult } from "./Toast";
 import PricingTabs from "./PricingTabs";
 import PricingResult from "./PricingResult";
+import PricingPdfDownload from "./PricingPdfDownload";
 import { pricingFieldBase, pricingButton } from "./PricingFields";
 
 export default function PricingQuotes({
@@ -154,6 +155,7 @@ export default function PricingQuotes({
             ) : null}
           </div>
           <div className="mt-3 flex flex-wrap gap-3">
+            <PricingPdfDownload id={r.id} />
             {r.projectId ? (
               <Link href="/trabajos" className="text-xs text-neutral-400 underline">
                 Ver trabajo enlazado

@@ -148,7 +148,7 @@ export const emptyPricingQuote = (): PricingQuoteDraft => ({
   ownMunicipality: "",
 });
 export type PricingSettingsDraft = {
-  [K in keyof PricingParameters]: PricingParameters[K] extends boolean ? boolean : string;
+  [K in keyof PricingParameters]-?: PricingParameters[K] extends boolean ? boolean : string;
 };
 /** Fractions stay in storage; the operator always edits ordinary percentages. */
 export const pricingPercentageKeys: (keyof PricingParameters)[] = [
@@ -167,7 +167,7 @@ export const pricingPercentageKeys: (keyof PricingParameters)[] = [
 ];
 export function settingsDraft(s: PricingParameters): PricingSettingsDraft {
   return Object.fromEntries(
-    Object.entries(s).map(([k, v]) => [
+    Object.entries({ familyRounding: 1000000, ...s }).map(([k, v]) => [
       k,
       typeof v === "boolean"
         ? v
@@ -192,6 +192,8 @@ export function readPricingSettings(d: PricingSettingsDraft): PricingParameters 
   if (
     s.billableHours < 0.01 ||
     s.rounding < 0.01 ||
+    !Number.isFinite(s.familyRounding) ||
+    (s.familyRounding ?? 0) < 0.01 ||
     s.margin > 10 ||
     s.profitCap > 1 ||
     s.debtLow > s.debtHigh ||

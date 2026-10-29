@@ -1,5 +1,7 @@
 "use client";
 
+import PricingNumberInput from "./PricingNumberInput";
+
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { PricingLocation, PricingMode, PricingScope, PricingUnit } from "@nassican/shared";
@@ -320,7 +322,7 @@ export default function PricingRegions({
                 </select>
               </Label>
               <Label label="Factor manual">
-                <input
+                <PricingNumberInput
                   className={field}
                   inputMode="decimal"
                   value={factor.factor}
@@ -722,7 +724,7 @@ export default function PricingRegions({
                 </select>
               </Label>
               <Label label="Ingreso mensual estimado, COP">
-                <input
+                <PricingNumberInput
                   className={field}
                   inputMode="decimal"
                   value={income.income}

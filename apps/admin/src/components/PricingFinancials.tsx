@@ -1,5 +1,7 @@
 "use client";
 
+import PricingNumberInput from "./PricingNumberInput";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { PricingParameters } from "@nassican/shared";
@@ -22,8 +24,11 @@ import {
 } from "@/lib/pricing-draft";
 import type { PricingCalculatorView } from "@/lib/pricing";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
+import { parseNumber } from "@/lib/draft-fields";
 import DateField from "./DateField";
 import Toast, { type ToastResult } from "./Toast";
+import PricingHelp from "./PricingHelp";
+import { pricingFieldHelp } from "@/lib/pricing-help";
 import {
   PricingLabel as Label,
   pricingField as field,
@@ -52,6 +57,9 @@ export default function PricingFinancials({
   const [outcome, setOutcome] = useState<ToastResult | null>(null);
   const selected = rows.find((r) => r.id === selectedId) ?? rows[0];
   const analysis = selected ? financialAnalysis(selected, parameters) : null;
+  const live = draft ? financialAnalysis(readFinancial(draft), parameters) : null;
+  const automaticEquity =
+    draft !== null && parseNumber(draft.assets) !== null && parseNumber(draft.liabilities) !== null;
   useUnsavedChanges(draft !== null && isDirty(emptyFinancial(clientId), draft));
   function update<K extends keyof PricingFinancialDraft>(k: K, v: PricingFinancialDraft[K]) {
     setDraft((d) => (d ? { ...d, [k]: v } : d));
@@ -59,7 +67,7 @@ export default function PricingFinancials({
   const visibleFields =
     draft?.format === "210"
       ? financialFields.filter((k) =>
-          ["assets", "liabilities", "revenue41", "combinedDeductions"].includes(k),
+          ["assets", "liabilities", "equity", "revenue41", "combinedDeductions"].includes(k),
         )
       : financialFields.filter((k) => k !== "combinedDeductions");
   return (
@@ -120,12 +128,13 @@ export default function PricingFinancials({
               ["Ingresos operacionales mensuales", analysis.monthlyRevenue],
             ] as const
           ).map(([label, amount]) => (
-            <p key={label}>
+            <div key={label}>
               {label}:{" "}
               <span className="text-neutral-200">
                 {amount === null ? "Sin dato" : pricingMoney(amount)}
               </span>
-            </p>
+              <PricingHelp label={label}>{pricingFieldHelp(label)!}</PricingHelp>
+            </div>
           ))}
           <p>
             Margen operacional:{" "}
@@ -217,15 +226,57 @@ export default function PricingFinancials({
                     : financialLabels[k]
                 }
               >
-                <input
+                <PricingNumberInput
                   className={field}
                   inputMode="decimal"
-                  value={draft[k]}
+                  value={k === "equity" && automaticEquity ? grouped(live!.equity) : draft[k]}
+                  readOnly={k === "equity" && automaticEquity}
+                  placeholder={k === "equity" ? "Se calcula con activos y pasivos" : undefined}
                   onChange={(e) => update(k, e.target.value)}
                 />
+                {k === "equity" ? (
+                  <span className="mt-1 block text-xs text-neutral-500">
+                    {automaticEquity
+                      ? "Automático: activos − pasivos. Se guarda este resultado."
+                      : "Ingresa activos y pasivos para calcularlo, o registra el patrimonio conocido."}
+                  </span>
+                ) : null}
               </Label>
             ))}
           </div>
+          {live ? (
+            <div className="rounded-lg border border-neutral-800 p-3">
+              <p className="mb-3 text-sm font-medium">Cálculos automáticos del periodo</p>
+              <dl className="grid gap-3 text-xs sm:grid-cols-2">
+                {(
+                  [
+                    ["Patrimonio · activos − pasivos", live.equity],
+                    ["Costo utilizado (sin duplicados)", live.cost],
+                    ["Utilidad operacional del periodo", live.profit],
+                    ["Utilidad neta del periodo", live.net],
+                    [
+                      draft.annual ? "Ingreso mensual · anual ÷ 12" : "Ingreso mensual",
+                      live.monthlyRevenue,
+                    ],
+                    ["Utilidad operacional mensual", live.monthlyProfit],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="flex items-center gap-1 text-neutral-500">
+                      {label}
+                      <PricingHelp label={label}>{pricingFieldHelp(label)!}</PricingHelp>
+                    </dt>
+                    <dd className="mt-1 font-medium tabular-nums">
+                      {value === null ? "Faltan datos" : pricingMoney(value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 text-xs text-neutral-500">
+                Se actualiza mientras escribes. Los campos vacíos no cuentan como cero.
+              </p>
+            </div>
+          ) : null}
           {financialProblems(draft).length ? (
             <p className="text-xs text-neutral-500">{financialProblems(draft).join(" ")}</p>
           ) : null}

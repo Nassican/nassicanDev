@@ -49,6 +49,13 @@ export async function saveSettingsAction(
   draft: PricingSettingsDraft,
 ): Promise<PricingActionResult> {
   const user = await requireUser();
+  const { pricingRoundingSchemaReady } = await import("@/lib/pricing");
+  if (!(await pricingRoundingSchemaReady()))
+    return {
+      ok: false,
+      message:
+        "Falta aplicar la migración del redondeo familiar para guardar parámetros. La calculadora usa temporalmente pasos de 100.000 COP normal y 1.000.000 COP familiar. Reinicia el servidor después de migrar.",
+    };
   const data = readPricingSettings(draft);
   if (!data)
     return {

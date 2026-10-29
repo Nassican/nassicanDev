@@ -1,4 +1,5 @@
 "use client";
+import PricingNumberInput from "./PricingNumberInput";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -134,7 +135,8 @@ export default function PricingMarket({
               ] as const
             ).map(([k, label]) => (
               <Label key={k} label={label}>
-                <input
+                <PricingNumberInput
+                  formatted={k === "price"}
                   className={field}
                   value={draft[k]}
                   onChange={(e) => update(k, e.target.value)}

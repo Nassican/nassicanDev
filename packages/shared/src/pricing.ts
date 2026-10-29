@@ -18,6 +18,8 @@ export type PricingParameters = {
   capacityWeight: number;
   marketWeight: number;
   rounding: number;
+  /** Optional for snapshots created before commercial family rounding. */
+  familyRounding?: number;
   confidenceHigh: number;
   confidenceMedium: number;
   outlierMultiplier: number;
@@ -111,6 +113,9 @@ export type PricingResult = {
     limitedByFloor: boolean;
     /// Absent on older snapshots whose discount could be capped or rounded.
     unrestricted?: boolean;
+    roundingStep?: number;
+    roundingDiscount?: number;
+    percentageDiscount?: number;
   };
   range: [number, number];
   effectiveHourly: number;

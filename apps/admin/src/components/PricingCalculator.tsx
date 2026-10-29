@@ -1,5 +1,7 @@
 "use client";
 
+import PricingNumberInput from "./PricingNumberInput";
+
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -30,12 +32,15 @@ import {
   type PricingQuoteDraft,
 } from "@/lib/pricing-draft";
 import { parseNumber } from "@/lib/draft-fields";
+import { livePricingInput } from "@/lib/pricing-live";
+import { regionalIncomeForLocation } from "@/lib/pricing-geography";
 import { composeQuoteServices } from "@/lib/pricing-package";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import DateField from "./DateField";
 import Toast from "./Toast";
 import PricingTabs from "./PricingTabs";
 import PricingResult from "./PricingResult";
+import PricingPdfDownload from "./PricingPdfDownload";
 import PricingFinancials from "./PricingFinancials";
 import PricingLocationFields from "./PricingLocationFields";
 import PricingClientSignals from "./PricingClientSignals";
@@ -57,6 +62,7 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
     snapshot: PricingSnapshot;
   } | null>(null);
   const [savedKey, setSavedKey] = useState("");
+  const [savedQuoteId, setSavedQuoteId] = useState("");
   const [pending, startTransition] = useTransition();
   const [serviceToAdd, setServiceToAdd] = useState("");
   const key = JSON.stringify(draft);
@@ -65,6 +71,12 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
     title: "",
     final: "",
     validUntil: "",
+    parameters: view.parameters,
+    client: view.clients.find((c) => c.id === draft.clientId),
+    services: view.services.filter((s) => pricingSelectedServiceIds(draft).includes(s.id)),
+    financials: view.financials.filter((f) => f.clientId === draft.clientId),
+    incomes: view.geography.incomes,
+    factors: view.geography.factors,
   });
   const dirty = savedKey !== key && isDirty(emptyPricingQuote(), draft);
   useUnsavedChanges(dirty || (clientDraft !== null && isDirty(emptyPricingClient(), clientDraft)));
@@ -86,15 +98,37 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
     service ? (service.components.length ? service.componentIds : [service.id]) : [],
   );
   const snapshot = preview?.key === calculationKey ? preview.snapshot : undefined;
-  const local =
-    service && client && (parseNumber(draft.hours) ?? 0) > 0
-      ? calculatePricing(
-          quoteInput(draft, service, {
-            ...client,
-            monthlyIncome: client.type === "company" ? null : client.monthlyIncome,
-          }),
+  const clientFinancials = view.financials.filter((f) => f.clientId === client?.id);
+  const selectedFinancial =
+    clientFinancials.find((f) => f.id === draft.financialId) ??
+    (draft.financialId ? null : clientFinancials[0]) ??
+    null;
+  const liveInput =
+    service && client
+      ? livePricingInput(
+          quoteInput(draft, service, client),
+          client,
+          selectedFinancial,
           view.parameters,
+          view.tiers,
+          view.geography,
+          selectedServiceIds.length > 1 ? "" : service.id,
         )
+      : null;
+  const clientDraftReference =
+    clientDraft?.type === "person" && parseNumber(clientDraft.monthlyIncome) === null
+      ? regionalIncomeForLocation(
+          view.geography.incomes,
+          view.geography.factors,
+          clientDraft,
+          parseNumber(clientDraft.stratum),
+          selectedServiceIds.length > 1 ? "" : (service?.id ?? ""),
+          draft.mode,
+        )
+      : null;
+  const local =
+    liveInput && (parseNumber(draft.hours) ?? 0) > 0
+      ? calculatePricing(liveInput.input, view.parameters)
       : null;
   const result = snapshot?.result ?? local;
   const problems = [...pricingQuoteProblems(draft), ...(selection.error ? [selection.error] : [])];
@@ -131,7 +165,20 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
     }));
   }
   function updateClient<K extends keyof PricingClientDraft>(k: K, value: PricingClientDraft[K]) {
-    setClientDraft((d) => (d ? { ...d, [k]: value } : d));
+    setClientDraft((d) =>
+      d
+        ? {
+            ...d,
+            [k]: value,
+            ...(k === "monthlyIncome" &&
+            typeof value === "string" &&
+            parseNumber(value) !== null &&
+            d.incomeOrigin === "missing"
+              ? { incomeOrigin: "declared" as const }
+              : {}),
+          }
+        : d,
+    );
   }
   function run(
     action: () => Promise<PricingActionResult>,
@@ -161,6 +208,9 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
         <p className="mt-1 max-w-prose text-sm text-neutral-500">
           Tus costos fijan el piso. El cliente y el mercado ayudan a decidir cuánto cobrar por
           encima.
+        </p>
+        <p className="mt-2 text-xs text-neutral-500">
+          Los miles se separan con puntos automáticamente. Usa coma para los decimales.
         </p>
       </header>
       {!view.services.length ? (
@@ -226,6 +276,43 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                 {client.zone === "rural" ? "rural" : "urbana"}.
               </p>
             ) : null}
+            {client?.type === "person" && liveInput ? (
+              <div
+                className="rounded-lg border border-neutral-800 p-3 text-xs"
+                data-testid="pricing-live-income"
+              >
+                <p className="font-medium">
+                  Ingreso usado en el cálculo:{" "}
+                  {liveInput.input.monthlyIncome === null
+                    ? "Sin dato"
+                    : pricingMoney(liveInput.input.monthlyIncome)}{" "}
+                  / mes
+                </p>
+                <p className="mt-1 text-neutral-500">
+                  {liveInput.estimate
+                    ? `${client.municipality || client.department || client.country} · estrato ${client.stratum ?? "sin dato"}. ${liveInput.estimate.modeled ? "Escenario comercial estimado; no es un ingreso medido por estrato." : "Referencia estadística estimada; confirma el ingreso del cliente."} Base: ${liveInput.estimate.date}.`
+                    : liveInput.input.monthlyIncome !== null
+                      ? "Se prioriza el ingreso registrado o el periodo financiero. El estrato no lo reemplaza."
+                      : "Registra un ingreso o una referencia regional para calcular la capacidad."}
+                </p>
+                {liveInput.estimate ? (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer">Ver origen de la estimación</summary>
+                    <p className="mt-2 break-words text-neutral-500">
+                      {liveInput.estimate.justification}
+                    </p>
+                  </details>
+                ) : null}
+                {service && local?.capacity !== null && local?.capacity !== undefined ? (
+                  <p className="mt-2">
+                    Presupuesto de referencia del servicio ({grouped(service.incomePercent * 100)}{" "}
+                    %): {pricingMoney(local.capacity)}
+                    {draft.unit === "hour" ? " / hora" : " / mes"}. Influye como capacidad; se
+                    conserva el piso de trabajo para la tarifa normal.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {clientDraft ? (
               <div className="flex flex-col gap-4 border-t border-neutral-800 pt-4">
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -261,11 +348,27 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                     ] as const
                   ).map(([k, label]) => (
                     <Label key={k} label={label}>
-                      <input
-                        className={field}
-                        value={clientDraft[k]}
-                        onChange={(e) => updateClient(k, e.target.value)}
-                      />
+                      {k === "stratum" ? (
+                        <select
+                          className={field}
+                          value={clientDraft.stratum}
+                          onChange={(e) => updateClient("stratum", e.target.value)}
+                        >
+                          <option value="">Sin dato</option>
+                          {[0, 1, 2, 3, 4, 5, 6].map((value) => (
+                            <option key={value} value={value}>
+                              {value === 0 ? "0 · Sin clasificación" : `Estrato ${value}`}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <PricingNumberInput
+                          formatted={k !== "activity"}
+                          className={field}
+                          value={clientDraft[k]}
+                          onChange={(e) => updateClient(k, e.target.value)}
+                        />
+                      )}
                     </Label>
                   ))}
                   <Label label="Origen del ingreso">
@@ -313,10 +416,31 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                     />
                   </Label>
                 </div>
+                {clientDraftReference ? (
+                  <p
+                    className="rounded border border-neutral-800 p-3 text-xs"
+                    data-testid="pricing-draft-income"
+                  >
+                    Referencia automática para{" "}
+                    {clientDraft.municipality || clientDraft.department || clientDraft.country},
+                    estrato {clientDraft.stratum || "sin dato"}:{" "}
+                    <strong>{pricingMoney(clientDraftReference.income)} / mes</strong>.{" "}
+                    {clientDraftReference.estimate.modeled
+                      ? "Escenario comercial estimado, no un ingreso medido por estrato."
+                      : "Referencia estadística estimada."}{" "}
+                    Se usará al guardar si dejas vacío el ingreso. El valor real registrado tiene
+                    prioridad.
+                  </p>
+                ) : null}
                 <p className="text-xs text-neutral-500">
                   Sin declaración de renta: usa el promedio mensual de consignaciones o lo dicho por
                   el cliente, con origen estimado.
                 </p>
+                {pricingClientProblems(clientDraft).length ? (
+                  <p className="text-xs text-neutral-500">
+                    {pricingClientProblems(clientDraft).join(" ")}
+                  </p>
+                ) : null}
                 <div className="flex gap-2">
                   <button
                     className={primary}
@@ -443,7 +567,7 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
               <Label
                 label={draft.unit === "monthly" ? "Horas estimadas al mes" : "Horas estimadas"}
               >
-                <input
+                <PricingNumberInput
                   inputMode="decimal"
                   className={field}
                   value={draft.hours}
@@ -466,7 +590,7 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                 </select>
               </Label>
               <Label label="Costos directos, COP">
-                <input
+                <PricingNumberInput
                   inputMode="decimal"
                   className={field}
                   value={draft.directCosts}
@@ -598,7 +722,7 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
                 </select>
               </Label>
               <Label label="Días de desplazamiento">
-                <input
+                <PricingNumberInput
                   className={field}
                   inputMode="decimal"
                   value={draft.travelDays}
@@ -674,8 +798,8 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
           )}
           {local && !snapshot ? (
             <p className="text-xs text-neutral-500">
-              Vista inicial con costos. Pulsa «Revisar cálculo y comparables» para incorporar toda
-              la evidencia.
+              Vista automática con costos y capacidad según el cliente. Pulsa «Revisar cálculo y
+              comparables» para incorporar las referencias de mercado.
             </p>
           ) : null}
           <label className="flex items-start gap-2 text-sm">
@@ -689,14 +813,14 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
             <span>
               Aplicar tarifa familiar ({grouped(view.parameters.familyDiscount * 100)} %)
               <span className="mt-1 block text-xs text-neutral-500">
-                Aplica el descuento completo a los honorarios, sin límite por el piso ni redondeo
-                adicional. Conserva costos directos y viáticos. Al cambiar de tarifa se restablece
+                Aplica el descuento completo a los honorarios, sin límite por el piso, con redondeo
+                hacia abajo. Conserva costos directos y viáticos. Al cambiar de tarifa se restablece
                 el precio final al nuevo sugerido.
               </span>
             </span>
           </label>
           <Label label="Precio final editable, COP">
-            <input
+            <PricingNumberInput
               className={field}
               inputMode="decimal"
               value={draft.final}
@@ -732,12 +856,16 @@ export default function PricingCalculator({ view }: { view: PricingCalculatorVie
             onClick={() =>
               run(
                 () => saveQuoteAction(draft, snapshot?.result.suggested),
-                () => setSavedKey(key),
+                (result) => {
+                  setSavedKey(key);
+                  setSavedQuoteId(result.id ?? "");
+                },
               )
             }
           >
             {pending ? "Guardando…" : "Guardar cotización"}
           </button>
+          {savedQuoteId && savedKey === key ? <PricingPdfDownload id={savedQuoteId} /> : null}
           <Link href="/precios/cotizaciones" className="text-xs text-neutral-500 underline">
             Ver cotizaciones guardadas
           </Link>

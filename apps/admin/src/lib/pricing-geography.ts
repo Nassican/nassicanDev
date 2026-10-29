@@ -1,7 +1,7 @@
 import type { PricingLocation, PricingMode, PricingScope, PricingUnit } from "@nassican/shared";
 import { fold } from "./list-filters";
 import { fieldProblems, parseNumber } from "./draft-fields";
-import { scaleMoney } from "./pricing-engine";
+import { scaleMoney, divideMoney } from "./pricing-engine";
 import type { DivipolaPlace } from "./divipola";
 import {
   marketLocation,
@@ -202,6 +202,26 @@ export function resolveRegionalIncome(
     modeled: true,
     baseline,
     justification: `[MODELO-COMERCIAL-V1] Escenario de presupuesto, no ingreso observado del municipio ni del estrato. Base ${levels[specificity(baseline)]}: ${source}, ${baseline.income} COP per cápita/mes (${baseline.date}). Base × ${multiplier}, redondeada a 10.000 COP. Coeficientes comerciales elegidos para simular capacidad: 1=0,5; 2=0,75; 3=1; 4=1,5; 5=2,25; 6=3. No proceden de una regresión ni de una encuesta por estrato. Estrato 0=1 (escenario neutral: sin estrato no implica bajos ingresos). El año corresponde a la base, no a una medición del modelo. No es salario personal. Prioriza el ingreso conocido del cliente o registra una referencia local. Fuente de la base: ${baseline.justification}`,
+  };
+}
+
+/** Shared by the live form and the authoritative saved snapshot. */
+export function regionalIncomeForLocation(
+  estimates: IncomeEstimateInput[],
+  factors: RegionFactorInput[],
+  location: PricingLocation,
+  stratum: number | null,
+  serviceId: string,
+  mode: PricingMode,
+) {
+  const estimate = resolveRegionalIncome(estimates, location, stratum);
+  if (!estimate) return null;
+  const resolve = resolveRegionFactor(factors);
+  const regional = resolve(location, serviceId, mode);
+  const source = resolve(estimate, serviceId, mode);
+  return {
+    estimate,
+    income: divideMoney(scaleMoney(estimate.income, regional.factor), source.factor),
   };
 }
 

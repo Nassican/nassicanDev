@@ -13,7 +13,7 @@ import {
   type PricingMapViewport,
   PRICING_MAP_MAX_ZOOM,
 } from "@/lib/pricing-map";
-import { pricingButton, pricingField } from "./PricingFields";
+import { pricingButton, pricingField, PricingLabel } from "./PricingFields";
 
 type ExtraZone = { value: string; label: string; detail: string; available: boolean };
 export default function PricingRegionMap({
@@ -319,8 +319,7 @@ export default function PricingRegionMap({
         aria-label="Selección de zona y disponibilidad"
       >
         <h3 className="text-sm font-medium">{title}</h3>
-        <label className="flex flex-col gap-2 text-xs">
-          <span>{selectorLabel}</span>
+        <PricingLabel label={selectorLabel}>
           <select
             className={pricingField}
             value={selectedCode}
@@ -350,15 +349,14 @@ export default function PricingRegionMap({
               ))}
             </optgroup>
           </select>
-        </label>
+        </PricingLabel>
         <p className="text-xs text-neutral-500">
           {withData.length} de 33 departamentos tienen {coverageLabel} para esta vista. Los grupos
           del selector indican dónde consultar.
         </p>
         {selected && municipality ? (
           <div className="flex flex-col gap-2">
-            <label className="flex flex-col gap-2 text-xs">
-              <span>{municipality.label}</span>
+            <PricingLabel label={municipality.label}>
               <select
                 className={pricingField}
                 value={municipality.value}
@@ -378,7 +376,7 @@ export default function PricingRegionMap({
                   </option>
                 ))}
               </select>
-            </label>
+            </PricingLabel>
             <p className="text-xs text-neutral-500">
               {municipality.options.length
                 ? "Las opciones corresponden solo al departamento seleccionado. El mapa conserva sus límites departamentales."

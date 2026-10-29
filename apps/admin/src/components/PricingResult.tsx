@@ -1,6 +1,8 @@
 import type { PricingResult as Result, PricingSnapshot } from "@nassican/shared";
 import { confidenceLabels, originLabels, pricingMoney as money } from "@/lib/pricing-draft";
 import { marketStats } from "@/lib/pricing-market";
+import PricingHelp from "./PricingHelp";
+import { pricingFieldHelp } from "@/lib/pricing-help";
 
 export default function PricingResult({
   result: r,
@@ -22,29 +24,41 @@ export default function PricingResult({
         <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
           {money(r.suggested)}
         </p>
-        <p className="mt-1 text-xs text-neutral-500">
+        <div className="mt-1 text-xs text-neutral-500">
           Confianza {confidenceLabels[r.confidence].toLowerCase()}: {Math.round(r.evidence * 100)} %
           de evidencia observada o declarada.
-        </p>
+          <PricingHelp label="Confianza del cálculo">
+            {pricingFieldHelp("Confianza del cálculo")!}
+          </PricingHelp>
+        </div>
       </div>
       {r.family ? (
         <p className="rounded border border-neutral-800 p-3 text-xs text-neutral-300">
           Tarifa familiar: {Math.round(r.family.percent * 10000) / 100} % sobre honorarios. Sugerido
           normal: {money(r.family.normal)}. Descuento efectivo: {money(r.family.discount)}.
-          {r.family.unrestricted
-            ? " Descuento completo, sin límite por costos ni redondeo adicional."
-            : r.family.limitedByFloor
-              ? " Limitado por el piso de costos."
-              : " Se conserva el redondeo configurado."}
+          {r.family.roundingStep !== undefined
+            ? ` Descuento por porcentaje: ${money(r.family.percentageDiscount ?? 0)}. Ajuste adicional hacia abajo: ${money(r.family.roundingDiscount ?? 0)} (pasos de ${money(r.family.roundingStep)}). Sin límite por el piso de costos; se conservan costos directos y viáticos.`
+            : r.family.unrestricted
+              ? " Descuento completo, sin límite por costos ni redondeo adicional."
+              : r.family.limitedByFloor
+                ? " Limitado por el piso de costos."
+                : " Se conserva el redondeo configurado."}
         </p>
       ) : null}
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-xs text-neutral-500">Piso por costos</dt>
+          <dt className="flex items-center gap-1 text-xs text-neutral-500">
+            Piso por costos
+            <PricingHelp label="Piso por costos">
+              {pricingFieldHelp("Piso por costos")!}
+            </PricingHelp>
+          </dt>
           <dd className="tabular-nums">{money(r.floor)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-neutral-500">Mercado</dt>
+          <dt className="flex items-center gap-1 text-xs text-neutral-500">
+            Mercado<PricingHelp label="Mercado">{pricingFieldHelp("Mercado")!}</PricingHelp>
+          </dt>
           <dd>
             {r.market === null
               ? (snapshot?.service.selectedServices?.length ?? 0) > 1
@@ -54,13 +68,23 @@ export default function PricingResult({
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-neutral-500">Rango de referencias, antes del redondeo</dt>
+          <dt className="flex items-center gap-1 text-xs text-neutral-500">
+            Rango de referencias, antes del redondeo
+            <PricingHelp label="Rango de referencias, antes del redondeo">
+              {pricingFieldHelp("Rango de referencias, antes del redondeo")!}
+            </PricingHelp>
+          </dt>
           <dd>
             {money(r.range[0])} a {money(r.range[1])}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-neutral-500">Tarifa efectiva sugerida</dt>
+          <dt className="flex items-center gap-1 text-xs text-neutral-500">
+            Tarifa efectiva sugerida
+            <PricingHelp label="Tarifa efectiva sugerida">
+              {pricingFieldHelp("Tarifa efectiva sugerida")!}
+            </PricingHelp>
+          </dt>
           <dd>{money(r.effectiveHourly)} / hora</dd>
         </div>
       </dl>

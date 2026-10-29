@@ -14,7 +14,8 @@ export const defaultPricingParameters: PricingParameters = {
   projectWeight: 0.5,
   capacityWeight: 0.25,
   marketWeight: 0.25,
-  rounding: 10000,
+  rounding: 100000,
+  familyRounding: 1000000,
   confidenceHigh: 0.75,
   confidenceMedium: 0.5,
   outlierMultiplier: 3,
@@ -70,6 +71,23 @@ export function scaleMoney(amount: number, factor: number): number {
 export function divideMoney(amount: number, divisor: number): number {
   const [a, b] = fraction(divisor);
   return Number(rounded(cents(amount) * b, a)) / 100;
+}
+
+/** Use a smaller commercial step for small amounts, without losing cents. */
+export function roundPricingAmount(amount: number, configuredStep: number, down = false) {
+  if (!Number.isFinite(configuredStep) || configuredStep < 0.01)
+    throw new Error("El paso de redondeo debe ser al menos 0,01 COP.");
+  if (amount < 0) throw new Error("El importe para redondear debe ser positivo.");
+  const step =
+    amount > 0 && amount < configuredStep
+      ? Math.min(configuredStep, Math.max(0.01, 10 ** (Math.floor(Math.log10(amount)) - 1)))
+      : configuredStep;
+  const units = cents(step);
+  const value = cents(amount);
+  return {
+    step,
+    amount: Number(((value + (down ? BigInt(0) : units - BigInt(1))) / units) * units) / 100,
+  };
 }
 
 export function calculatePricing(input: PricingInput, settings: PricingParameters): PricingResult {
@@ -149,15 +167,19 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
   });
   const weighted = addMoney(...contributions.map((r) => r.amount));
   // Rounding upward preserves the floor even when it is between two steps.
-  const step = cents(settings.rounding);
-  const bounded = cents(Math.max(floor, weighted));
-  const normal = Number(((bounded + step - BigInt(1)) / step) * step) / 100;
-  // Apply the full family discount after rounding the normal price. Neither
-  // the cost floor nor another rounding step may reduce the agreed discount.
+  const normalRounding = roundPricingAmount(Math.max(floor, weighted), settings.rounding);
+  const normal = normalRounding.amount;
+  // Apply the full discount, then a downward commercial adjustment. Direct
+  // costs and travel remain payable even when the fees are completely waived.
   const fee = Math.max(0, addMoney(normal, -input.directCosts, -travel));
   const requestedDiscount = input.family ? scaleMoney(fee, settings.familyDiscount) : 0;
   const discounted = addMoney(normal, -requestedDiscount);
-  const suggested = input.family ? discounted : normal;
+  const familyRounding = input.family
+    ? roundPricingAmount(discounted, settings.familyRounding ?? 1000000, true)
+    : null;
+  const suggested = familyRounding
+    ? Math.max(addMoney(input.directCosts, travel), familyRounding.amount)
+    : normal;
   const family = input.family
     ? {
         percent: settings.familyDiscount,
@@ -166,6 +188,9 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
         discount: addMoney(normal, -suggested),
         limitedByFloor: false,
         unrestricted: true,
+        percentageDiscount: requestedDiscount,
+        roundingStep: familyRounding!.step,
+        roundingDiscount: addMoney(discounted, -suggested),
       }
     : undefined;
   const minimumReference = Math.min(...available.map((r) => r.reference));
@@ -207,12 +232,12 @@ export function calculatePricing(input: PricingInput, settings: PricingParameter
     `Costo por hora: (${settings.targetIncome} + ${settings.fixedCosts}) ÷ ${settings.billableHours} = ${hourlyCost} COP.`,
     `Piso: máximo entre ${input.minimum} y (${input.hours} × ${hourlyCost} + ${input.directCosts} + ${travel}) = ${floor} COP.`,
     `Proyecto: ${input.hours} × ${targetRate} + ${input.directCosts} = ${project} COP.`,
-    `Suma de aportes: ${weighted} COP. Se aplica el piso y se redondea hacia arriba a ${settings.rounding} COP: ${normal} COP.${input.family ? " Antes del descuento familiar." : ""}`,
+    `Suma de aportes: ${weighted} COP. Se aplica el piso y se redondea hacia arriba en pasos de ${normalRounding.step} COP: ${normal} COP.${input.family ? " Antes del descuento familiar." : ""}`,
     `Confianza: ${Math.round(evidence * 100)} % de entradas observadas o declaradas (${origins.join(", ")}).`,
   ];
   if (family)
     explanation.push(
-      `Tarifa familiar: ${family.percent * 100} % sobre honorarios de ${fee} COP. Los ${input.directCosts} COP de costos directos y ${travel} COP de viáticos se conservan. Descuento completo sin límite por piso ni redondeo adicional: ${family.discount} COP. Sugerido familiar: ${suggested} COP.`,
+      `Tarifa familiar: ${family.percent * 100} % sobre honorarios de ${fee} COP = ${requestedDiscount} COP de descuento, sin límite por piso. Después se redondea hacia abajo en pasos de ${family.roundingStep} COP: ajuste adicional ${family.roundingDiscount} COP. Los ${input.directCosts} COP de costos directos y ${travel} COP de viáticos se conservan. Descuento efectivo total: ${family.discount} COP. Sugerido familiar: ${suggested} COP.`,
     );
   if (input.unit === "hour" && monthlyCapacity !== null)
     explanation.push(
