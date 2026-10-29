@@ -137,6 +137,7 @@ export default function SkillsBoard({
                       return (
                         <span
                           key={`${item.key}-${i}`}
+                          aria-hidden={i >= group.items.length ? true : undefined}
                           style={getBrandStyles(item.hex)}
                           className="group relative mx-3 inline-flex items-center gap-3 rounded-full border border-black/10 px-5 py-2.5 text-sm text-zinc-700 transition-all duration-300 hover:bg-[var(--brand-bg)] hover:text-[var(--brand-text)] hover:border-[var(--brand-border)] hover:shadow-[0_0_15px_var(--brand-glow)] dark:border-white/10 dark:text-zinc-200"
                         >
@@ -147,7 +148,13 @@ export default function SkillsBoard({
                             mono={item.mono}
                             className="h-7 w-7 transition-transform duration-300 group-hover:scale-110"
                           />
-                          <span>{item.name}</span>
+                          {i < group.items.length ? (
+                            <span>{item.name}</span>
+                          ) : (
+                            // Loop copies are decoration: keep the same visual label without
+                            // repeating text in the document or the accessibility tree.
+                            <span data-marquee-label={item.name} className="before:content-[attr(data-marquee-label)]" />
+                          )}
                         </span>
                       );
                     })}

@@ -21,6 +21,6 @@ export async function pageMetadata(input: Parameters<typeof buildMetadata>[0]) {
     image: input.image || seo?.defaultOgImageUrl || undefined,
     override: input.override ? { ...input.override, noindex: input.override.noindex || Boolean(pageOverride?.noindex) } : pageOverride,
     availableLocales,
-    indexable: isIndexableDeployment(process.env) && !settings.maintenanceMode,
+    indexable: input.indexable !== false && isIndexableDeployment(process.env) && !settings.maintenanceMode,
   });
 }

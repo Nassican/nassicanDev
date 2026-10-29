@@ -64,7 +64,7 @@ export default async function ProjectsPage({ params }: PageParams) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {projectsByDate.map((p) => (
-            <ProjectCard key={p.slug} project={p} locale={locale} t={t} />
+            <ProjectCard key={p.slug} project={p} locale={locale} t={t} headingLevel={2} />
           ))}
         </div>
       )}

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   absoluteUrl,
+  certificatesJsonLd,
   alternatesFor,
   pageMetadata,
   postJsonLd,
@@ -246,4 +247,36 @@ test("private-repository projects do not claim publicly available source code or
     ],
     "SoftwareSourceCode",
   );
+});
+
+test("an empty blog stays out of discovery and returns after the first publication", () => {
+  const empty = buildDiscoveryEntries([], [], []);
+  assert.ok(!empty.some((entry) => entry.path === "/blog"));
+  assert.ok(empty.some((entry) => entry.path === "/profile"));
+  const post = {
+    slug: "first-article",
+    date: "2026-10-29",
+    content: { es: { seo: { noindex: false } }, en: { seo: { noindex: true } } },
+  };
+  const published = buildDiscoveryEntries([], [post], []);
+  assert.deepEqual(published.filter((entry) => entry.path === "/blog").map((entry) => entry.locale), ["es", "en"]);
+  assert.deepEqual(published.filter((entry) => entry.path === "/blog/first-article").map((entry) => entry.locale), ["es"]);
+  const hidden = buildDiscoveryEntries([{
+    route: "/blog", kind: "system", translations: [{
+      locale: "es", title: "Blog", seoDescription: null, noindex: true, updatedAt: new Date("2026-10-29"),
+    }],
+  }], [post], []);
+  assert.ok(!hidden.some((entry) => entry.path === "/blog" && entry.locale === "es"));
+});
+
+
+test("certificate subjects use Schema.org entities rather than bare category text", () => {
+  const graph = certificatesJsonLd("es", [{
+    title: { es: "Curso", en: "Course" }, provider: "Provider",
+    category: { es: "Desarrollo web", en: "Web development" },
+    url: "https://example.com/credential",
+  }]);
+  const list = graph["@graph"].find((node) => node["@type"] === "ItemList");
+  assert.ok(list && "itemListElement" in list);
+  assert.deepEqual(list.itemListElement[0].item.about, { "@type": "Thing", name: "Desarrollo web" });
 });

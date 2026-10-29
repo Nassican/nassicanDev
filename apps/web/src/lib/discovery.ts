@@ -46,7 +46,9 @@ export function buildDiscoveryEntries(
     });
   };
   for (const locale of locales) {
-    for (const path of ["/", "/profile", "/blog", "/projects", "/certificates"]) add(path, locale);
+    for (const path of ["/", "/profile", "/projects", "/certificates"]) add(path, locale);
+    // An empty archive returns to discovery with its first published article.
+    if (posts.length) add("/blog", locale);
     for (const post of posts)
       add(
         `/blog/${post.slug}`,
@@ -62,6 +64,7 @@ export function buildDiscoveryEntries(
         project.updated,
       );
     for (const page of pages.filter((p) => p.kind === "custom")) {
+      if (page.route === "/blog" && !posts.length) continue;
       if (entries.some((e) => e.path === page.route && e.locale === locale)) continue;
       const t = page.translations.find((t) => t.locale === locale);
       add(page.route, locale, t?.noindex, t?.updatedAt.toISOString());

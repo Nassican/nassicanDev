@@ -2,7 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { BsEnvelope, BsGithub, BsLinkedin } from "react-icons/bs";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -31,6 +31,8 @@ export default function Navigation({
   const github = profile.socials.find((social) => social.label === "GitHub");
   const linkedin = profile.socials.find((social) => social.label === "LinkedIn");
   const [open, setOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const menuPanel = useRef<HTMLDivElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
 
@@ -109,15 +111,41 @@ export default function Navigation({
     };
   }, [pathname, sectionIds]);
 
-  // Lock body scroll when mobile menu is open
+  // The existing drawer is a modal: keep keyboard focus inside until it closes.
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+    if (!open) return;
+    const panel = menuPanel.current;
+    const trigger = menuButton.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const controls = () => Array.from(panel?.querySelectorAll<HTMLElement>(
+      'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+    ) ?? []).filter((element) => element.getClientRects().length > 0);
+    controls()[0]?.focus({ preventScroll: true });
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+      } else if (event.key === "Tab") {
+        const items = controls();
+        const first = items[0], last = items[items.length - 1];
+        if (!first) { event.preventDefault(); return; }
+        if (!panel?.contains(document.activeElement) ||
+          (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus({ preventScroll: true });
+        }
+      }
     }
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => { if (desktop.matches) setOpen(false); };
+    document.addEventListener("keydown", onKeyDown);
+    desktop.addEventListener("change", closeOnDesktop);
     return () => {
-      document.body.style.overflow = "";
+      document.removeEventListener("keydown", onKeyDown);
+      desktop.removeEventListener("change", closeOnDesktop);
+      document.body.style.overflow = previousOverflow;
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     };
   }, [open]);
 
@@ -204,6 +232,7 @@ export default function Navigation({
               aria-label={t.nav.openMenu}
               aria-expanded={open}
               aria-controls="mobile-navigation"
+              ref={menuButton}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-black/10 text-zinc-700 transition-colors hover:bg-black/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
               onClick={() => setOpen(true)}
             >
@@ -227,6 +256,7 @@ export default function Navigation({
       {/* Mobile Drawer Panel */}
       <div
         id="mobile-navigation"
+        ref={menuPanel}
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-navigation-title"

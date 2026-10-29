@@ -15,13 +15,16 @@ export default function ProjectCard({
   project,
   locale,
   t,
+  headingLevel = 3,
 }: {
   project: ProjectItem;
   locale: Locale;
   t: Dictionary;
+  headingLevel?: 2 | 3;
 }) {
   const c = project.content[locale];
   const href = localePath(locale, `/projects/${project.slug}`);
+  const Heading = headingLevel === 2 ? "h2" : "h3";
 
   return (
     <Card className="flex flex-col">
@@ -46,7 +49,7 @@ export default function ProjectCard({
       )}
 
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-medium">
+        <Heading className="text-base font-medium">
           <Link
             href={href}
             aria-label={project.title}
@@ -54,7 +57,7 @@ export default function ProjectCard({
           >
             {project.title}
           </Link>
-        </h3>
+        </Heading>
         <div className="flex shrink-0 gap-3 text-sm">
           <a className="underline" href={project.demo} target="_blank" rel="noreferrer">
             {t.projects.demo}

@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BsRss } from "react-icons/bs";
 import PostCard from "@/components/PostCard";
-import { getListedPosts } from "@/lib/data/posts";
+import { getListedPosts, getPublishedPosts } from "@/lib/data/posts";
 import { getProfile } from "@/lib/data/profile";
-import { getPageSeo } from "@/lib/data/pages";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales, localePath } from "@/lib/i18n/config";
-import { blogJsonLd, pageMetadata } from "@/lib/seo";
+import { blogJsonLd } from "@/lib/seo";
+import { pageMetadata } from "@/lib/page-metadata";
 
 type PageParams = { params: Promise<{ locale: string }> };
 
@@ -23,12 +23,13 @@ export async function generateMetadata({
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
 
-  const override = await getPageSeo("/blog", locale);
+  const posts = await getPublishedPosts();
 
   return pageMetadata({
     locale,
     path: "/blog",
-    override,
+    // Keep the useful navigation/placeholder, but do not index an empty archive.
+    indexable: posts.length > 0,
     title: t.blog.title,
     description: t.blog.metaDescription,
   });

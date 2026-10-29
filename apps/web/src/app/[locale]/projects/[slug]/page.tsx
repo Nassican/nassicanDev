@@ -34,7 +34,7 @@ export async function generateMetadata({
   return pageMetadata({
     locale,
     path: `/projects/${project.slug}`,
-    title: project.title,
+    title: `${project.title} · ${locale === "es" ? "Caso de estudio" : "Case study"}`,
     description: c.tagline,
     type: "article",
     override: c.seo,

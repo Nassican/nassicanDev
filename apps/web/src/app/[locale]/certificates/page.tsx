@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import CertificatesClient from "./CertificatesClient";
 import { getCertificates } from "@/lib/data/certificates";
-import { getPageSeo } from "@/lib/data/pages";
 import { getDictionary } from "@/lib/i18n";
 import { isLocale, locales } from "@/lib/i18n/config";
-import { certificatesJsonLd, pageMetadata } from "@/lib/seo";
+import { certificatesJsonLd } from "@/lib/seo";
+import { pageMetadata } from "@/lib/page-metadata";
 
 type PageParams = { params: Promise<{ locale: string }> };
 
@@ -21,12 +21,9 @@ export async function generateMetadata({
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
 
-  const override = await getPageSeo("/certificates", locale);
-
   return pageMetadata({
     locale,
     path: "/certificates",
-    override,
     title: t.certificates.title,
     description: t.certificates.metaDescription,
   });

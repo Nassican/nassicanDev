@@ -47,7 +47,7 @@ async function main() {
         results.push({ path: url.pathname, status: 200, document: true });
         continue;
       }
-      const response = await page.goto(`${origin}${url.pathname}`, { waitUntil: "networkidle2" });
+      const response = await page.goto(`${origin}${url.pathname}`, { waitUntil: "domcontentloaded" });
       assert.equal(response.status(), 200, url.href);
       const info = await page.evaluate(() => {
         const graphs = [...document.querySelectorAll('script[type="application/ld+json"]')].flatMap(
@@ -122,7 +122,7 @@ async function main() {
     assert.deepEqual(policyLines(robots), policyLines(previousRobots));
     await page.setJavaScriptEnabled(true);
     for (const path of ["/", "/profile", "/en/profile"]) {
-      await page.goto(`${origin}${path}`, { waitUntil: "networkidle2" });
+      await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
       for (const width of [1440, 390]) {
         await page.setViewport({ width, height: 1000 });
         for (const theme of ["light", "dark"]) {
@@ -144,7 +144,7 @@ async function main() {
         }
       }
     }
-    await page.goto(`${origin}/profile`, { waitUntil: "networkidle2" });
+    await page.goto(`${origin}/profile`, { waitUntil: "domcontentloaded" });
     await page.keyboard.press("Tab");
     assert.ok(await page.evaluate(() => document.activeElement?.tagName === "A"));
     // Follow actual profile links and confirm the existing contact anchor works.

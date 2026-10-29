@@ -400,7 +400,7 @@ export function certificatesJsonLd(locale: Locale, certificates: Certificate[]) 
                   },
                 }
               : {}),
-            about: c.category[locale],
+            about: { "@type": "Thing", name: c.category[locale] },
           },
         })),
       },
