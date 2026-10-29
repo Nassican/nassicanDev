@@ -59,7 +59,9 @@ export default function PricingFinancials({
   const analysis = selected ? financialAnalysis(selected, parameters) : null;
   const live = draft ? financialAnalysis(readFinancial(draft), parameters) : null;
   const automaticEquity =
-    draft !== null && parseNumber(draft.assets) !== null && parseNumber(draft.liabilities) !== null;
+    draft !== null &&
+    parseNumber(draft.assets) !== null &&
+    parseNumber(draft.liabilities) !== null;
   useUnsavedChanges(draft !== null && isDirty(emptyFinancial(clientId), draft));
   function update<K extends keyof PricingFinancialDraft>(k: K, v: PricingFinancialDraft[K]) {
     setDraft((d) => (d ? { ...d, [k]: v } : d));
@@ -118,41 +120,6 @@ export default function PricingFinancials({
           </button>
         ) : null}
       </div>
-      {analysis ? (
-        <div className="grid gap-2 text-xs text-neutral-500 sm:grid-cols-2">
-          {(
-            [
-              ["Utilidad operacional del periodo", analysis.profit],
-              ["Utilidad neta del periodo", analysis.net],
-              ["EBITDA aproximado", analysis.ebitda],
-              ["Ingresos operacionales mensuales", analysis.monthlyRevenue],
-            ] as const
-          ).map(([label, amount]) => (
-            <div key={label}>
-              {label}:{" "}
-              <span className="text-neutral-200">
-                {amount === null ? "Sin dato" : pricingMoney(amount)}
-              </span>
-              <PricingHelp label={label}>{pricingFieldHelp(label)!}</PricingHelp>
-            </div>
-          ))}
-          <p>
-            Margen operacional:{" "}
-            {analysis.margin === null ? "Sin dato" : `${grouped(analysis.margin * 100)} %`}
-          </p>
-          <p>
-            Endeudamiento:{" "}
-            {analysis.debt === null ? "Sin dato" : `${grouped(analysis.debt * 100)} %`}
-          </p>
-          <p>Liquidez: {analysis.liquidity === null ? "Sin dato" : grouped(analysis.liquidity)}</p>
-          <p>Salud: × {grouped(analysis.health)}</p>
-        </div>
-      ) : null}
-      {analysis?.warnings.map((w) => (
-        <p key={w} className="text-xs text-amber-300">
-          {w}
-        </p>
-      ))}
       {draft ? (
         <div className="flex flex-col gap-4 rounded border border-neutral-800 p-3">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -322,6 +289,43 @@ export default function PricingFinancials({
           </details>
         </div>
       ) : null}
+      {analysis ? (
+        <div className="grid gap-2 text-xs text-neutral-500 sm:grid-cols-2">
+          {(
+            [
+              ["Utilidad operacional del periodo", analysis.profit],
+              ["Utilidad neta del periodo", analysis.net],
+              ["EBITDA aproximado", analysis.ebitda],
+              ["Ingresos operacionales mensuales", analysis.monthlyRevenue],
+            ] as const
+          ).map(([label, amount]) => (
+            <div key={label}>
+              {label}:{" "}
+              <span className="text-neutral-200">
+                {amount === null ? "Sin dato" : pricingMoney(amount)}
+              </span>
+              <PricingHelp label={label}>{pricingFieldHelp(label)!}</PricingHelp>
+            </div>
+          ))}
+          <p>
+            Margen operacional:{" "}
+            {analysis.margin === null ? "Sin dato" : `${grouped(analysis.margin * 100)} %`}
+          </p>
+          <p>
+            Endeudamiento:{" "}
+            {analysis.debt === null ? "Sin dato" : `${grouped(analysis.debt * 100)} %`}
+          </p>
+          <p>
+            Liquidez: {analysis.liquidity === null ? "Sin dato" : grouped(analysis.liquidity)}
+          </p>
+          <p>Salud: × {grouped(analysis.health)}</p>
+        </div>
+      ) : null}
+      {analysis?.warnings.map((w) => (
+        <p key={w} className="text-xs text-amber-300">
+          {w}
+        </p>
+      ))}
       <Toast result={outcome} onDismiss={() => setOutcome(null)} />
     </div>
   );

@@ -1,8 +1,9 @@
 "use client";
 
+import PricingInlineEditor, { usePricingEditorAnchor } from "./PricingInlineEditor";
 import PricingNumberInput from "./PricingNumberInput";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { PricingLocation, PricingMode, PricingScope, PricingUnit } from "@nassican/shared";
 import {
@@ -25,7 +26,13 @@ import {
   type IncomeEstimateDraft,
   type RegionFactorDraft,
 } from "@/lib/pricing-geography";
-import { grouped, modeLabels, pricingMoney, scopeLabels, unitLabels } from "@/lib/pricing-draft";
+import {
+  grouped,
+  modeLabels,
+  pricingMoney,
+  scopeLabels,
+  unitLabels,
+} from "@/lib/pricing-draft";
 import { isDirty, useUnsavedChanges } from "@/lib/use-unsaved";
 import { parseNumber } from "@/lib/draft-fields";
 import DateField from "./DateField";
@@ -57,7 +64,9 @@ export default function PricingRegions({
   const router = useRouter();
   const [factor, setFactor] = useState<RegionFactorDraft | null>(null);
   const [income, setIncome] = useState<IncomeEstimateDraft | null>(null);
-  const incomeEditor = useRef<HTMLDivElement>(null);
+  const factorPosition = usePricingEditorAnchor();
+  const incomePosition = usePricingEditorAnchor();
+  const [incomeAnchor, setIncomeAnchor] = useState<string | null>(null);
   const incomeCities = useMemo(
     () => incomeCityOptions(view.places, view.incomes),
     [view.places, view.incomes],
@@ -75,7 +84,9 @@ export default function PricingRegions({
     estimate: resolveRegionalIncome(view.incomes, incomeLocation, stratum),
   }));
   const regionalAverage = estimatedRegionalIncome(view.incomes, incomeLocation, null);
-  const selectedIncomeCity = incomeCities.find((city) => sameIncomeLocation(city, incomeLocation));
+  const selectedIncomeCity = incomeCities.find((city) =>
+    sameIncomeLocation(city, incomeLocation),
+  );
   const incomeMapCode = pricingDepartmentCode(incomeLocation, view.places);
   const displayedIncomeCities =
     fold(incomeLocation.country) === "colombia"
@@ -83,7 +94,11 @@ export default function PricingRegions({
       : [];
   const incomeMapEntries = Object.fromEntries(
     pricingMapDepartments(view.places).map((department) => {
-      const location = { country: "Colombia", department: department.name, municipality: "" };
+      const location = {
+        country: "Colombia",
+        department: department.name,
+        municipality: "",
+      };
       const base = estimatedRegionalIncome(
         view.incomes,
         department.code === incomeMapCode && incomeLocation.municipality
@@ -127,7 +142,12 @@ export default function PricingRegions({
     scope: PricingScope;
     unit: PricingUnit;
     mode: PricingMode;
-  }>({ serviceId: view.services[0]?.id ?? "", scope: "standard", unit: "project", mode: "remote" });
+  }>({
+    serviceId: view.services[0]?.id ?? "",
+    scope: "standard",
+    unit: "project",
+    mode: "remote",
+  });
   const [outcome, setOutcome] = useState<ToastResult | null>(null);
   const [pending, startTransition] = useTransition();
   useUnsavedChanges(
@@ -169,7 +189,10 @@ export default function PricingRegions({
   function updateFactor<K extends keyof RegionFactorDraft>(k: K, value: RegionFactorDraft[K]) {
     setFactor((d) => (d ? { ...d, [k]: value } : d));
   }
-  function updateIncome<K extends keyof IncomeEstimateDraft>(k: K, value: IncomeEstimateDraft[K]) {
+  function updateIncome<K extends keyof IncomeEstimateDraft>(
+    k: K,
+    value: IncomeEstimateDraft[K],
+  ) {
     setIncome((d) =>
       d
         ? k === "stratum"
@@ -178,7 +201,10 @@ export default function PricingRegions({
         : d,
     );
   }
-  function draftForIncome(location: PricingLocation, stratum: number | null): IncomeEstimateDraft {
+  function draftForIncome(
+    location: PricingLocation,
+    stratum: number | null,
+  ): IncomeEstimateDraft {
     const existing = estimatedRegionalIncome(view.incomes, location, stratum);
     const local = existing && sameIncomeLocation(existing, location) ? existing : null;
     return {
@@ -199,18 +225,186 @@ export default function PricingRegions({
   }
   function openIncome(stratum: number | null = null) {
     setIncome(draftForIncome(incomeLocation, stratum));
-    requestAnimationFrame(() =>
-      incomeEditor.current?.scrollIntoView({ block: "start", behavior: "smooth" }),
-    );
+    setIncomeAnchor(stratum === null ? "new" : `coverage:${stratum}`);
   }
+  const factorEditor = factor ? (
+    <div className="flex flex-col gap-4 rounded border border-neutral-800 p-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <PricingLocationFields
+          value={factor}
+          places={view.places}
+          onChange={(location) => setFactor((d) => (d ? { ...d, ...location } : d))}
+          labels={["País del factor", "Departamento del factor", "Municipio del factor"]}
+        />
+        <Label label="Servicio del factor">
+          <select
+            className={field}
+            value={factor.serviceId}
+            onChange={(e) => updateFactor("serviceId", e.target.value)}
+          >
+            <option value="">Todos los servicios</option>
+            {view.services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </Label>
+        <Label label="Modalidad del factor">
+          <select
+            className={field}
+            value={factor.mode}
+            onChange={(e) => updateFactor("mode", e.target.value as PricingMode)}
+          >
+            {Object.entries(modeLabels).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </Label>
+        <Label label="Factor manual">
+          <PricingNumberInput
+            className={field}
+            inputMode="decimal"
+            value={factor.factor}
+            onChange={(e) => updateFactor("factor", e.target.value)}
+          />
+        </Label>
+        <Label label="Fecha del factor">
+          <DateField
+            value={factor.date}
+            onChange={(v) => updateFactor("date", v)}
+            label="Fecha del factor"
+          />
+        </Label>
+      </div>
+      <Label label="Justificación del factor">
+        <textarea
+          className={field}
+          value={factor.justification}
+          onChange={(e) => updateFactor("justification", e.target.value)}
+        />
+      </Label>
+      <p className="break-words text-xs text-neutral-500">
+        Un factor distinto de 1 exige justificación y fecha. Al editar aquí, su origen será
+        manual y se mostrará como estimado.
+      </p>
+      {regionFactorProblems(factor).length ? (
+        <p className="text-xs text-amber-300">{regionFactorProblems(factor).join(" ")}</p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <button
+          className={primary}
+          disabled={pending || regionFactorProblems(factor).length > 0}
+          onClick={() =>
+            run(
+              () => saveRegionFactorAction(factor),
+              () => setFactor(null),
+            )
+          }
+        >
+          Guardar factor manual
+        </button>
+        <button className={button} disabled={pending} onClick={() => setFactor(null)}>
+          Cancelar factor
+        </button>
+      </div>
+    </div>
+  ) : null;
+  const incomeEditor = income ? (
+    <div className="flex scroll-mt-20 flex-col gap-4 rounded border border-neutral-800 p-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <PricingLocationFields
+          value={income}
+          places={view.places}
+          onChange={(location) =>
+            setIncome((d) =>
+              d
+                ? draftForIncome(location, d.stratum.trim() ? parseNumber(d.stratum) : null)
+                : d,
+            )
+          }
+          labels={[
+            "País del ingreso estimado",
+            "Departamento del ingreso estimado",
+            "Municipio del ingreso estimado",
+          ]}
+        />
+        <Label label="Estrato estimado">
+          <select
+            className={field}
+            value={income.stratum}
+            onChange={(e) => updateIncome("stratum", e.target.value)}
+          >
+            <option value="">Sin desglose, promedio regional</option>
+            {Array.from({ length: 7 }, (_, n) => (
+              <option key={n} value={n}>
+                {n}:{" "}
+                {estimatedRegionalIncome(view.incomes, income, n)
+                  ? "con referencia registrada"
+                  : resolveRegionalIncome(view.incomes, income, n)
+                    ? "modelo disponible"
+                    : "sin valor"}
+              </option>
+            ))}
+          </select>
+        </Label>
+        <Label label="Ingreso mensual estimado, COP">
+          <PricingNumberInput
+            className={field}
+            inputMode="decimal"
+            value={income.income}
+            onChange={(e) => updateIncome("income", e.target.value)}
+          />
+        </Label>
+        <Label label="Fecha del ingreso estimado">
+          <DateField
+            value={income.date}
+            onChange={(v) => updateIncome("date", v)}
+            label="Fecha del ingreso estimado"
+          />
+        </Label>
+      </div>
+      <Label label="Justificación del ingreso estimado">
+        <textarea
+          className={field}
+          value={income.justification}
+          onChange={(e) => updateIncome("justification", e.target.value)}
+        />
+      </Label>
+      {incomeEstimateProblems(income).length ? (
+        <p className="break-words text-xs text-neutral-500">
+          {incomeEstimateProblems(income).join(" ")}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <button
+          className={primary}
+          disabled={pending || incomeEstimateProblems(income).length > 0}
+          onClick={() =>
+            run(
+              () => saveIncomeEstimateAction(income),
+              () => setIncome(null),
+            )
+          }
+        >
+          Guardar ingreso estimado
+        </button>
+        <button className={button} disabled={pending} onClick={() => setIncome(null)}>
+          Cancelar estimación
+        </button>
+      </div>
+    </div>
+  ) : null;
   return (
     <div className="flex flex-col gap-6">
       <PricingTabs current="regions" />
       <header>
         <h1 className="text-xl font-semibold">Regiones</h1>
         <p className="mt-1 max-w-prose text-sm text-neutral-500">
-          Los factores se buscan por municipio, departamento y país. Sin evidencia regional, se usa
-          1 y se indica que no había datos.
+          Los factores se buscan por municipio, departamento y país. Sin evidencia regional, se
+          usa 1 y se indica que no había datos.
         </p>
         <p className="mt-2 text-xs text-neutral-500">
           Catálogo DIVIPOLA: {view.places.length} lugares.{" "}
@@ -226,9 +420,9 @@ export default function PricingRegions({
         </p>
         <p className="mt-2 max-w-prose text-xs text-neutral-500">
           La base DANE 2025 usa ingreso per cápita de hogares como referencia de presupuesto. El
-          factor de precio es un proxy comercial estimado, no una tarifa observada: raíz de la razón
-          regional/nacional, limitada entre 0,8 y 1,2. Hereda entre municipio, departamento y país
-          para todos los servicios y modalidades.{" "}
+          factor de precio es un proxy comercial estimado, no una tarifa observada: raíz de la
+          razón regional/nacional, limitada entre 0,8 y 1,2. Hereda entre municipio,
+          departamento y país para todos los servicios y modalidades.{" "}
           <a
             className="underline"
             href="https://www.dane.gov.co/index.php/estadisticas-por-tema/pobreza-y-condiciones-de-vida/pobreza-monetaria"
@@ -251,9 +445,25 @@ export default function PricingRegions({
         shown={filteredFactors.length + filteredIncomes.length}
       />
       <Section title="Factores regionales">
-        <button className={button} onClick={() => setFactor(emptyRegionFactor())}>
+        <button
+          className={button}
+          disabled={pending}
+          onClick={(event) => {
+            factorPosition.capture(event);
+            setFactor(emptyRegionFactor());
+          }}
+        >
           Añadir factor manual
         </button>
+        {factor && !factor.id ? (
+          <PricingInlineEditor
+            key="new-factor"
+            anchor={factorPosition.anchor}
+            label="Nuevo factor"
+          >
+            {factorEditor}
+          </PricingInlineEditor>
+        ) : null}
         {factorsPage.rows.map((f) => (
           <article
             key={f.id}
@@ -264,19 +474,35 @@ export default function PricingRegions({
                 {regionName(f)}: × {grouped(f.factor)}
               </h3>
               <p className="mt-1 text-xs text-neutral-500">
-                {f.origin === "observed" ? "Observado" : "Manual, estimado"}, {modeLabels[f.mode]},{" "}
-                {view.services.find((s) => s.id === f.serviceId)?.name ?? "todos los servicios"},{" "}
-                {f.date}. {f.justification}
+                {f.origin === "observed" ? "Observado" : "Manual, estimado"},{" "}
+                {modeLabels[f.mode]},{" "}
+                {view.services.find((s) => s.id === f.serviceId)?.name ?? "todos los servicios"}
+                , {f.date}. {f.justification}
               </p>
             </div>
             <button
               className={button}
-              onClick={() =>
-                setFactor({ ...f, serviceId: f.serviceId ?? "", factor: grouped(f.factor) })
-              }
+              disabled={pending || factor?.id === f.id}
+              onClick={(event) => {
+                factorPosition.capture(event);
+                setFactor({
+                  ...f,
+                  serviceId: f.serviceId ?? "",
+                  factor: grouped(f.factor),
+                });
+              }}
             >
               Editar factor
             </button>
+            {factor?.id === f.id ? (
+              <PricingInlineEditor
+                key={f.id}
+                anchor={factorPosition.anchor}
+                label="Editar factor"
+              >
+                {factorEditor}
+              </PricingInlineEditor>
+            ) : null}
           </article>
         ))}
         <Pager
@@ -285,97 +511,12 @@ export default function PricingRegions({
           label="factores"
           onPage={factorsPage.setPage}
         />
-        {factor ? (
-          <div className="flex flex-col gap-4 rounded border border-neutral-800 p-3">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <PricingLocationFields
-                value={factor}
-                places={view.places}
-                onChange={(location) => setFactor((d) => (d ? { ...d, ...location } : d))}
-                labels={["País del factor", "Departamento del factor", "Municipio del factor"]}
-              />
-              <Label label="Servicio del factor">
-                <select
-                  className={field}
-                  value={factor.serviceId}
-                  onChange={(e) => updateFactor("serviceId", e.target.value)}
-                >
-                  <option value="">Todos los servicios</option>
-                  {view.services.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </Label>
-              <Label label="Modalidad del factor">
-                <select
-                  className={field}
-                  value={factor.mode}
-                  onChange={(e) => updateFactor("mode", e.target.value as PricingMode)}
-                >
-                  {Object.entries(modeLabels).map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </Label>
-              <Label label="Factor manual">
-                <PricingNumberInput
-                  className={field}
-                  inputMode="decimal"
-                  value={factor.factor}
-                  onChange={(e) => updateFactor("factor", e.target.value)}
-                />
-              </Label>
-              <Label label="Fecha del factor">
-                <DateField
-                  value={factor.date}
-                  onChange={(v) => updateFactor("date", v)}
-                  label="Fecha del factor"
-                />
-              </Label>
-            </div>
-            <Label label="Justificación del factor">
-              <textarea
-                className={field}
-                value={factor.justification}
-                onChange={(e) => updateFactor("justification", e.target.value)}
-              />
-            </Label>
-            <p className="break-words text-xs text-neutral-500">
-              Un factor distinto de 1 exige justificación y fecha. Al editar aquí, su origen será
-              manual y se mostrará como estimado.
-            </p>
-            {regionFactorProblems(factor).length ? (
-              <p className="text-xs text-amber-300">{regionFactorProblems(factor).join(" ")}</p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              <button
-                className={primary}
-                disabled={pending || regionFactorProblems(factor).length > 0}
-                onClick={() =>
-                  run(
-                    () => saveRegionFactorAction(factor),
-                    () => setFactor(null),
-                  )
-                }
-              >
-                Guardar factor manual
-              </button>
-              <button className={button} onClick={() => setFactor(null)}>
-                Cancelar factor
-              </button>
-            </div>
-          </div>
-        ) : null}
       </Section>
       <Section title="Factor observado a partir del mercado">
         <p className="break-words text-xs text-neutral-500">
-          Mediana regional dividida por la mediana de referencia. Se necesitan al menos tres precios
-          observados en cada región, del mismo servicio, alcance, unidad y modalidad; cada
-          referencia cuenta una sola vez.
+          Mediana regional dividida por la mediana de referencia. Se necesitan al menos tres
+          precios observados en cada región, del mismo servicio, alcance, unidad y modalidad;
+          cada referencia cuenta una sola vez.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-3">
@@ -449,11 +590,11 @@ export default function PricingRegions({
       </Section>
       <Section title="Ingresos estimados por estrato y región">
         <p className="break-words text-xs text-neutral-500">
-          Solo se usan si no hay ingreso conocido. Siempre se marcan como estimados. El estrato 0
-          significa sin estrato o vivienda informal en este panel. Un promedio regional no es un
-          desglose por estrato. Cuando falta un valor registrado, el modelo comercial estima un
-          escenario desde la base municipal, departamental o nacional, en ese orden. Las referencias
-          per cápita del hogar no son salarios personales ni ingresos verificados.
+          Solo se usan si no hay ingreso conocido. Siempre se marcan como estimados. El estrato
+          0 significa sin estrato o vivienda informal en este panel. Un promedio regional no es
+          un desglose por estrato. Cuando falta un valor registrado, el modelo comercial estima
+          un escenario desde la base municipal, departamental o nacional, en ese orden. Las
+          referencias per cápita del hogar no son salarios personales ni ingresos verificados.
         </p>
         <PricingRegionMap
           places={view.places}
@@ -486,9 +627,9 @@ export default function PricingRegions({
           }}
         />
         <p className="text-xs text-neutral-500">
-          El mapa muestra cobertura de referencias registradas, no ingresos observados de todos los
-          municipios. Selecciona el municipio para distinguir una base local de una heredada y de
-          los escenarios comerciales por estrato.
+          El mapa muestra cobertura de referencias registradas, no ingresos observados de todos
+          los municipios. Selecciona el municipio para distinguir una base local de una heredada
+          y de los escenarios comerciales por estrato.
         </p>
         <div
           className="flex flex-wrap gap-3 text-xs text-neutral-500"
@@ -521,7 +662,12 @@ export default function PricingRegions({
                   department: city.department,
                   municipality: city.municipality,
                 });
-              else setIncomeLocation({ country: "Colombia", department: "", municipality: "" });
+              else
+                setIncomeLocation({
+                  country: "Colombia",
+                  department: "",
+                  municipality: "",
+                });
             }}
           >
             <option value="">Otra región o municipio</option>
@@ -534,9 +680,9 @@ export default function PricingRegions({
         </Label>
         <p className="text-xs text-neutral-500">
           El catálogo contiene {incomeCities.length} lugares de DIVIPOLA. El selector muestra{" "}
-          {displayedIncomeCities.length} opciones de la región elegida. Cambia el departamento para
-          consultar sus municipios; cada opción indica las referencias registradas y la base del
-          modelo.
+          {displayedIncomeCities.length} opciones de la región elegida. Cambia el departamento
+          para consultar sus municipios; cada opción indica las referencias registradas y la
+          base del modelo.
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           <PricingLocationFields
@@ -580,56 +726,86 @@ export default function PricingRegions({
             </thead>
             <tbody>
               {incomeCoverage.map(({ stratum, estimate }) => (
-                <tr key={stratum} className="border-t border-neutral-800 align-top">
-                  <th className="py-3 pr-3 font-normal">
-                    {stratum === 0 ? "0 · Sin estrato" : stratum}
-                  </th>
-                  <td className="px-2 py-3 tabular-nums">
-                    {estimate ? pricingMoney(estimate.income) : "Sin dato por estrato"}
-                  </td>
-                  <td className="px-2 py-3">{estimate?.date ?? "—"}</td>
-                  <td className="px-2 py-3">
-                    {estimate ? (
-                      <>
-                        <p>
-                          {estimate.modeled
-                            ? "Estimación del modelo comercial"
-                            : "Referencia registrada"}
-                        </p>
-                        <p>
-                          {estimate.baseline
-                            ? `Base: ${regionName(estimate.baseline)}`
-                            : regionName(estimate)}
-                        </p>
-                        <details className="mt-1">
-                          <summary className="cursor-pointer underline">
-                            Fuente y metodología
-                          </summary>
-                          <p className="mt-2 max-w-prose break-words">{estimate.justification}</p>
-                          {estimate.justification.match(/https?:\/\/\S+/)?.[0] ? (
-                            <a
-                              className="mt-2 block underline"
-                              href={estimate.justification.match(/https?:\/\/\S+/)![0]}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Ver fuente
-                            </a>
-                          ) : null}
-                        </details>
-                      </>
-                    ) : (
-                      "No hay una estimación configurada para este estrato y región."
-                    )}
-                  </td>
-                  <td className="px-2 py-3">
-                    <button className={button} onClick={() => openIncome(stratum)}>
-                      {estimate && !estimate.modeled && sameIncomeLocation(estimate, incomeLocation)
-                        ? "Editar valor"
-                        : "Ingresar valor"}
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={stratum}>
+                  <tr className="border-t border-neutral-800 align-top">
+                    <th className="py-3 pr-3 font-normal">
+                      {stratum === 0 ? "0 · Sin estrato" : stratum}
+                    </th>
+                    <td className="px-2 py-3 tabular-nums">
+                      {estimate ? pricingMoney(estimate.income) : "Sin dato por estrato"}
+                    </td>
+                    <td className="px-2 py-3">{estimate?.date ?? "—"}</td>
+                    <td className="px-2 py-3">
+                      {estimate ? (
+                        <>
+                          <p>
+                            {estimate.modeled
+                              ? "Estimación del modelo comercial"
+                              : "Referencia registrada"}
+                          </p>
+                          <p>
+                            {estimate.baseline
+                              ? `Base: ${regionName(estimate.baseline)}`
+                              : regionName(estimate)}
+                          </p>
+                          <details className="mt-1">
+                            <summary className="cursor-pointer underline">
+                              Fuente y metodología
+                            </summary>
+                            <p className="mt-2 max-w-prose break-words">
+                              {estimate.justification}
+                            </p>
+                            {estimate.justification.match(/https?:\/\/\S+/)?.[0] ? (
+                              <a
+                                className="mt-2 block underline"
+                                href={estimate.justification.match(/https?:\/\/\S+/)![0]}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Ver fuente
+                              </a>
+                            ) : null}
+                          </details>
+                        </>
+                      ) : (
+                        "No hay una estimación configurada para este estrato y región."
+                      )}
+                    </td>
+                    <td className="px-2 py-3">
+                      <button
+                        className={button}
+                        disabled={
+                          pending || (income !== null && incomeAnchor === `coverage:${stratum}`)
+                        }
+                        onClick={(event) => {
+                          incomePosition.capture(event);
+                          openIncome(stratum);
+                        }}
+                      >
+                        {estimate &&
+                        !estimate.modeled &&
+                        sameIncomeLocation(estimate, incomeLocation)
+                          ? "Editar valor"
+                          : "Ingresar valor"}
+                      </button>
+                    </td>
+                  </tr>
+                  {income && incomeAnchor === `coverage:${stratum}` ? (
+                    <tr>
+                      <td colSpan={5} className="py-3">
+                        <div className="sticky left-0 w-[calc(100vw-4rem)] max-w-full sm:w-full">
+                          <PricingInlineEditor
+                            key={incomeAnchor}
+                            anchor={incomePosition.anchor}
+                            label="Editar ingreso por estrato"
+                          >
+                            {incomeEditor}
+                          </PricingInlineEditor>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -637,14 +813,31 @@ export default function PricingRegions({
         <p className="text-xs text-neutral-500">
           Bogotá, estratos 1–6: la tabla de SDM usa la Encuesta Multipropósito 2021 y valores de
           referencia de 2024. Las demás celdas sin referencia registrada usan escenarios
-          comerciales: base × 0,5; 0,75; 1; 1,5; 2,25; 3 para estratos 1–6, redondeados a $10.000.
-          Estos coeficientes son supuestos de presupuesto, no resultados del DANE ni ingresos
-          medidos. Estrato 0 usa la base × 1 porque no permite inferir capacidad económica. El año
-          mostrado pertenece a la base; no representa ingresos medidos en 2026.
+          comerciales: base × 0,5; 0,75; 1; 1,5; 2,25; 3 para estratos 1–6, redondeados a
+          $10.000. Estos coeficientes son supuestos de presupuesto, no resultados del DANE ni
+          ingresos medidos. Estrato 0 usa la base × 1 porque no permite inferir capacidad
+          económica. El año mostrado pertenece a la base; no representa ingresos medidos en
+          2026.
         </p>
-        <button className={button} onClick={() => openIncome()}>
+        <button
+          className={button}
+          disabled={pending}
+          onClick={(event) => {
+            incomePosition.capture(event);
+            openIncome();
+          }}
+        >
           Añadir ingreso estimado
         </button>
+        {income && incomeAnchor === "new" ? (
+          <PricingInlineEditor
+            key="new-income"
+            anchor={incomePosition.anchor}
+            label="Nuevo ingreso estimado"
+          >
+            {incomeEditor}
+          </PricingInlineEditor>
+        ) : null}
         {incomesPage.rows.map((r) => (
           <article
             key={r.id}
@@ -664,16 +857,28 @@ export default function PricingRegions({
             </div>
             <button
               className={button}
-              onClick={() =>
+              disabled={pending || (income !== null && incomeAnchor === `record:${r.id}`)}
+              onClick={(event) => {
+                incomePosition.capture(event);
+                setIncomeAnchor(`record:${r.id}`);
                 setIncome({
                   ...r,
                   stratum: r.stratum === null ? "" : String(r.stratum),
                   income: grouped(r.income),
-                })
-              }
+                });
+              }}
             >
               Editar estimación
             </button>
+            {income && incomeAnchor === `record:${r.id}` ? (
+              <PricingInlineEditor
+                key={incomeAnchor}
+                anchor={incomePosition.anchor}
+                label="Editar estimación"
+              >
+                {incomeEditor}
+              </PricingInlineEditor>
+            ) : null}
           </article>
         ))}
         <Pager
@@ -682,94 +887,6 @@ export default function PricingRegions({
           label="estimaciones"
           onPage={incomesPage.setPage}
         />
-        {income ? (
-          <div
-            ref={incomeEditor}
-            className="flex scroll-mt-20 flex-col gap-4 rounded border border-neutral-800 p-3"
-          >
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <PricingLocationFields
-                value={income}
-                places={view.places}
-                onChange={(location) =>
-                  setIncome((d) =>
-                    d
-                      ? draftForIncome(location, d.stratum.trim() ? parseNumber(d.stratum) : null)
-                      : d,
-                  )
-                }
-                labels={[
-                  "País del ingreso estimado",
-                  "Departamento del ingreso estimado",
-                  "Municipio del ingreso estimado",
-                ]}
-              />
-              <Label label="Estrato estimado">
-                <select
-                  className={field}
-                  value={income.stratum}
-                  onChange={(e) => updateIncome("stratum", e.target.value)}
-                >
-                  <option value="">Sin desglose, promedio regional</option>
-                  {Array.from({ length: 7 }, (_, n) => (
-                    <option key={n} value={n}>
-                      {n}:{" "}
-                      {estimatedRegionalIncome(view.incomes, income, n)
-                        ? "con referencia registrada"
-                        : resolveRegionalIncome(view.incomes, income, n)
-                          ? "modelo disponible"
-                          : "sin valor"}
-                    </option>
-                  ))}
-                </select>
-              </Label>
-              <Label label="Ingreso mensual estimado, COP">
-                <PricingNumberInput
-                  className={field}
-                  inputMode="decimal"
-                  value={income.income}
-                  onChange={(e) => updateIncome("income", e.target.value)}
-                />
-              </Label>
-              <Label label="Fecha del ingreso estimado">
-                <DateField
-                  value={income.date}
-                  onChange={(v) => updateIncome("date", v)}
-                  label="Fecha del ingreso estimado"
-                />
-              </Label>
-            </div>
-            <Label label="Justificación del ingreso estimado">
-              <textarea
-                className={field}
-                value={income.justification}
-                onChange={(e) => updateIncome("justification", e.target.value)}
-              />
-            </Label>
-            {incomeEstimateProblems(income).length ? (
-              <p className="break-words text-xs text-neutral-500">
-                {incomeEstimateProblems(income).join(" ")}
-              </p>
-            ) : null}
-            <div className="flex gap-2">
-              <button
-                className={primary}
-                disabled={pending || incomeEstimateProblems(income).length > 0}
-                onClick={() =>
-                  run(
-                    () => saveIncomeEstimateAction(income),
-                    () => setIncome(null),
-                  )
-                }
-              >
-                Guardar ingreso estimado
-              </button>
-              <button className={button} onClick={() => setIncome(null)}>
-                Cancelar estimación
-              </button>
-            </div>
-          </div>
-        ) : null}
       </Section>
       <Toast result={outcome} onDismiss={() => setOutcome(null)} />
     </div>

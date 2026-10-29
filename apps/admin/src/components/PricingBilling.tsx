@@ -131,7 +131,10 @@ export default function PricingBilling({
         setResult(response);
         if (response.ok) router.refresh();
       } catch {
-        setResult({ ok: false, message: "No se pudo completar la operación. Revisa la conexión." });
+        setResult({
+          ok: false,
+          message: "No se pudo completar la operación. Revisa la conexión.",
+        });
       }
     });
   }
@@ -247,7 +250,10 @@ export default function PricingBilling({
         </p>
       </header>
       {!view.ready ? (
-        <p role="status" className="rounded border border-neutral-800 p-4 text-sm text-neutral-500">
+        <p
+          role="status"
+          className="rounded border border-neutral-800 p-4 text-sm text-neutral-500"
+        >
           La migración de cobros está pendiente. Puedes revisar y preparar las cuotas; guardar y
           emitir se habilitará al activar la base de datos.
         </p>
@@ -315,8 +321,8 @@ export default function PricingBilling({
               </Link>
             ) : (
               <p className="max-w-sm text-xs text-neutral-500">
-                Al aceptar la cotización se conectará el proyecto. Puedes definir sus cuotas desde
-                ahora.
+                Al aceptar la cotización se conectará el proyecto. Puedes definir sus cuotas
+                desde ahora.
               </p>
             )}
           </div>
@@ -383,18 +389,6 @@ export default function PricingBilling({
                 </p>
               ) : null}
             </div>
-          ) : null}
-          {view.plan?.details.paymentMode === "flexible" ? (
-            <FlexibleProjectPayments
-              plan={view.plan}
-              source={source}
-              today={view.today}
-              ready={view.ready}
-              dirty={dirty}
-              pending={pending}
-              run={run}
-              onDirtyChange={setPaymentDirty}
-            />
           ) : null}
           <details
             id="billing-configuration"
@@ -508,8 +502,8 @@ export default function PricingBilling({
                     </fieldset>
                     {locked ? (
                       <p className="text-xs text-neutral-500">
-                        Los datos y las cuotas quedan congelados al emitir la primera cuenta. Sus
-                        PDF conservan la identificación original.
+                        Los datos y las cuotas quedan congelados al emitir la primera cuenta.
+                        Sus PDF conservan la identificación original.
                       </p>
                     ) : null}
                   </div>
@@ -541,9 +535,9 @@ export default function PricingBilling({
                 </Label>
                 {draft.mode === "flexible" ? (
                   <p className="text-sm text-neutral-500">
-                    No necesitas repartir el total ni definir cuántos pagos habrá. Guarda el acuerdo
-                    y agrega cada pago cuando lo recibas. También puedes anotar un próximo pago con
-                    importe o fecha por acordar.
+                    No necesitas repartir el total ni definir cuántos pagos habrá. Guarda el
+                    acuerdo y agrega cada pago cuando lo recibas. También puedes anotar un
+                    próximo pago con importe o fecha por acordar.
                   </p>
                 ) : null}
                 <fieldset disabled={pending || locked} className="flex flex-col gap-4">
@@ -619,7 +613,9 @@ export default function PricingBilling({
                               />
                               {calculation.details ? (
                                 <span className="text-xs text-neutral-500">
-                                  {money(Number(calculation.details.installments[index].amount))}
+                                  {money(
+                                    Number(calculation.details.installments[index].amount),
+                                  )}
                                 </span>
                               ) : null}
                             </Label>
@@ -654,7 +650,9 @@ export default function PricingBilling({
                         className={field}
                         rows={3}
                         value={draft.paymentTerms}
-                        onChange={(e) => setDraft((d) => ({ ...d, paymentTerms: e.target.value }))}
+                        onChange={(e) =>
+                          setDraft((d) => ({ ...d, paymentTerms: e.target.value }))
+                        }
                       />
                     </Label>
                     <Label
@@ -665,7 +663,9 @@ export default function PricingBilling({
                         className={field}
                         rows={3}
                         value={draft.deliveryTerms}
-                        onChange={(e) => setDraft((d) => ({ ...d, deliveryTerms: e.target.value }))}
+                        onChange={(e) =>
+                          setDraft((d) => ({ ...d, deliveryTerms: e.target.value }))
+                        }
                       />
                     </Label>
                   </div>
@@ -694,7 +694,8 @@ export default function PricingBilling({
                 ) : (
                   <p className="text-sm">
                     Distribuido: <strong>{money(source.amount)}</strong> en{" "}
-                    {draft.installments.length} cuota{draft.installments.length === 1 ? "" : "s"}.
+                    {draft.installments.length} cuota
+                    {draft.installments.length === 1 ? "" : "s"}.
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3">
@@ -719,11 +720,24 @@ export default function PricingBilling({
               </Section>
             </div>
           </details>
+          {view.plan?.details.paymentMode === "flexible" ? (
+            <FlexibleProjectPayments
+              plan={view.plan}
+              source={source}
+              today={view.today}
+              ready={view.ready}
+              dirty={dirty}
+              pending={pending}
+              run={run}
+              onDirtyChange={setPaymentDirty}
+            />
+          ) : null}
           {view.plan && view.plan.details.paymentMode !== "flexible" ? (
             <Section title="Cuentas de cobro y abonos">
               {!source.canIssue ? (
                 <p className="text-sm text-neutral-500">
-                  Confirma arriba la aceptación del cliente para habilitar la emisión de cuentas.
+                  Confirma arriba la aceptación del cliente para habilitar la emisión de
+                  cuentas.
                 </p>
               ) : null}
               {dirty ? (
@@ -755,7 +769,10 @@ export default function PricingBilling({
                             className={field}
                             value={concepts[quota.id] ?? `${source.title} — ${quota.label}`}
                             onChange={(e) =>
-                              setConcepts((current) => ({ ...current, [quota.id]: e.target.value }))
+                              setConcepts((current) => ({
+                                ...current,
+                                [quota.id]: e.target.value,
+                              }))
                             }
                           />
                         </Label>
@@ -796,8 +813,8 @@ export default function PricingBilling({
                 );
               })}
               <p className="text-xs text-neutral-500">
-                Una cuenta de cobro no declara tu situación tributaria ni sustituye los documentos
-                fiscales que correspondan.{" "}
+                Una cuenta de cobro no declara tu situación tributaria ni sustituye los
+                documentos fiscales que correspondan.{" "}
                 <a
                   className="underline"
                   href="https://micrositios.dian.gov.co/sistema-de-facturacion-electronica/documento-soporte-adquisiciones-no-obligados/"
@@ -872,7 +889,9 @@ function ChargeRow({
       ) : null}
       {!charge.canceled && remaining > 0 ? (
         <details className="mt-3">
-          <summary className="cursor-pointer text-xs font-medium">Registrar abono recibido</summary>
+          <summary className="cursor-pointer text-xs font-medium">
+            Registrar abono recibido
+          </summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <Label
               label="Importe del abono"
