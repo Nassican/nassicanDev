@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { BsBoxArrowUpRight, BsChevronDown, BsPencil, BsPlus, BsTrash, BsX } from "react-icons/bs";
 import type { ClientProjectStatus } from "@nassican/db";
 import DateField from "@/components/DateField";
@@ -145,6 +146,7 @@ export default function ClientProjectsModule({ view, actions }: { view: ClientPr
                 </span>
               ) : null}
               {p.amount !== null && p.currency ? <span>{money(p.amount, p.currency)}</span> : null}
+              {p.billing ? <span>Abonos: {money(p.billing.received, p.billing.currency)} · Saldo del acuerdo: {money(p.billing.remaining, p.billing.currency)}</span> : null}
             </span>
           </button>
           <div className="flex w-full shrink-0 items-center gap-1 sm:w-auto">
@@ -168,6 +170,7 @@ export default function ClientProjectsModule({ view, actions }: { view: ClientPr
             ))}
           </select>
           <span className="flex shrink-0 gap-1">
+            <Link className={small} href={`/precios/cobros?projectId=${p.id}`} aria-label={`Cuotas y cobros de ${p.title}`}>Cobros</Link>
             <button
               type="button"
               aria-label={`Editar ${p.title}`}

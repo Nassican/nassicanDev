@@ -1,6 +1,7 @@
 import type { Prisma } from "../generated/prisma";
 import type { ContentBlock } from "@nassican/shared";
 import type { PricingSnapshot } from "@nassican/shared";
+import type { BillingIssuer, BillingPlanDetails, ChargeSnapshot } from "@nassican/shared";
 import type { Snapshot } from "./backup";
 
 /**
@@ -12,6 +13,9 @@ import type { Snapshot } from "./backup";
  * `ContentBlock[]` gave while the content lived in TypeScript modules.
  */
 export const prismaJson = {
+  billing(value: BillingIssuer | BillingPlanDetails | ChargeSnapshot): Prisma.InputJsonValue {
+    return value as unknown as Prisma.InputJsonValue;
+  },
   pricing(value: PricingSnapshot): Prisma.InputJsonValue {
     return value as unknown as Prisma.InputJsonValue;
   },

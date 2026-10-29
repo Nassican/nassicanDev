@@ -4,12 +4,23 @@ import { revalidatePath } from "next/cache";
 import type { ClientProjectStatus } from "@nassican/db";
 import { calendarDate } from "@nassican/shared";
 import { logAudit } from "@/lib/audit";
-import { clientProjectProblems, statusLabel, type ClientProjectDraft } from "@/lib/client-project-draft";
-import { addEntry, deleteEntry, saveClientProject, setFinishedAt, setStatus } from "@/lib/client-projects";
+import {
+  clientProjectProblems,
+  statusLabel,
+  type ClientProjectDraft,
+} from "@/lib/client-project-draft";
+import {
+  addEntry,
+  deleteEntry,
+  saveClientProject,
+  setFinishedAt,
+  setStatus,
+} from "@/lib/client-projects";
 import { isPartialDate } from "@/lib/draft-fields";
 import { parseQuick } from "@/lib/quick-edit";
 import { requireUser } from "@/lib/session";
 import { getTimezone } from "@/lib/site-config";
+import { BillingInputError } from "@/lib/billing-values";
 import { TRASH_DAYS, moveToTrash } from "@/lib/trash";
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
@@ -25,7 +36,14 @@ export async function saveClientProjectAction(draft: ClientProjectDraft): Promis
   const problems = clientProjectProblems(draft);
   if (problems.length > 0) return { ok: false, message: problems.join(" ") };
 
-  const { id, created } = await saveClientProject(draft);
+  let saved: Awaited<ReturnType<typeof saveClientProject>>;
+  try {
+    saved = await saveClientProject(draft);
+  } catch (error) {
+    if (error instanceof BillingInputError) return { ok: false, message: error.message };
+    throw error;
+  }
+  const { id, created } = saved;
   await logAudit({
     userId: user.id,
     action: created ? "create" : "update",
@@ -34,14 +52,26 @@ export async function saveClientProjectAction(draft: ClientProjectDraft): Promis
     diff: { title: draft.title.trim() },
   });
   refresh();
-  return { ok: true, message: created ? `«${draft.title.trim()}» añadido.` : `«${draft.title.trim()}» guardado.` };
+  return {
+    ok: true,
+    message: created ? `«${draft.title.trim()}» añadido.` : `«${draft.title.trim()}» guardado.`,
+  };
 }
 
-export async function changeClientProjectStatus(id: string, status: ClientProjectStatus): Promise<ActionResult> {
+export async function changeClientProjectStatus(
+  id: string,
+  status: ClientProjectStatus,
+): Promise<ActionResult> {
   const user = await requireUser();
   const today = calendarDate(await getTimezone());
   const { title } = await setStatus(id, status, today);
-  await logAudit({ userId: user.id, action: "update", entityType: "client_project", entityId: id, diff: { title, status } });
+  await logAudit({
+    userId: user.id,
+    action: "update",
+    entityType: "client_project",
+    entityId: id,
+    diff: { title, status },
+  });
   refresh();
   return { ok: true, message: `«${title}»: ${statusLabel(status).toLowerCase()}.` };
 }
@@ -51,7 +81,8 @@ export async function setClientProjectFinishedAt(id: string, raw: string): Promi
   await requireUser();
   const text = raw === "today" ? calendarDate(await getTimezone()) : raw;
   const parsed = parseQuick("date", text);
-  if (!parsed.ok || typeof parsed.value !== "string") return { ok: false, message: parsed.ok ? "Falta la fecha." : parsed.message };
+  if (!parsed.ok || typeof parsed.value !== "string")
+    return { ok: false, message: parsed.ok ? "Falta la fecha." : parsed.message };
   const title = await setFinishedAt(id, parsed.value);
   refresh();
   return { ok: true, message: `«${title}» terminado el ${parsed.value}.` };
@@ -82,7 +113,10 @@ export async function logProgress(
     diff: { title, entry: true, ...(started ? { status: "in_progress" } : {}) },
   });
   refresh();
-  return { ok: true, message: started ? `Avance anotado, y «${title}» pasó a en marcha.` : "Avance anotado." };
+  return {
+    ok: true,
+    message: started ? `Avance anotado, y «${title}» pasó a en marcha.` : "Avance anotado.",
+  };
 }
 
 export async function removeProgress(entryId: string): Promise<ActionResult> {
@@ -95,7 +129,16 @@ export async function removeProgress(entryId: string): Promise<ActionResult> {
 export async function deleteClientProject(id: string, title: string): Promise<ActionResult> {
   const user = await requireUser();
   await moveToTrash("client_project", id, user.id);
-  await logAudit({ userId: user.id, action: "delete", entityType: "client_project", entityId: id, diff: { title, trash: true } });
+  await logAudit({
+    userId: user.id,
+    action: "delete",
+    entityType: "client_project",
+    entityId: id,
+    diff: { title, trash: true },
+  });
   refresh();
-  return { ok: true, message: `«${title}» está en la papelera durante ${TRASH_DAYS} días, con sus avances.` };
+  return {
+    ok: true,
+    message: `«${title}» está en la papelera durante ${TRASH_DAYS} días, con sus avances.`,
+  };
 }

@@ -11,6 +11,8 @@ import {
 } from "@/lib/client-project-draft";
 import { blankToNull, parseNumber } from "@/lib/draft-fields";
 import { getTimezone } from "@/lib/site-config";
+import { billingAvailable } from "./billing";
+import { BillingInputError, billingMinor, parseBillingDetails } from "./billing-values";
 
 export type ClientProjectEntryRow = { id: string; at: string; text: string; hours: number | null };
 
@@ -35,6 +37,7 @@ export type ClientProjectRow = {
   daysQuiet: number | null;
   late: boolean;
   quiet: boolean;
+  billing?: { received: number; remaining: number; amount: number; currency: string };
 };
 
 export type ClientProjectsView = {
@@ -53,10 +56,33 @@ export async function getClientProjects(): Promise<ClientProjectsView> {
     getTimezone(),
   ]);
   const today = calendarDate(timezone);
+  const plans = (await billingAvailable())
+    ? await db.billingPlan.findMany({
+        where: { projectId: { in: rows.map((r) => r.id) } },
+        include: { charges: { where: { canceledAt: null }, include: { receipts: true } } },
+      })
+    : [];
 
   const view = rows.map((r): ClientProjectRow => {
     const entries = r.entries.map((e) => ({ id: e.id, at: e.at, text: e.text, hours: e.hours }));
     const lastActivity = entries[0]?.at ?? null;
+    const plan = plans.find((p) => p.projectId === r.id);
+    const flexibleReceived = plan
+      ? (
+          parseBillingDetails(plan.details, Number(plan.amount)).flexiblePayments?.receipts ?? []
+        ).reduce((sum, receipt) => sum + billingMinor(receipt.amount), BigInt(0))
+      : BigInt(0);
+    const received =
+      flexibleReceived +
+      (plan?.charges.reduce(
+        (sum, c) =>
+          sum +
+          c.receipts.reduce(
+            (total, receipt) => total + billingMinor(receipt.amount.toString()),
+            BigInt(0),
+          ),
+        BigInt(0),
+      ) ?? BigInt(0));
     return {
       id: r.id,
       title: r.title,
@@ -77,10 +103,23 @@ export async function getClientProjects(): Promise<ClientProjectsView> {
       daysQuiet: daysBetween(lastActivity, today),
       late: isLate(r.dueDate, r.status, today),
       quiet: isQuiet(r.status, lastActivity ?? r.startedAt, today),
+      ...(plan
+        ? {
+            billing: {
+              amount: Number(plan.amount),
+              currency: plan.currency,
+              received: Number(received) / 100,
+              remaining: Number(billingMinor(plan.amount.toString()) - received) / 100,
+            },
+          }
+        : {}),
     };
   });
 
-  const counts = { not_started: 0, in_progress: 0, finished: 0 } satisfies Record<ClientProjectStatus, number>;
+  const counts = { not_started: 0, in_progress: 0, finished: 0 } satisfies Record<
+    ClientProjectStatus,
+    number
+  >;
   for (const r of view) counts[r.status]++;
 
   return {
@@ -109,9 +148,46 @@ function toRow(draft: ClientProjectDraft) {
   };
 }
 
-export async function saveClientProject(draft: ClientProjectDraft): Promise<{ id: string; created: boolean }> {
+export async function saveClientProject(
+  draft: ClientProjectDraft,
+): Promise<{ id: string; created: boolean }> {
   if (draft.id) {
-    await db.clientProject.update({ where: { id: draft.id }, data: toRow(draft) });
+    const ready = await billingAvailable();
+    await db.$transaction(
+      async (tx) => {
+        const current = await tx.clientProject.findUniqueOrThrow({
+          where: { id: draft.id },
+          include: { pricingQuote: { select: { final: true, currency: true } } },
+        });
+        const data = toRow(draft);
+        if (
+          current.pricingQuote &&
+          (data.amount !== Number(current.pricingQuote.final) ||
+            data.currency !== current.pricingQuote.currency)
+        )
+          throw new BillingInputError(
+            "El importe pertenece a una cotización aceptada. Conserva su acuerdo; crea una nueva propuesta para cambiarlo.",
+          );
+        const plan = ready
+          ? await tx.billingPlan.findUnique({
+              where: { projectId: draft.id },
+              include: { _count: { select: { charges: true } } },
+            })
+          : null;
+        if (
+          plan &&
+          (plan._count.charges > 0 ||
+            (parseBillingDetails(plan.details, Number(plan.amount)).flexiblePayments?.receipts
+              .length ?? 0) > 0) &&
+          (data.amount !== Number(plan.amount) || data.currency !== plan.currency)
+        )
+          throw new BillingInputError(
+            "Este proyecto ya tiene cuentas emitidas o pagos recibidos. No se puede cambiar el total ni la moneda del acuerdo.",
+          );
+        await tx.clientProject.update({ where: { id: draft.id }, data });
+      },
+      { isolationLevel: "Serializable" },
+    );
     return { id: draft.id, created: false };
   }
   const row = await db.clientProject.create({ data: toRow(draft), select: { id: true } });
@@ -129,16 +205,24 @@ export async function setStatus(
   status: ClientProjectStatus,
   today: string,
 ): Promise<{ title: string; finishedAt: string | null }> {
-  const current = await db.clientProject.findUniqueOrThrow({ where: { id }, select: { startedAt: true } });
+  const current = await db.clientProject.findUniqueOrThrow({
+    where: { id },
+    select: { startedAt: true },
+  });
   return db.clientProject.update({
     where: { id },
-    data: { status, ...(status === "in_progress" && !current.startedAt ? { startedAt: today } : {}) },
+    data: {
+      status,
+      ...(status === "in_progress" && !current.startedAt ? { startedAt: today } : {}),
+    },
     select: { title: true, finishedAt: true },
   });
 }
 
 export async function setFinishedAt(id: string, finishedAt: string): Promise<string> {
-  return (await db.clientProject.update({ where: { id }, data: { finishedAt }, select: { title: true } })).title;
+  return (
+    await db.clientProject.update({ where: { id }, data: { finishedAt }, select: { title: true } })
+  ).title;
 }
 
 /**
@@ -173,7 +257,16 @@ export async function deleteEntry(entryId: string): Promise<void> {
 }
 
 /** For «Hoy»: what is in progress, and how long since it moved. */
-export async function activeWork(today: string): Promise<{ id: string; title: string; company: string; daysQuiet: number | null; quiet: boolean; late: boolean }[]> {
+export async function activeWork(today: string): Promise<
+  {
+    id: string;
+    title: string;
+    company: string;
+    daysQuiet: number | null;
+    quiet: boolean;
+    late: boolean;
+  }[]
+> {
   const rows = await db.clientProject.findMany({
     where: { status: "in_progress" },
     select: {

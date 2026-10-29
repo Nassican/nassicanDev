@@ -12,6 +12,7 @@ import { getCertificates } from "@/lib/data/certificates";
 import { getEducation } from "@/lib/data/education";
 import { getExperience } from "@/lib/data/experience";
 import { getProfile } from "@/lib/data/profile";
+import { getSkillGroups } from "@/lib/data/technologies";
 import { getSeoSettings } from "@/lib/data/seo-settings";
 import { getNavigation, getSiteSettings } from "@/lib/data/site-config";
 import { isPreview } from "@/lib/data/preview";
@@ -47,9 +48,7 @@ export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
 
-export async function generateMetadata({
-  params,
-}: LayoutParams): Promise<Metadata> {
+export async function generateMetadata({ params }: LayoutParams): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
@@ -61,8 +60,7 @@ export async function generateMetadata({
    * than blanking the tag.
    */
   const title = seo?.defaultTitle[locale]?.trim() || t.meta.title;
-  const description =
-    seo?.defaultDescription[locale]?.trim() || t.meta.description;
+  const description = seo?.defaultDescription[locale]?.trim() || t.meta.description;
   /**
    * There is no `keywords` here on purpose. Google has ignored
    * `<meta name="keywords">` since 2009, Bing treats it as a weak spam signal,
@@ -74,7 +72,14 @@ export async function generateMetadata({
    */
 
   const canIndex = isIndexableDeployment(process.env) && !(await getSiteSettings()).maintenanceMode;
-  const images = [{ url: seo?.defaultOgImageUrl ? absoluteUrl(seo.defaultOgImageUrl) : localeUrl(locale, "/social-image"), alt: title }];
+  const images = [
+    {
+      url: seo?.defaultOgImageUrl
+        ? absoluteUrl(seo.defaultOgImageUrl)
+        : localeUrl(locale, "/social-image"),
+      alt: title,
+    },
+  ];
 
   return {
     // Makes every relative URL below (canonical, OG image) resolve to an absolute one
@@ -109,7 +114,6 @@ export async function generateMetadata({
       card: "summary_large_image",
       title,
       description,
-      creator: "@Nassican",
       images,
     },
     robots: {
@@ -152,7 +156,7 @@ export default async function RootLayout({
 
   const preview = await isPreview();
 
-  const [profile, experience, education, certificates, settings, nav, seo] =
+  const [profile, experience, education, certificates, settings, nav, seo, skillGroups] =
     await Promise.all([
       getProfile(),
       getExperience(),
@@ -161,6 +165,7 @@ export default async function RootLayout({
       getSiteSettings(),
       getNavigation(locale),
       getSeoSettings(),
+      getSkillGroups(),
     ]);
 
   return (
@@ -168,11 +173,7 @@ export default async function RootLayout({
     // handling: hash links from another route land at the top instead of on
     // the section. The attribute tells Next to scroll instantly during a
     // route transition and leave smooth scrolling for in-page anchors.
-    <html
-      lang={htmlLang[locale]}
-      data-scroll-behavior="smooth"
-      suppressHydrationWarning
-    >
+    <html lang={htmlLang[locale]} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         {/* Applies the stored theme before paint to avoid a flash of the wrong one */}
         <script
@@ -191,6 +192,7 @@ export default async function RootLayout({
                 experience,
                 education,
                 certificates,
+                skills: skillGroups.flatMap((g) => g.items.map((item) => item.name)),
               }),
             ),
           }}
@@ -243,7 +245,11 @@ export default async function RootLayout({
               <Script id="ga-init" strategy="lazyOnload">
                 {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(id)});`}
               </Script>
-              <Script id="ga" strategy="lazyOnload" src={`https://www.googletagmanager.com/gtag/js?id=${id}`} />
+              <Script
+                id="ga"
+                strategy="lazyOnload"
+                src={`https://www.googletagmanager.com/gtag/js?id=${id}`}
+              />
             </>
           );
         })()}

@@ -6,6 +6,8 @@ import { requireUser } from "@/lib/session";
 import { getTimezone } from "@/lib/site-config";
 import { quoteDocument, quotePdfFilename } from "@/lib/pricing-quote-document";
 import { createQuotePdf } from "@/lib/pricing-quote-pdf";
+import { billingAvailable } from "@/lib/billing";
+import { billingMinor, parseBillingDetails } from "@/lib/billing-values";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +25,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     readFile(path.join(process.cwd(), "src/app/icon.png")),
   ]);
   const document = quoteDocument({ ...quote, final: Number(quote.final) }, timezone);
+  if (await billingAvailable()) {
+    const plan = await db.billingPlan.findUnique({ where: { quoteId: id } });
+    if (plan && billingMinor(plan.amount.toString()) === billingMinor(Number(quote.final)) && plan.currency === quote.currency)
+      document.billing = parseBillingDetails(plan.details, Number(plan.amount));
+  }
   const bytes = await createQuotePdf(document, {
     logo,
     name: profile?.fullName,

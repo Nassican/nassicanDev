@@ -17,6 +17,7 @@ import { setPricingQuoteStatus } from "@/lib/pricing";
 import { moveToTrash, TRASH_DAYS } from "@/lib/trash";
 import { savePricingFinancial } from "@/lib/pricing";
 import { financialProblems, readFinancial } from "@/lib/pricing-financial";
+import { BillingInputError } from "@/lib/billing-values";
 import type { PricingFinancialDraft } from "@/lib/pricing-draft";
 
 export type PricingActionResult = { ok: boolean; message: string; id?: string };
@@ -111,7 +112,13 @@ export async function changeQuoteStatusAction(
   const user = await requireUser();
   if (!["draft", "sent", "accepted", "rejected", "expired"].includes(status))
     return { ok: false, message: "Estado inválido." };
-  const outcome = await setPricingQuoteStatus(id, status);
+  let outcome: Awaited<ReturnType<typeof setPricingQuoteStatus>>;
+  try {
+    outcome = await setPricingQuoteStatus(id, status);
+  } catch (error) {
+    if (error instanceof BillingInputError) return { ok: false, message: error.message };
+    throw error;
+  }
   if (!outcome.ok) return outcome;
   const { row } = outcome;
   if (outcome.changed)

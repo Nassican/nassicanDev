@@ -1,8 +1,9 @@
-import type { PricingSnapshot, PricingStatus, PricingUnit } from "@nassican/shared";
+import type { BillingPlanDetails, PricingSnapshot, PricingStatus, PricingUnit } from "@nassican/shared";
 import { modeLabels, scopeLabels } from "./pricing-draft";
 
 /** Explicit allowlist of information suitable for the client-facing document. */
 export type QuoteDocument = {
+  billing?: BillingPlanDetails;
   reference: string;
   title: string;
   client: string;

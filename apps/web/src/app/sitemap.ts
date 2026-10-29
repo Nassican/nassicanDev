@@ -11,17 +11,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [entries, profile] = await Promise.all([getDiscoveryEntries(), getProfile()]);
   return [
     ...entries.map((entry) => {
-      const languages: Record<string, string> = Object.fromEntries(entries
-        .filter((other) => other.path === entry.path)
-        .map((other) => [other.locale, localeUrl(other.locale, other.path)]));
+      const languages: Record<string, string> = Object.fromEntries(
+        entries
+          .filter((other) => other.path === entry.path)
+          .map((other) => [other.locale, localeUrl(other.locale, other.path)]),
+      );
       if (languages.es) languages["x-default"] = languages.es;
       return {
         url: localeUrl(entry.locale, entry.path),
-        ...(entry.updated ? { lastModified: entry.updated } : {}),
+        ...(entry.updated || (entry.path === "/profile" && profile.updated)
+          ? { lastModified: entry.updated || profile.updated }
+          : {}),
         alternates: { languages },
       };
     }),
-    ...profile.cv.filter((cv) => new URL(absoluteUrl(cv.href)).origin === new URL(siteUrl).origin)
+    ...profile.cv
+      .filter((cv) => new URL(absoluteUrl(cv.href)).origin === new URL(siteUrl).origin)
       .map((cv) => ({ url: absoluteUrl(cv.href) })),
   ];
 }

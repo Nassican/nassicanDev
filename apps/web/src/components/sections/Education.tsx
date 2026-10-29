@@ -7,38 +7,24 @@ import type { Dictionary } from "@/lib/i18n";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { BsArrowRight, BsArrowUpRight, BsMortarboard } from "react-icons/bs";
 
-export default async function Education({
-  locale,
-  t,
-}: {
-  locale: Locale;
-  t: Dictionary;
-}) {
+export default async function Education({ locale, t }: { locale: Locale; t: Dictionary }) {
   const education = await getEducation();
   return (
-    <section
-      id="education"
-      className="mx-auto max-w-5xl scroll-mt-24 px-4 py-16 md:scroll-mt-28"
-    >
+    <section id="education" className="mx-auto max-w-5xl scroll-mt-24 px-4 py-16 md:scroll-mt-28">
       <div className="mb-6 flex items-end justify-between gap-3">
         <SectionTitle>{t.education.title}</SectionTitle>
         <Link
           href={localePath(locale, "/certificates")}
-          aria-label={t.footer.certificates}
           className="flex shrink-0 items-center gap-1 rounded-full border border-black/10 px-3 py-1.5 text-xs text-zinc-700 transition hover:bg-zinc-900/5 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
         >
-          {t.education.viewCertificates}{" "}
-          <BsArrowRight className="h-4 w-4" aria-hidden />
+          {t.education.viewCertificates} <BsArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {education.map((e: EducationItem) => {
           const completed = e.status === "completed";
           return (
-            <Card
-              key={e.title[locale] + e.org}
-              className="flex flex-col bg-white dark:bg-black"
-            >
+            <Card key={e.title[locale] + e.org} className="flex flex-col bg-white dark:bg-black">
               <div className="flex items-start gap-3">
                 <BsMortarboard
                   className="mt-0.5 h-5 w-5 shrink-0 text-zinc-400 dark:text-zinc-500"
@@ -57,9 +43,7 @@ export default async function Education({
                     </span>
                   </div>
                   <h3 className="mt-1 text-sm font-medium">{e.title[locale]}</h3>
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {e.org}
-                  </div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">{e.org}</div>
                 </div>
               </div>
               <p className="mt-3 flex-1 text-sm text-zinc-700 dark:text-zinc-300">

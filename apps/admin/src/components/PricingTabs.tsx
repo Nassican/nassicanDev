@@ -3,6 +3,7 @@ import Link from "next/link";
 export const pricingTabs = [
   ["calculate", "Calcular", "/precios"],
   ["quotes", "Cotizaciones", "/precios/cotizaciones"],
+  ["billing", "Cuotas y cobros", "/precios/cobros"],
   ["market", "Mercado", "/precios/mercado"],
   ["regions", "Regiones", "/precios/regiones"],
   ["settings", "Parámetros", "/precios/parametros"],

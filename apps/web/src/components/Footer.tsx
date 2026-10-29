@@ -5,6 +5,7 @@ import type { NavLink, NavTree } from "@nassican/shared";
 import { getProfile } from "@/lib/data/profile";
 import type { Dictionary } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/config";
+import { localePath } from "@/lib/i18n/config";
 import { isExternalLink, navHref } from "@/lib/nav";
 
 export default async function Footer({
@@ -46,6 +47,12 @@ export default async function Footer({
             </div>
           </div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">{t.footer.tagline}</p>
+          <Link
+            className="inline-block text-sm underline underline-offset-4"
+            href={localePath(locale, "/profile")}
+          >
+            {locale === "es" ? "Perfil profesional de Nassican" : "Nassican’s professional profile"}
+          </Link>
           <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300">
             {profile.socials.map((social) => {
               const Icon = socialIcons[social.label as keyof typeof socialIcons];
@@ -75,8 +82,17 @@ export default async function Footer({
               column: they are documents about the person, and `download` plus
               `hrefLang` is not something the link editor can express. */}
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-            <li><a href={profile.cv[0].href} hrefLang="es" download aria-label={`${t.contact.download} ${profile.cv[0].label[locale]}`} className="hover:underline">{t.footer.cvEs}</a></li>
-            <li><a href={profile.cv[1].href} hrefLang="en" download aria-label={`${t.contact.download} ${profile.cv[1].label[locale]}`} className="hover:underline">{t.footer.cvEn}</a></li>
+            {profile.cv.map((cv) => (
+              <li key={cv.href}>
+                <a href={cv.href} hrefLang={cv.lang} download className="hover:underline">
+                  {cv.lang === "es"
+                    ? t.footer.cvEs
+                    : cv.lang === "en"
+                      ? t.footer.cvEn
+                      : cv.label[locale] || cv.lang}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
 

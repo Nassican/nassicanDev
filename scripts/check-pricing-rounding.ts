@@ -1,4 +1,4 @@
-/** Apply only the commercial-rounding migration, backing up settings and checking quote immutability. */
+/** Apply only reviewed commercial migrations, backing up settings and checking quote immutability. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readdir, writeFile, mkdir } from "node:fs/promises";
@@ -68,11 +68,22 @@ async function main() {
       const pending = (await readdir("packages/db/prisma/migrations", { withFileTypes: true }))
         .filter((entry) => entry.isDirectory() && !known.has(entry.name))
         .map((entry) => entry.name);
-      assert.deepEqual(
-        pending,
-        ["20261028010000_pricing_commercial_rounding"],
-        "Only the reviewed commercial-rounding migration may be pending.",
-      );
+      if (process.argv.includes("--with-billing")) {
+        const reviewed = new Set([
+          "20261028010000_pricing_commercial_rounding",
+          "20261028020000_billing_plans",
+        ]);
+        assert.ok(
+          pending.length > 0 && pending.every((name) => reviewed.has(name)),
+          "Only the reviewed rounding and billing migrations may be pending.",
+        );
+      } else {
+        assert.deepEqual(
+          pending,
+          ["20261028010000_pricing_commercial_rounding"],
+          "Only the reviewed commercial-rounding migration may be pending.",
+        );
+      }
       const directory = join(tmpdir(), "nassican-pricing-qa");
       await mkdir(directory, { recursive: true });
       await writeFile(

@@ -4,7 +4,15 @@ import { useState } from "react";
 import { BsDownload } from "react-icons/bs";
 import { pricingButton } from "./PricingFields";
 
-export default function PricingPdfDownload({ id }: { id: string }) {
+export default function PricingPdfDownload({
+  id,
+  kind = "quote",
+  label = "Descargar PDF",
+}: {
+  id: string;
+  kind?: "quote" | "charge" | "plan";
+  label?: string;
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   return (
@@ -18,7 +26,7 @@ export default function PricingPdfDownload({ id }: { id: string }) {
           setError("");
           try {
             const response = await fetch(
-              `/api/precios/cotizaciones/${encodeURIComponent(id)}/pdf`,
+              `/api/precios/${kind === "charge" ? "cobros" : kind === "plan" ? "planes" : "cotizaciones"}/${encodeURIComponent(id)}/pdf`,
               { cache: "no-store" },
             );
             if (
@@ -50,7 +58,7 @@ export default function PricingPdfDownload({ id }: { id: string }) {
         }}
       >
         <BsDownload aria-hidden />
-        {pending ? "Generando PDF…" : "Descargar PDF"}
+        {pending ? "Generando PDF…" : label}
       </button>
       {error ? (
         <p role="alert" className="mt-2 max-w-sm text-xs text-neutral-400">

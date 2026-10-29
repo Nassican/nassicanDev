@@ -2036,6 +2036,7 @@ model ClientProject {
   clientId String? @map("client_id")
   client PricingClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
   pricingQuote PricingQuote?
+  billingPlan BillingPlan?
   entries ClientProjectEntry[]
 
   @@index([status])
@@ -2415,6 +2416,7 @@ model MarketQuote {
 /// The snapshot freezes evidence, parameters and explanation at decision time.
 model PricingQuote {
   id String @id @default(uuid())
+  billingPlan BillingPlan?
   clientId String? @map("client_id")
   serviceId String @map("service_id")
   title String
@@ -2434,4 +2436,59 @@ model PricingQuote {
   project ClientProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   @@index([status, createdAt])
   @@map("pricing_quotes")
+}
+
+/// Operator's private issuer/bank details, never part of the public website.
+model BillingIssuerSettings {
+  id String @id @default("singleton")
+  details Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("billing_issuer_settings")
+}
+
+model BillingPlan {
+  id String @id @default(uuid())
+  quoteId String? @unique @map("quote_id")
+  projectId String? @unique @map("project_id")
+  title String
+  amount Decimal @db.Decimal(18, 2)
+  currency Currency
+  unit PricingUnit @default(project)
+  details Json
+  revision Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  quote PricingQuote? @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  project ClientProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  charges BillingCharge[]
+  @@map("billing_plans")
+}
+
+model BillingCharge {
+  id String @id @default(uuid())
+  sequence Int @unique @default(autoincrement())
+  planId String @map("plan_id")
+  installmentId String @map("installment_id")
+  amount Decimal @db.Decimal(18, 2)
+  currency Currency
+  snapshot Json
+  canceledAt DateTime? @map("canceled_at")
+  cancellationReason String? @map("cancellation_reason")
+  createdAt DateTime @default(now()) @map("created_at")
+  plan BillingPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  receipts BillingReceipt[]
+  @@index([planId])
+  @@map("billing_charges")
+}
+
+model BillingReceipt {
+  id String @id @default(uuid())
+  chargeId String @map("charge_id")
+  amount Decimal @db.Decimal(18, 2)
+  paidAt String @map("paid_at")
+  reference String
+  createdAt DateTime @default(now()) @map("created_at")
+  charge BillingCharge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+  @@index([chargeId, paidAt])
+  @@map("billing_receipts")
 }

@@ -87,14 +87,11 @@ export default function ProjectCard({
 
       <Link
         href={href}
-        aria-label={project.title}
+        aria-label={`${project.comingSoon ? t.projects.comingSoon : t.projects.caseStudy}: ${project.title}`}
         className="group mt-4 inline-flex items-center gap-1.5 self-start text-sm text-zinc-700 underline-offset-4 transition hover:underline dark:text-zinc-300"
       >
         {project.comingSoon ? t.projects.comingSoon : t.projects.caseStudy}
-        <BsArrowRight
-          className="h-3.5 w-3.5 transition group-hover:translate-x-0.5"
-          aria-hidden
-        />
+        <BsArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" aria-hidden />
       </Link>
     </Card>
   );

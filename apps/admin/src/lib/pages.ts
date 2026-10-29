@@ -17,6 +17,7 @@ export const systemRoutes: { route: string; label: string }[] = [
   { route: "/projects", label: "Proyectos" },
   { route: "/blog", label: "Blog" },
   { route: "/certificates", label: "Certificados" },
+  { route: "/profile", label: "Perfil profesional" },
 ];
 
 function emptyTranslation(locale: Locale): PageTranslationDraft {

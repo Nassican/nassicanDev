@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { canonicalOrigin } from "@nassican/shared";
-import { skills } from "./data";
+import { identityDescription, identityTitle, publicProfileLinks } from "./identity";
 import type { PageSeoOverride } from "./data/pages";
 import type {
   Certificate,
@@ -22,15 +22,10 @@ export type SiteData = {
   experience: ExperienceItem[];
   education: EducationItem[];
   certificates: Certificate[];
+  skills?: string[];
 };
 import { getDictionary } from "./i18n";
-import {
-  defaultLocale,
-  locales,
-  localePath,
-  openGraphLocale,
-  type Locale,
-} from "./i18n/config";
+import { defaultLocale, locales, localePath, openGraphLocale, type Locale } from "./i18n/config";
 
 /**
  * Canonical origin of the site. Override with NEXT_PUBLIC_SITE_URL when the
@@ -41,12 +36,10 @@ export const siteUrl = canonicalOrigin(process.env.NEXT_PUBLIC_SITE_URL);
 export const siteName = "Nassican";
 
 /** Absolute URL helper: every SEO surface needs fully-qualified URLs. */
-export const absoluteUrl = (path = "/") =>
-  new URL(path, `${siteUrl}/`).href;
+export const absoluteUrl = (path = "/") => new URL(path, `${siteUrl}/`).href;
 
 /** Absolute URL of `path` in a given language. */
-export const localeUrl = (locale: Locale, path = "/") =>
-  absoluteUrl(localePath(locale, path));
+export const localeUrl = (locale: Locale, path = "/") => absoluteUrl(localePath(locale, path));
 
 /**
  * `alternates` for a canonical (unprefixed) path: the canonical URL of the
@@ -60,7 +53,8 @@ export function alternatesFor(
 ): NonNullable<Metadata["alternates"]> {
   const languages: Record<string, string> = {};
   for (const l of availableLocales) languages[l] = localeUrl(l, path);
-  if (availableLocales.includes(defaultLocale)) languages["x-default"] = localeUrl(defaultLocale, path);
+  if (availableLocales.includes(defaultLocale))
+    languages["x-default"] = localeUrl(defaultLocale, path);
 
   return {
     canonical: localeUrl(locale, path),
@@ -112,15 +106,24 @@ export function pageMetadata({
 
   if (override?.title) title = override.title;
   if (override?.description) description = override.description;
-  const images = [{ url: image ? absoluteUrl(image) : localeUrl(locale, "/social-image"), alt: title }];
+  const images = [
+    { url: image ? absoluteUrl(image) : localeUrl(locale, "/social-image"), alt: title },
+  ];
   const canIndex = indexable && !override?.noindex;
 
   return {
     title,
     description,
     robots: {
-      index: canIndex, follow: true,
-      googleBot: { index: canIndex, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+      index: canIndex,
+      follow: true,
+      googleBot: {
+        index: canIndex,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
     },
     alternates: alternatesFor(locale, path, availableLocales),
     openGraph: {
@@ -131,15 +134,12 @@ export function pageMetadata({
       title,
       description,
       images,
-      ...(type === "article"
-        ? { publishedTime, modifiedTime, authors: [siteUrl], tags }
-        : null),
+      ...(type === "article" ? { publishedTime, modifiedTime, authors: [siteUrl], tags } : null),
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      creator: "@Nassican",
       images,
     },
   };
@@ -150,7 +150,6 @@ export function pageMetadata({
 /* -------------------------------------------------------------------------- */
 
 /** Flat list of skill names, used for Person.knowsAbout. */
-const skillNames = Object.values(skills).flat();
 
 /**
  * Entity ids are language-independent on purpose: the same person and the
@@ -163,7 +162,7 @@ const blogId = absoluteUrl("/#blog");
 
 function person(
   locale: Locale,
-  { profile, experience, education, certificates, description }: SiteData,
+  { profile, experience, education, certificates, description, skills = [] }: SiteData,
 ) {
   const t = getDictionary(locale);
 
@@ -171,14 +170,15 @@ function person(
     "@type": "Person",
     "@id": personId,
     name: profile.name,
-    alternateName: ["Nassican", "Jesús Benavides"],
-    url: siteUrl,
+    alternateName: ["Nassican"],
+    url: absoluteUrl("/profile"),
     email: `mailto:${profile.email}`,
     jobTitle: profile.title[locale] || t.meta.jobTitle,
-    description: description || t.meta.description,
-    image: absoluteUrl("/brand/LogoNassican.png"),
-    knowsAbout: skillNames,
-    knowsLanguage: [...locales],
+    description: identityDescription(locale, profile, description),
+    ...(profile.avatar && !/\/brand\/|LogoNassican/i.test(profile.avatar)
+      ? { image: absoluteUrl(profile.avatar) }
+      : {}),
+    ...(skills.length ? { knowsAbout: [...new Set(skills)] } : {}),
     address: {
       "@type": "PostalAddress",
       addressLocality: profile.location.city,
@@ -190,19 +190,19 @@ function person(
       name: e.title[locale],
       description: e.desc[locale],
       skills: e.stack,
-      occupationLocation: {
-        "@type": "City",
-        name: profile.location.city,
-      },
     })),
-    worksFor: experience.filter((e) => !e.end).map((e) => ({
-      "@type": "Organization",
-      name: e.org,
-    })),
-    alumniOf: education.map((e) => ({
-      "@type": "EducationalOrganization",
-      name: e.org,
-    })),
+    worksFor: experience
+      .filter((e) => !e.end)
+      .map((e) => ({
+        "@type": "Organization",
+        name: e.org,
+      })),
+    alumniOf: education
+      .filter((e) => e.status === "completed")
+      .map((e) => ({
+        "@type": "EducationalOrganization",
+        name: e.org,
+      })),
     hasCredential: [
       // Completed degrees first, then the shorter course certificates
       ...education
@@ -222,7 +222,7 @@ function person(
         recognizedBy: { "@type": "Organization", name: c.provider },
       })),
     ],
-    sameAs: profile.socials.map((s) => s.href),
+    sameAs: publicProfileLinks(profile).map((s) => s.href),
     // The CV PDFs are documents *about* this Person, one per language
     subjectOf: profile.cv.map((c) => ({
       "@type": "CreativeWork",
@@ -275,20 +275,19 @@ function projectNode(locale: Locale, p: ProjectItem) {
   const c = p.content[locale];
 
   return {
-    "@type": "SoftwareSourceCode",
+    "@type": p.repo && /^https?:\/\//i.test(p.repo) ? "SoftwareSourceCode" : "CreativeWork",
     "@id": localeUrl(locale, `/projects/${p.slug}`),
     name: p.title,
     headline: c.tagline,
     // Falls back to the tagline while the case study is still unwritten.
     description: c.summary ?? c.tagline,
     url: localeUrl(locale, `/projects/${p.slug}`),
-    sameAs: p.demo,
+    ...(/^https?:\/\//i.test(p.demo) ? { sameAs: p.demo } : {}),
     inLanguage: locale,
     datePublished: p.date,
-    programmingLanguage: p.stack,
     keywords: p.stack.join(", "),
     author: { "@id": personId },
-    ...(p.repo && p.repo !== "#" ? { codeRepository: p.repo } : {}),
+    ...(p.repo && /^https?:\/\//i.test(p.repo) ? { codeRepository: p.repo } : {}),
     ...(p.image ? { image: absoluteUrl(p.image) } : {}),
   };
 }
@@ -316,8 +315,29 @@ export function siteJsonLd(locale: Locale, data: SiteData) {
   };
 }
 
+/** The profile references the single site-wide Person rather than defining another. */
+export function profileJsonLd(locale: Locale, profile: Profile) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    "@id": localeUrl(locale, "/profile"),
+    url: localeUrl(locale, "/profile"),
+    name: identityTitle(locale, profile),
+    description: identityDescription(locale, profile),
+    inLanguage: locale,
+    ...(profile.updated ? { dateModified: profile.updated } : {}),
+    mainEntity: { "@id": personId },
+    about: { "@id": personId },
+    isPartOf: { "@id": websiteId },
+  };
+}
+
 /** Homepage-only graph: the ProfilePage itself plus the project list. */
-export function homeJsonLd(locale: Locale, projects: ProjectItem[]) {
+export function homeJsonLd(
+  locale: Locale,
+  projects: ProjectItem[],
+  identity?: { title: string; description: string },
+) {
   const t = getDictionary(locale);
 
   return {
@@ -328,8 +348,8 @@ export function homeJsonLd(locale: Locale, projects: ProjectItem[]) {
         "@type": "ProfilePage",
         "@id": localeUrl(locale, "/"),
         url: localeUrl(locale, "/"),
-        name: t.meta.title,
-        description: t.meta.description,
+        name: identity?.title ?? t.meta.title,
+        description: identity?.description ?? t.meta.description,
         inLanguage: locale,
         isPartOf: { "@id": websiteId },
         about: { "@id": personId },
@@ -339,10 +359,7 @@ export function homeJsonLd(locale: Locale, projects: ProjectItem[]) {
   };
 }
 
-export function certificatesJsonLd(
-  locale: Locale,
-  certificates: Certificate[],
-) {
+export function certificatesJsonLd(locale: Locale, certificates: Certificate[]) {
   const t = getDictionary(locale);
 
   return {
@@ -358,9 +375,7 @@ export function certificatesJsonLd(
         isPartOf: { "@id": websiteId },
         about: { "@id": personId },
       },
-      breadcrumb(locale, [
-        { name: t.certificates.title, path: "/certificates" },
-      ]),
+      breadcrumb(locale, [{ name: t.certificates.title, path: "/certificates" }]),
       {
         "@type": "ItemList",
         name: t.certificates.title,
@@ -377,7 +392,13 @@ export function certificatesJsonLd(
             recognizedBy: { "@type": "Organization", name: c.provider },
             // The diploma itself, so a crawler reading the credential can see it.
             ...(c.image
-              ? { image: { "@type": "ImageObject", url: absoluteUrl(c.image.url), caption: c.image.alt[locale] } }
+              ? {
+                  image: {
+                    "@type": "ImageObject",
+                    url: absoluteUrl(c.image.url),
+                    caption: c.image.alt[locale],
+                  },
+                }
               : {}),
             about: c.category[locale],
           },
@@ -424,11 +445,7 @@ export function projectJsonLd(locale: Locale, p: ProjectItem) {
   };
 }
 
-export function blogJsonLd(
-  locale: Locale,
-  publishedPosts: Post[],
-  profile: Profile,
-) {
+export function blogJsonLd(locale: Locale, publishedPosts: Post[], profile: Profile) {
   const t = getDictionary(locale);
 
   return {

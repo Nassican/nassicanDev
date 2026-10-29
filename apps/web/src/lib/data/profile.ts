@@ -1,12 +1,7 @@
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { db } from "@nassican/db";
-import {
-  CACHE_SECONDS,
-  cacheTags,
-  locales,
-  type Locale,
-  type Localized,
-} from "@nassican/shared";
+import { CACHE_SECONDS, cacheTags, locales, type Locale, type Localized } from "@nassican/shared";
 
 export type CvFile = {
   /** ISO 639-1 code, used for hrefLang and the schema's inLanguage. */
@@ -21,6 +16,7 @@ export type SocialLink = {
 };
 
 export type Profile = {
+  updated?: string;
   name: string;
   title: Localized<string>;
   email: string;
@@ -51,34 +47,31 @@ async function readProfile(): Promise<Profile> {
 
   if (!row) {
     // Failing loudly beats rendering a portfolio with nobody's name on it.
-    throw new Error(
-      "No hay fila de perfil en la base de datos. Ejecuta: npm run profile:import",
-    );
+    throw new Error("No hay fila de perfil en la base de datos. Ejecuta: npm run profile:import");
   }
 
-  const localized = <T,>(pick: (locale: Locale) => T): Localized<T> =>
+  const localized = <T>(pick: (locale: Locale) => T): Localized<T> =>
     Object.fromEntries(locales.map((l) => [l, pick(l)])) as Localized<T>;
 
   return {
     name: row.fullName,
-    title: localized(
-      (l) => row.translations.find((t) => t.locale === l)?.headline ?? "",
-    ),
+    updated: row.updatedAt.toISOString(),
+    title: localized((l) => row.translations.find((t) => t.locale === l)?.headline ?? ""),
     email: row.email,
     avatar: row.avatar?.url,
     location: (row.location ?? {}) as Profile["location"],
-    socials: ((row.socials as { items?: SocialLink[] } | null)?.items ?? []),
+    socials: (row.socials as { items?: SocialLink[] } | null)?.items ?? [],
     cv: row.cvs.map((cv) => ({
       lang: cv.lang,
       href: cv.href,
-      label: localized(
-        (l) => cv.translations.find((t) => t.locale === l)?.label ?? "",
-      ),
+      label: localized((l) => cv.translations.find((t) => t.locale === l)?.label ?? ""),
     })),
   };
 }
 
-export const getProfile = unstable_cache(readProfile, ["profile"], {
-  tags: [cacheTags.profile],
-  revalidate: CACHE_SECONDS,
-});
+export const getProfile = cache(
+  unstable_cache(readProfile, ["profile"], {
+    tags: [cacheTags.profile],
+    revalidate: CACHE_SECONDS,
+  }),
+);

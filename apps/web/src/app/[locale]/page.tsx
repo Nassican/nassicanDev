@@ -1,6 +1,5 @@
 import { serializeJsonLd } from "@nassican/shared";
-import { pageMetadata } from "@/lib/page-metadata";
-import { getSeoSettings } from "@/lib/data/seo-settings";
+import { getHomeIdentity } from "@/lib/home-identity";
 import { notFound } from "next/navigation";
 import type { HomeSectionKey } from "@nassican/shared";
 import Hero from "@/components/sections/Hero";
@@ -28,10 +27,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: PageParams) {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
-  const seo = await getSeoSettings();
-  const t = getDictionary(locale);
-  const metadata = await pageMetadata({ locale, path: "/", title: seo?.defaultTitle[locale] || t.meta.title, description: seo?.defaultDescription[locale] || t.meta.description, type: "profile" });
-  return { ...metadata, title: { absolute: String(metadata.title) } };
+  return (await getHomeIdentity(locale)).metadata;
 }
 
 export default async function Home({ params }: PageParams) {
@@ -41,11 +37,12 @@ export default async function Home({ params }: PageParams) {
 
   // One Promise.all: the skills groups are independent of everything else here,
   // so asking for them after would cost a whole round trip for nothing.
-  const [projects, sections, settings, skillGroups] = await Promise.all([
+  const [projects, sections, settings, skillGroups, identity] = await Promise.all([
     getProjectsByDate(),
     getHomeSections(),
     getSiteSettings(),
     getSkillGroups(),
+    getHomeIdentity(locale),
   ]);
 
   /**
@@ -58,10 +55,8 @@ export default async function Home({ params }: PageParams) {
    */
   const render: Record<HomeSectionKey, () => React.ReactNode> = {
     hero: () => <Hero key="hero" locale={locale as Locale} t={t} />,
-    about: () => <About key="about" t={t} />,
-    skills: () => (
-      <Skills key="skills" locale={locale as Locale} t={t} groups={skillGroups} />
-    ),
+    about: () => <About key="about" t={t} locale={locale} profile={identity.profile} />,
+    skills: () => <Skills key="skills" locale={locale as Locale} t={t} groups={skillGroups} />,
     experience: () => <Experience key="experience" locale={locale as Locale} t={t} />,
     education: () => <Education key="education" locale={locale as Locale} t={t} />,
     projects: () => <Projects key="projects" locale={locale as Locale} t={t} />,
@@ -78,26 +73,32 @@ export default async function Home({ params }: PageParams) {
 
   return (
     <>
-    <main className="mx-auto max-w-full">
-      {/* ProfilePage + project list; the Person/WebSite graph lives in the layout */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(homeJsonLd(locale, sections.some((s) => s.key === "projects" && s.isVisible) ? projects.filter((p) => p.featured !== false) : [])),
-        }}
-      />
-      {sections
-        .filter((section) => section.isVisible)
-        .map((section) => render[section.key]())}
-    </main>
-    {/*
+      <main className="mx-auto max-w-full">
+        {/* ProfilePage + project list; the Person/WebSite graph lives in the layout */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: serializeJsonLd(
+              homeJsonLd(
+                locale,
+                sections.some((s) => s.key === "projects" && s.isVisible)
+                  ? projects.filter((p) => p.featured !== false)
+                  : [],
+                { title: identity.title, description: identity.description },
+              ),
+            ),
+          }}
+        />
+        {sections.filter((section) => section.isVisible).map((section) => render[section.key]())}
+      </main>
+      {/*
       Here and not in the layout. The arrows step between this page's sections;
       on an article or the blog index there are none, and they sat in the corner
       doing nothing — over the reading timeline, on a wide screen.
     */}
-    {settings.showSectionNavigator ? (
-      <SectionNavigator previousLabel={t.nav.previousSection} nextLabel={t.nav.nextSection} />
-    ) : null}
+      {settings.showSectionNavigator ? (
+        <SectionNavigator previousLabel={t.nav.previousSection} nextLabel={t.nav.nextSection} />
+      ) : null}
     </>
   );
 }

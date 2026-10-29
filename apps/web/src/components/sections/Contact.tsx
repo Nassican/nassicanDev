@@ -35,15 +35,7 @@ function fileSize(href: string) {
   }
 }
 
-
-
-export default async function Contact({
-  locale,
-  t,
-}: {
-  locale: Locale;
-  t: Dictionary;
-}) {
+export default async function Contact({ t }: { locale: Locale; t: Dictionary }) {
   const profile = await getProfile();
   const cvFiles = profile.cv.map((c) => ({ ...c, size: fileSize(c.href) }));
   const channels = [
@@ -64,14 +56,9 @@ export default async function Contact({
   ];
 
   return (
-    <section
-      id="contact"
-      className="mx-auto max-w-5xl scroll-mt-24 px-4 py-16 md:scroll-mt-28"
-    >
+    <section id="contact" className="mx-auto max-w-5xl scroll-mt-24 px-4 py-16 md:scroll-mt-28">
       <SectionTitle className="mb-4">{t.contact.title}</SectionTitle>
-      <p className="mb-8 max-w-[55ch] text-zinc-700 dark:text-zinc-300">
-        {t.contact.intro}
-      </p>
+      <p className="mb-8 max-w-[55ch] text-zinc-700 dark:text-zinc-300">{t.contact.intro}</p>
 
       <div className="grid gap-4 md:grid-cols-5">
         <div className="flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white/50 backdrop-blur-sm dark:border-white/10 dark:bg-black/40 md:col-span-3">
@@ -80,10 +67,7 @@ export default async function Contact({
               <li key={label} className="flex-1">
                 <a
                   href={href}
-                  aria-label={label}
-                  {...(external
-                    ? { target: "_blank", rel: "noreferrer" }
-                    : null)}
+                  {...(external ? { target: "_blank", rel: "noreferrer" } : null)}
                   className="group flex h-full items-center gap-4 px-5 py-4 transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
                 >
                   <Icon
@@ -119,7 +103,6 @@ export default async function Contact({
                   hrefLang={c.lang}
                   type="application/pdf"
                   download
-                  aria-label={`${t.contact.download} ${c.label[locale]}`}
                   className="group flex items-center gap-3 rounded-xl border border-black/10 px-3 py-3 transition hover:border-zinc-700 hover:bg-zinc-900/5 dark:border-white/10 dark:hover:border-zinc-200 dark:hover:bg-white/5"
                 >
                   <BsFiletypePdf

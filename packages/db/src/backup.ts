@@ -506,6 +506,7 @@ export const REPLACED_ON_RESTORE = [
   "PricingClient", "PricingClientFinancial", "PricingClientSignal", "PricingService", "PricingServiceComponent",
   "PricingTier", "PricingSettings", "GeoPlace", "PricingRegion", "PricingRegionFactor",
   "PricingIncomeEstimate", "MarketQuote", "PricingQuote",
+  "BillingIssuerSettings", "BillingPlan", "BillingCharge", "BillingReceipt",
 ] as const satisfies readonly ModelName[];
 
 /**

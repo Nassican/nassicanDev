@@ -30,6 +30,8 @@ import {
   type PricingServiceDraft,
 } from "./pricing-draft";
 import { pricingReminders, defaultPricingTiers } from "./pricing-draft";
+import { billingAvailable } from "./billing";
+import { BillingInputError, billingMinor } from "./billing-values";
 
 let roundingSchemaReady: Promise<boolean> | undefined;
 export function pricingRoundingSchemaReady(): Promise<boolean> {
@@ -683,6 +685,7 @@ export async function setPricingQuoteStatus(
   status: import("@nassican/shared").PricingStatus,
 ) {
   const evidence = await db.pricingQuote.findUniqueOrThrow({ where: { id } });
+  const billingReady = await billingAvailable();
   return db.$transaction(async (tx) => {
     if (status !== "accepted") {
       const current = await tx.pricingQuote.findUniqueOrThrow({ where: { id } });
@@ -725,6 +728,17 @@ export async function setPricingQuoteStatus(
         projectCreated: false,
         client: evidence.snapshot.client.name,
       };
+    const billingPlan = billingReady
+      ? await tx.billingPlan.findUnique({ where: { quoteId: id } })
+      : null;
+    if (
+      billingPlan &&
+      (billingMinor(billingPlan.amount.toString()) !== billingMinor(current.final.toString()) ||
+        billingPlan.currency !== current.currency)
+    )
+      throw new BillingInputError(
+        "El plan de cuotas no coincide con el precio final. Actualízalo antes de aceptar la cotización.",
+      );
     const project = await tx.clientProject.create({
       data: {
         title: current.title,
@@ -739,6 +753,11 @@ export async function setPricingQuoteStatus(
       },
     });
     const row = await tx.pricingQuote.update({ where: { id }, data: { projectId: project.id } });
+    if (billingPlan)
+      await tx.billingPlan.update({
+        where: { id: billingPlan.id },
+        data: { projectId: project.id },
+      });
     return {
       ok: true as const,
       row,
