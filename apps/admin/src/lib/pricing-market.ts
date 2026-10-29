@@ -329,7 +329,10 @@ export function marketRegionComparison(
     trm,
   );
   const byId = new Map(quotes.map((q) => [q.id, q]));
-  const regions = new Map<string, { label: string; prices: number[] }>();
+  const regions = new Map<
+    string,
+    { label: string; location: PricingLocation; prices: number[]; evidenceIds: string[] }
+  >();
   for (const evidence of comparable.evidence) {
     const location = marketLocation(byId.get(evidence.id)!);
     const parts = [location.country, location.department, location.municipality];
@@ -337,13 +340,17 @@ export function marketRegionComparison(
     const previous = regions.get(key);
     regions.set(key, {
       label: previous?.label ?? parts.filter(Boolean).join(", "),
+      location,
       prices: [...(previous?.prices ?? []), evidence.price],
+      evidenceIds: [...(previous?.evidenceIds ?? []), evidence.id],
     });
   }
   return {
     groups: [...regions].map(([key, region]) => ({
       key,
       label: region.label,
+      location: region.location,
+      evidenceIds: region.evidenceIds,
       ...marketStats(region.prices, request.outlierMultiplier),
     })),
     notes: comparable.notes,

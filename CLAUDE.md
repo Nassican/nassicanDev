@@ -2929,6 +2929,86 @@ escribir, cancelación, creación, componentes de un paquete y guardado y recarg
 de un servicio desechable, en escritorio y móvil, claro y oscuro. Pasaron tipos,
 lint, 382 pruebas y build; no hay PrismaClient en los bundles del navegador.
 
+**Comparación completa y mapa local.** Mercado ofrece «Todos» para servicios,
+alcances, unidades y modalidades. `pricing-comparison.ts` genera grupos
+independientes por esas cuatro dimensiones y región, conservando precio y
+condiciones de cada fuente. No promedia una hora con una mensualidad ni agrega
+distintos servicios en un precio global. Cada grupo muestra rango, mediana,
+promedio, cantidad de referencias y proveedores distintos; al abrirlo aparecen
+los entregables, origen, fecha y enlace de los precios incluidos. Los filtros
+siguen en la URL y se conservan al buscar referencias. «Mostrar todo» restablece
+la vista; un precio nacional permanece nacional, sin inventar cobertura local.
+
+`PricingRegionMap` se comparte entre Mercado y Regiones. Mercado colorea solo
+departamentos con precios elegibles para los filtros aplicados, permite filtrar
+por clic/teclado/selector y mantiene las ofertas nacionales fuera de esa
+cobertura. En Regiones navega por bases de ingresos, conserva la selección de
+municipio y muestra factores generales por modalidad. El mapa distingue
+referencias locales de herencia nacional; los escenarios comerciales por
+estrato siguen etiquetados. La geometría es local, de referencia, sin teselas,
+claves ni geocodificación externa. Incluye zoom de selección, vista completa,
+ampliación hasta 32 veces, arrastre de ratón y controles de desplazamiento por
+botón y teclado. En móvil el arrastre táctil se activa expresamente para
+conservar el desplazamiento normal de la página. La captura del puntero empieza
+solo tras detectar movimiento, de modo que una pulsación sigue seleccionando
+el departamento y arrastrar no aplica otra zona accidentalmente. Bogotá y
+San Andrés/Providencia tienen accesos ampliados, además de sus geometrías.
+Los selectores y tablas permiten consultar todos los lugares sin depender del
+tamaño de una figura. La paleta neutral del panel ya se invierte por tema:
+no se debe volver a invertir con variantes dark para el fondo o las figuras.
+
+«Zona a comparar» agrupa los departamentos con y sin comparables e indica
+cantidades. Los accesos rápidos muestran las zonas disponibles y las referencias
+nacionales. `departmentCode=national` consulta solo referencias de Colombia sin
+ubicación departamental o municipal; no toma precios extranjeros ni distribuye
+el dato nacional por departamentos. Las zonas del selector se calculan con los
+filtros que el operador está eligiendo, incluso antes de aplicarlos; se indica
+cuando los resultados aún corresponden a los filtros anteriores. Elegir una zona
+aplica la selección completa. En móvil el selector precede al mapa. Las opciones
+sin datos siguen disponibles y su estado vacío ofrece ampliar condiciones o
+consultar referencias nacionales sin cambiar el servicio seleccionado. Regiones
+también distingue en sus opciones bases locales y herencia nacional.
+
+El mapa incluye un selector municipal en cascada. En Mercado, `municipalityCode`
+se valida con DIVIPOLA y debe pertenecer a `departmentCode`; al cambiar de
+departamento, elegir la vista nacional o cambiar condiciones se limpia el
+municipio anterior. Las opciones municipales incluyen únicamente localidades
+del departamento con evidencias elegibles para servicio, alcance, unidad,
+modalidad, fecha y moneda. Se cuentan las referencias por código, no se inventan
+valores para municipios sin muestra. Elegir un municipio filtra exclusivamente
+sus precios: no incorpora los del departamento, país o una localidad vecina.
+Un enlace antiguo sin comparables conserva el municipio identificado como
+inactivo para no sustituirlo silenciosamente por otra región. Los filtros se
+conservan al recargar y buscar referencias.
+
+En Regiones, el mapa muestra todos los municipios del departamento con su tipo
+de referencia. El selector municipal del mapa, el acceso rápido y los campos
+de ubicación comparten `incomeLocation`. Al elegir otro departamento se limpian
+los municipios anteriores; el acceso rápido también limita sus opciones a ese
+departamento. La cartografía sigue mostrando departamentos, mientras el filtro
+consulta datos municipales, sin añadir límites o coordenadas municipales.
+
+`docs/pricing-map-data.md` documenta la geometría de geoBoundaries/OSM,
+referencia 2017 y licencia ODbL de la base derivada. Son 33 geometrías con código
+DIVIPOLA y unos 53 KB de trazados simplificados; los nombres se actualizan desde
+el catálogo del panel. No son límites municipales o legales actuales. El
+archivo conserva fuente, revisión y SHA-256 y se reproduce con
+`scripts/build-pricing-map.py`. Los títulos SVG deben ser una sola cadena de
+texto: varios hijos generan separadores SSR que causan desajuste de hidratación.
+
+Pasaron tipos, lint, 395 pruebas y build. Los trece casos nuevos cubren todas
+las combinaciones, enlaces de filtros, procedencia de evidencias, monedas,
+fechas, proveedores distintos y cobertura cartográfica. La comprobación
+`scripts/check-pricing-explorer-ui.cjs`, con sesión local desechable, pasó en la
+compilación de producción: 44 capturas a 1440 y 390 px en claro/oscuro, fuentes,
+selectores con cantidades, consulta nacional, filtros y estados vacíos,
+clic/teclado/zoom/arrastre/tacto, islas, Pasto, Medellín y Bogotá, cascada
+municipal, recarga de la URL y limpieza de opciones anteriores. Sin desajustes de
+hidratación, errores de página, peticiones cartográficas externas ni
+desbordamiento del documento. Se inspeccionaron las capturas; no hay
+PrismaClient en los bundles del navegador. Las filas y sesión de QA se retiran
+con `scripts/check-pricing.ts --cleanup`.
+
 **Estudio de mercado ampliado, consulta del 28 de octubre de 2026.**
 `scripts/data/pricing-market-study-2026-10.json` añade 29 ofertas públicas de
 16 proveedores para 13 servicios: 19 proyectos, 8 mensualidades y 2 horas.

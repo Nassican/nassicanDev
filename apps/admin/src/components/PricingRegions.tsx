@@ -15,6 +15,7 @@ import {
   resolveRegionalIncome,
   incomeCityOptions,
   sameIncomeLocation,
+  resolveRegionFactor,
   emptyRegionFactor,
   incomeEstimateProblems,
   observedRegionalFactor,
@@ -29,9 +30,11 @@ import DateField from "./DateField";
 import Toast, { type ToastResult } from "./Toast";
 import PricingTabs from "./PricingTabs";
 import PricingLocationFields from "./PricingLocationFields";
+import PricingRegionMap from "./PricingRegionMap";
+import { pricingMapDepartments, pricingDepartmentCode } from "@/lib/pricing-map";
 import ListFilters from "./ListFilters";
 import { Pager, usePage } from "./Pager";
-import { filterList, type ListFilters as Filters } from "@/lib/list-filters";
+import { filterList, fold, type ListFilters as Filters } from "@/lib/list-filters";
 import {
   PricingLabel as Label,
   PricingSection as Section,
@@ -71,6 +74,42 @@ export default function PricingRegions({
   }));
   const regionalAverage = estimatedRegionalIncome(view.incomes, incomeLocation, null);
   const selectedIncomeCity = incomeCities.find((city) => sameIncomeLocation(city, incomeLocation));
+  const incomeMapCode = pricingDepartmentCode(incomeLocation, view.places);
+  const displayedIncomeCities =
+    fold(incomeLocation.country) === "colombia"
+      ? incomeCities.filter((city) => !incomeMapCode || city.departmentCode === incomeMapCode)
+      : [];
+  const incomeMapEntries = Object.fromEntries(
+    pricingMapDepartments(view.places).map((department) => {
+      const location = { country: "Colombia", department: department.name, municipality: "" };
+      const base = estimatedRegionalIncome(
+        view.incomes,
+        department.code === incomeMapCode && incomeLocation.municipality
+          ? incomeLocation
+          : location,
+        null,
+      );
+      return [
+        department.code,
+        {
+          optionLabel: base
+            ? base.municipality
+              ? "base municipal registrada"
+              : base.department
+                ? "base departamental"
+                : "base nacional heredada"
+            : "sin base de ingresos",
+          available: view.incomes.some((estimate) =>
+            sameIncomeLocation({ ...estimate, municipality: "" }, location),
+          ),
+          detail: base
+            ? `${base.municipality ? `Base municipal de ${base.municipality}` : base.department ? "Base departamental" : "Base nacional heredada"}: ${pricingMoney(base.income)} per cápita/mes (${base.date}). Consulta los estratos y la fuente debajo.`
+            : "Sin base de ingresos configurada",
+        },
+      ];
+    }),
+  );
+  const incomeFactorResolver = resolveRegionFactor(view.factors);
   const [target, setTarget] = useState<PricingLocation>({
     country: "Colombia",
     department: "",
@@ -414,6 +453,60 @@ export default function PricingRegions({
           escenario desde la base municipal, departamental o nacional, en ese orden. Las referencias
           per cápita del hogar no son salarios personales ni ingresos verificados.
         </p>
+        <PricingRegionMap
+          places={view.places}
+          selectedCode={incomeMapCode}
+          entries={incomeMapEntries}
+          title="Mapa de bases de ingresos"
+          municipality={{
+            value: selectedIncomeCity?.code ?? "",
+            options: displayedIncomeCities.map((city) => ({
+              value: city.code,
+              label: `${city.municipality}: ${city.label}`,
+            })),
+            label: "Municipio para consultar en el mapa",
+            emptyText: "Selecciona un departamento para consultar sus municipios.",
+            onChange: (code) => {
+              const city = displayedIncomeCities.find((p) => p.code === code);
+              setIncomeLocation((location) => ({
+                ...location,
+                municipality: city?.municipality ?? "",
+              }));
+            },
+          }}
+          onSelect={(code) => {
+            const place = view.places.find((p) => p.departmentCode === code);
+            setIncomeLocation({
+              country: "Colombia",
+              department: place?.department ?? "",
+              municipality: code === "11" ? (place?.municipality ?? "") : "",
+            });
+          }}
+        />
+        <p className="text-xs text-neutral-500">
+          El mapa muestra cobertura de referencias registradas, no ingresos observados de todos los
+          municipios. Selecciona el municipio para distinguir una base local de una heredada y de
+          los escenarios comerciales por estrato.
+        </p>
+        <div
+          className="flex flex-wrap gap-3 text-xs text-neutral-500"
+          aria-label="Factores generales de la ubicación"
+        >
+          {(["remote", "onsite", "hybrid"] as const).map((mode) => {
+            const factor = incomeFactorResolver(incomeLocation, "", mode);
+            return (
+              <p key={mode}>
+                {modeLabels[mode]}: × {grouped(factor.factor)} ({factor.level},{" "}
+                {factor.origin === "observed"
+                  ? "observado"
+                  : factor.origin === "missing"
+                    ? "sin dato, neutro"
+                    : "estimado"}
+                )
+              </p>
+            );
+          })}
+        </div>
         <Label label="Ciudad o municipio para consultar ingresos">
           <select
             className={field}
@@ -430,7 +523,7 @@ export default function PricingRegions({
             }}
           >
             <option value="">Otra región o municipio</option>
-            {incomeCities.map((city) => (
+            {displayedIncomeCities.map((city) => (
               <option key={city.code} value={city.code}>
                 {city.municipality}, {city.department}: {city.label}
               </option>
@@ -438,9 +531,10 @@ export default function PricingRegions({
           </select>
         </Label>
         <p className="text-xs text-neutral-500">
-          Incluye los {incomeCities.length} lugares de DIVIPOLA. Indica las referencias registradas
-          y el origen de la base del modelo. Puedes usar los filtros de departamento y municipio
-          para encontrar tu ubicación y registrar un valor local que sustituya el modelo.
+          El catálogo contiene {incomeCities.length} lugares de DIVIPOLA. El selector muestra{" "}
+          {displayedIncomeCities.length} opciones de la región elegida. Cambia el departamento para
+          consultar sus municipios; cada opción indica las referencias registradas y la base del
+          modelo.
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           <PricingLocationFields
